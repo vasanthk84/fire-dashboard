@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FIRE Architect Pro | Freedom Edition</title>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --bg-card: #1e293b;
+      --bg-input: #334155;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --accent-green: #10b981;
+      --accent-orange: #f59e0b;
+      --accent-purple: #8b5cf6;
+      --accent-pink: #ec4899;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      background-image: radial-gradient(#1e293b 1px, transparent 1px);
+      background-size: 24px 24px;
+      padding-bottom: 50px;
+    }
+
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .input-deck {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .deck-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-header {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    .card-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .input-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .input-wrapper label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .input-wrapper input {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      width: 100%;
+      height: 38px;
+    }
+
+    .input-wrapper input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .action-bar {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 24px;
+    }
+
+    .btn-run {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0 24px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+      font-size: 0.85rem;
+      height: 38px;
+      min-width: 150px;
+    }
+
+    .btn-run:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-dl {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .stat-box.highlight {
+      background: linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.1));
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .stat-title {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .stat-num {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+      background: var(--bg-card);
+      padding: 4px;
+      border-radius: 8px;
+      width: fit-content;
+      border: 1px solid var(--border);
+    }
+
+    .tab {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tab.active {
+      background: var(--bg-input);
+      color: white;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 24px;
+    }
+
+    .expense-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      height: fit-content;
+    }
+
+    .expense-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 0.85rem;
+    }
+
+    .expense-row label {
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .expense-row input {
+      width: 90px;
+      text-align: right;
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 6px 10px;
+      border-radius: 4px;
+    }
+
+    .total-expense {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px dashed var(--border);
+      display: flex;
+      justify-content: space-between;
+      font-weight: 700;
+      color: var(--accent-pink);
+      font-size: 1.1rem;
+    }
+
+    .chart-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      height: 420px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .chart-title {
+      font-weight: 600;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chart-wrapper {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .table-wrapper {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    .table-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.3);
+    }
+
+    .control-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    .mini-select {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      outline: none;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      background: rgba(15, 23, 42, 0.5);
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    td {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem;
+      font-family: 'SF Mono', monospace;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .milestone-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      margin-right: 4px;
+      border: 1px solid transparent;
+    }
+
+    .ms-wealth {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent-orange);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .ms-life {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .ms-epf {
+      background: rgba(139, 92, 246, 0.15);
+      color: var(--accent-purple);
+      border-color: rgba(139, 92, 246, 0.3);
+    }
+
+    .ms-expense {
+      background: rgba(236, 72, 153, 0.15);
+      color: var(--accent-pink);
+      border-color: rgba(236, 72, 153, 0.3);
+    }
+
+    .one-time-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .checkbox-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      user-select: none;
+    }
+
+    .checkbox-wrapper input {
+      accent-color: var(--primary);
+    }
+
+    .one-time-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .tax-proof-card {
+      margin-top: 16px;
+      background: rgba(236, 72, 153, 0.1);
+      border: 1px dashed var(--accent-pink);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.8rem;
+      animation: slideDown 0.3s ease;
+    }
+
+    .tax-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      color: var(--text-muted);
+    }
+
+    .tax-row.final {
+      border-top: 1px solid rgba(236, 72, 153, 0.3);
+      padding-top: 4px;
+      margin-top: 4px;
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .apexcharts-tooltip {
+      background: #1e293b !important;
+      border-color: #334155 !important;
+      color: #f8fafc;
+    }
+
+    .apexcharts-tooltip-title {
+      background: #0f172a !important;
+      border-bottom: 1px solid #334155 !important;
+      font-family: 'Inter', sans-serif !important;
+    }
+
+    .apexcharts-text {
+      fill: #94a3b8 !important;
+      font-family: 'Inter', sans-serif !important;
+    }
+
+    .apexcharts-gridline {
+      stroke: transparent !important;
+    }
+
+    .apexcharts-legend-text {
+      color: #94a3b8 !important;
+      font-family: 'Inter', sans-serif !important;
+    }
+
+    .apexcharts-menu {
+      background: #1e293b !important;
+      border-color: #334155 !important;
+      color: #f8fafc !important;
+    }
+
+    .apexcharts-menu-item:hover {
+      background: #334155 !important;
+    }
+
+    .apexcharts-xaxis-annotations text {
+      fill: #000000 !important;
+      font-weight: 700 !important;
+    }
+
+    .apexcharts-yaxis text {
+      fill: #94a3b8 !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+    const Icon = ({ name, color }) => <i data-lucide={name} style={{ color: color || 'currentColor', width: '16px', height: '16px' }}></i>;
+
+    const ApexChartComponent = ({ options, series, type }) => {
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+      useEffect(() => {
+        if (chartRef.current) {
+          if (chartInstance.current) chartInstance.current.destroy();
+
+          // DO NOT force toolbar.show = false or zoom.enabled = false here
+          // Let individual chart options control it
+          const baseChartConfig = {
+            type,
+            height: '100%',
+            fontFamily: 'Inter, sans-serif',
+            background: 'transparent'
+          };
+
+          const mergedChartConfig = { ...baseChartConfig, ...(options.chart || {}) };
+
+          const defaultOptions = {
+            theme: { mode: 'dark' },
+            stroke: { curve: 'smooth', width: type === 'bar' ? 0 : 3 },
+            dataLabels: { enabled: false },
+            grid: { show: false, padding: { top: 0, right: 0, bottom: 0, left: 10 } },
+            xaxis: { tooltip: { enabled: false }, axisBorder: { show: false }, axisTicks: { show: false }, labels: { style: { colors: '#94a3b8' } } },
+            yaxis: {
+              min: 0, max: 100,
+              labels: {
+                style: { colors: '#94a3b8' },
+                formatter: (val) => `${val.toFixed(0)}%`
+              }
+            },
+            legend: { position: 'bottom', horizontalAlign: 'center', offsetY: 0 },
+            tooltip: { theme: 'dark', y: { formatter: (val) => `${val.toFixed(1)}%` } },
+            ...options,
+            chart: mergedChartConfig
+          };
+
+          chartInstance.current = new ApexCharts(chartRef.current, { ...defaultOptions, series });
+          chartInstance.current.render();
+        }
+        return () => {
+          if (chartInstance.current) chartInstance.current.destroy();
+        };
+      }, [series, options, type]);
+
+      return <div ref={chartRef} style={{ width: '100%', height: '100%' }}></div>;
+    };
+
+    function App() {
+      const [inputs, setInputs] = useState({
+        startYear: 2025, retirementYear: 2035,
+        mfCurrent: 122, stocksIndia: 29.6, us401k: 52000, usStocks: 16, emergencyFund: 10,
+        epfCurrent: 62.93, basicPay: 34900, epfRate: 0.0825, vpfRate: 0.88,
+        bondsInitial: 18, bondAnnualIncrease: 0.01, bondRate: 0.10,
+        mfSIP: 1.2, sipStepUpRate: 0.10, optionSellingMonthly: 0.20,
+        annualSalary: 94000, returnYear: 2030, withdraw401kYear: 2033,
+        usdToInr: 83, usdExchangeRate: 95,
+        mfRate: 0.12, inflationRate: 0.06,
+        applyTax: false,
+        fireMultiplier: 25,
+        enableRebalancing: false,
+        targetEquityPre: 90,
+        targetEquityPost: 60,
+        glideYears: 10
+      });
+
+      const [expenses, setExpenses] = useState({
+        groceries: 15000, staples: 5000, utility: 3000, broadband: 1000, sim: 500, gas: 1000,
+        tuition: 15000, kidsExp: 5000, eatingOut: 5000, misc: 5000, shopping: 5000, eatables: 2000
+      });
+
+      const [showOneTime, setShowOneTime] = useState(false);
+      const [oneTimeExpenses, setOneTimeExpenses] = useState({
+        appliances: 0, interiors: 500000, renovation: 0, twoWheeler: 0, car: 0, bikeRepair: 0, miscBuffer: 0
+      });
+
+      const [results, setResults] = useState(null);
+      const [activeTab, setActiveTab] = useState('fire');
+      const [selectedWithdrawalRate, setSelectedWithdrawalRate] = useState('4%');
+      const [useBuckets, setUseBuckets] = useState(false);
+
+      useEffect(() => { if (window.lucide) window.lucide.createIcons(); }, []);
+
+      const handleInput = (key, val) => {
+        const numVal = parseFloat(val);
+        setInputs(p => ({ ...p, [key]: isNaN(numVal) ? val : numVal }));
+      };
+
+      const handleExpense = (key, val) => setExpenses(p => ({ ...p, [key]: parseFloat(val) || 0 }));
+
+      const handleOneTime = (key, val) => {
+        const newVal = parseFloat(val) || 0;
+        setOneTimeExpenses(p => {
+          const updated = { ...p, [key]: newVal };
+          const newTotalOneTime = Object.values(updated).reduce((a, b) => a + b, 0);
+          calculate({ oneTimeExpenseTotal: newTotalOneTime });
+          return updated;
+        });
+      };
+
+      const calculate = async (overrideInputs = null) => {
+        try {
+          const totalMonthlyExp = Object.values(expenses).reduce((a, b) => a + b, 0);
+          const currentTotalOneTime = showOneTime
+            ? Object.values(oneTimeExpenses).reduce((a, b) => a + b, 0)
+            : 0;
+
+          const payload = {
+            ...inputs,
+            monthlyExpenses: totalMonthlyExp,
+            oneTimeExpenseTotal: currentTotalOneTime,
+            expenses,
+            oneTimeExpenses,
+            ...(overrideInputs || {})
+          };
+
+          const res = await fetch('http://localhost:3001/api/calculate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          setResults(await res.json());
+        } catch (e) { console.error(e); }
+      };
+
+      const downloadExcel = async () => {
+        if (!results) return;
+        const payload = {
+          ...results,
+          expenses,
+          oneTimeExpenses: showOneTime ? oneTimeExpenses : null
+        };
+
+        const res = await fetch('http://localhost:3001/api/generate-excel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'FIRE_Freedom_Plan_Pro.xlsx'; a.click();
+      };
+
+      const currentMonthlyExp = useMemo(() => Object.values(expenses).reduce((a, b) => a + b, 0), [expenses]);
+      const currentAnnualExp = currentMonthlyExp * 12;
+      const taxDrag = inputs.applyTax ? 0.125 : 0;
+      const fireNumberLakhs = useMemo(() => {
+        if (currentAnnualExp === 0) return 0;
+        return (currentAnnualExp * inputs.fireMultiplier) / (1 - taxDrag) / 100000;
+      }, [currentAnnualExp, inputs.fireMultiplier, taxDrag]);
+
+      const currentWealthLakhs = results ? results.summary.startWealth :
+        (inputs.mfCurrent + inputs.stocksIndia + inputs.usStocks + inputs.emergencyFund + inputs.epfCurrent + inputs.bondsInitial);
+
+      const progressToFire = fireNumberLakhs > 0 ? Math.min((currentWealthLakhs / fireNumberLakhs) * 100, 100) : 0;
+
+      const yearsToFI = useMemo(() => {
+        if (!results || fireNumberLakhs <= 0) return null;
+        const targetLakhs = fireNumberLakhs;
+        const proj = results.fireProjections;
+        for (let i = 0; i < proj.length; i++) {
+          if (proj[i].total >= targetLakhs) {
+            return i;
+          }
+        }
+        return null;
+      }, [results, fireNumberLakhs]);
+
+      const equityAllocationData = useMemo(() => {
+        if (!results) return { drift: [], rebalanced: [], target: [], years: [] };
+
+        const years = results.fireProjections.map(p => p.year);
+        const drift = [];
+        const rebalanced = [];
+        const target = [];
+
+        let prevEquity = 0;
+        let prevFixed = 0;
+
+        results.fireProjections.forEach((p, i) => {
+          const isPostRetirement = p.year >= inputs.retirementYear;
+          const yearsSinceRetire = p.year - inputs.retirementYear;
+          let targetPct = inputs.targetEquityPre;
+          if (isPostRetirement && inputs.glideYears > 0) {
+            const progress = Math.min(yearsSinceRetire / inputs.glideYears, 1);
+            targetPct = inputs.targetEquityPre + progress * (inputs.targetEquityPost - inputs.targetEquityPre);
+          } else if (isPostRetirement) {
+            targetPct = inputs.targetEquityPost;
+          }
+          target.push(Math.round(targetPct));
+
+          const equity = p.mf + p.stocksIndia + p.usStocks;
+          const total = p.total || 1;
+          drift.push(Math.round((equity / total) * 100));
+
+          if (inputs.enableRebalancing) {
+            if (i === 0) {
+              prevEquity = equity;
+              prevFixed = total - equity;
+              rebalanced.push(drift[0]);
+            } else {
+              let grownEquity = prevEquity * (1 + inputs.mfRate);
+              let grownFixed = prevFixed * 0.07;
+              let grownTotal = grownEquity + grownFixed;
+
+              let targetEquityAmt = grownTotal * (targetPct / 100);
+              grownEquity = targetEquityAmt;
+              grownFixed = grownTotal - targetEquityAmt;
+
+              rebalanced.push(Math.round((grownEquity / grownTotal) * 100));
+
+              prevEquity = grownEquity;
+              prevFixed = grownFixed;
+            }
+          }
+        });
+
+        return { drift, rebalanced: inputs.enableRebalancing ? rebalanced : [], target, years };
+      }, [results, inputs.enableRebalancing, inputs.targetEquityPre, inputs.targetEquityPost, inputs.glideYears, inputs.retirementYear, inputs.mfRate]);
+
+      const equityPctSeries = useMemo(() => {
+        const series = [
+          { name: 'Natural Drift', data: equityAllocationData.drift }
+        ];
+        if (inputs.enableRebalancing) {
+          series.push({ name: 'With Rebalancing', data: equityAllocationData.rebalanced });
+        }
+        series.push({ name: 'Target Equity %', data: equityAllocationData.target });
+        return series;
+      }, [equityAllocationData, inputs.enableRebalancing]);
+
+      const equityPctOptions = useMemo(() => ({
+        chart: { type: 'area' },
+        xaxis: { categories: equityAllocationData.years },
+        colors: ['#f59e0b', '#10b981', '#6366f1'],
+        fill: { opacity: [0.6, 0.4, 0] },
+        stroke: { width: [3, 3, 2], dashArray: [0, 0, 5] },
+        annotations: {
+          yaxis: [{
+            y: 80,
+            borderColor: '#ef4444',
+            label: { text: 'High Risk Zone', style: { color: '#fff', background: '#ef4444' } }
+          }]
+        }
+      }), [equityAllocationData.years]);
+
+      const incomeExpenseSeries = useMemo(() => {
+        if (!results) return [];
+        const expenseData = results.fireProjections.map(p => p.year < inputs.returnYear ? null : p.calculatedMonthlyExpense);
+        const passiveData = results.fireProjections.map(p => parseFloat(p.passiveIncomeMonthly.toFixed(2)));
+        return [
+          { name: `Passive Income ${inputs.applyTax ? '(Post-Tax)' : ''}`, type: 'area', data: passiveData },
+          { name: 'Inflated Expenses', type: 'line', data: expenseData }
+        ];
+      }, [results, inputs.returnYear, inputs.applyTax]);
+
+      const incomeExpenseOptions = useMemo(() => {
+        if (!results) return {};
+        return {
+          xaxis: { categories: results.fireProjections.map(p => p.year) },
+          colors: ['#00e396', '#ff9f43'],
+          fill: { type: ['gradient', 'solid'], gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.1, stops: [0, 90, 100] } },
+          stroke: { width: [3, 3], curve: 'smooth' },
+          annotations: {
+            xaxis: [
+              { x: inputs.returnYear, strokeDashArray: 0, borderColor: '#00cfe8', label: { borderColor: '#00cfe8', style: { color: '#000', background: '#00cfe8' }, text: 'India Return' } },
+              { x: inputs.retirementYear, strokeDashArray: 0, borderColor: '#fbbf24', label: { borderColor: '#fbbf24', style: { color: '#000', background: '#fbbf24' }, text: 'Retire' } }
+            ]
+          }
+        }
+      }, [results, inputs.returnYear, inputs.retirementYear]);
+
+      const netWorthSeries = useMemo(() => {
+        if (!results) return [];
+        return [
+          { name: 'Mutual Funds', data: results.fireProjections.map(p => parseFloat(p.mf.toFixed(2))) },
+          { name: 'Stocks India', data: results.fireProjections.map(p => parseFloat(p.stocksIndia.toFixed(2))) },
+          { name: 'EPF', data: results.fireProjections.map(p => parseFloat(p.epf.toFixed(2))) },
+          { name: 'Bonds', data: results.fireProjections.map(p => parseFloat(p.bonds.toFixed(2))) }
+        ];
+      }, [results]);
+
+      const netWorthOptions = useMemo(() => {
+        if (!results) return {};
+        return {
+          chart: {
+            type: 'bar',
+            stacked: true,
+            height: 350,
+            toolbar: {
+              show: true,
+              tools: {
+                download: true,
+                selection: true,
+                zoom: true,
+                zoomin: true,
+                zoomout: true,
+                pan: true,
+                reset: true
+              },
+              autoSelected: 'zoom'  // ✅ ADDED - Starts with zoom tool active  
+            },
+            zoom: {
+              enabled: true,
+              type: 'x',
+              autoScaleYaxis: true,
+              zoomedArea: {  // ✅ ADDED - Styling for zoomed area
+                fill: {
+                  color: '#6366f1',
+                  opacity: 0.4
+                },
+                stroke: {
+                  color: '#6366f1',
+                  opacity: 0.8,
+                  width: 1
+                }
+              }
+            },
+            selection: {  // ✅ ADDED - Selection box styling
+              enabled: true,
+              type: 'x',
+              fill: {
+                color: '#6366f1',
+                opacity: 0.1
+              },
+              stroke: {
+                width: 1,
+                dashArray: 3,
+                color: '#6366f1',
+                opacity: 0.4
+              }
+            }
+        },
+          xaxis: {
+          categories: results.fireProjections.map(p => p.year),
+            labels: { rotate: -45 }
+        },
+        colors: ['#6366f1', '#f59e0b', '#8b5cf6', '#10b981'],
+          fill: { opacity: 1 },
+        stroke: { width: 1, colors: ['#fff'] },
+        plotOptions: { bar: { borderRadius: 6, columnWidth: '65%' } },
+        dataLabels: { enabled: false },
+        legend: { position: 'right', offsetY: 80 },
+        tooltip: {
+          shared: true,
+            intersect: false,
+              y: {
+            formatter: (val, { dataPointIndex }) => {
+              const total = results.fireProjections[dataPointIndex].total;
+              const pct = total > 0 ? (val / total * 100).toFixed(1) : 0;
+              return `${fmtL(val)} (${pct}%)`;
+            }
+          }
+        },
+        yaxis: {
+          labels: {
+            formatter: (val) => val >= 100 ? `${(val / 100).toFixed(1)} Cr` : `${val.toFixed(0)} L`
+          }
+        },
+        grid: { show: true, strokeDashArray: 4 }
+      };
+    }, [results]);
+
+    const swrScenarios = useMemo(() => {
+      if (!results) return {};
+      const baseCorpusLakhs = results.summary.finalWealth;
+      const swr = 1 / inputs.fireMultiplier;
+      const scenarios = {
+        'Good (14% avg)': { annualReturn: 0.14, color: '#10b981' },
+        'Average (12% avg)': { annualReturn: 0.12, color: '#6366f1' },
+        'Bad Sequence (-30% first 5y, then 12%)': { annualReturn: null, color: '#ef4444' }
+      };
+      const output = {};
+      Object.entries(scenarios).forEach(([name, cfg]) => {
+        let corpus = baseCorpusLakhs;
+        const data = [];
+        for (let y = 0; y <= 25; y++) {
+          const withdrawalAnnual = corpus * swr;
+          let ret = cfg.annualReturn;
+          if (name.includes('Bad') && y < 5) ret = -0.30;
+          else if (name.includes('Bad') && y >= 5) ret = 0.12;
+          corpus = corpus * (1 + (ret ?? 0)) - withdrawalAnnual;
+          if (corpus < 0) corpus = 0;
+          data.push({ year: inputs.retirementYear + y, corpusEnd: Math.round(corpus * 100) / 100 });
+        }
+        output[name] = { data, color: cfg.color };
+      });
+      return output;
+    }, [results, inputs.retirementYear, inputs.fireMultiplier]);
+
+    const fmtL = (v) => v < 100 ? `₹${v.toFixed(1)}L` : `₹${(v / 100).toFixed(2)} Cr`;
+    const fmtCr = (v) => `₹${(v / 100).toFixed(2)} Cr`;
+
+    const renderMilestones = (msList) => msList?.map((m, i) => {
+      let cls = 'ms-wealth';
+      if (m.text.includes('Return') || m.text.includes('Retirement')) cls = 'ms-life';
+      if (m.text.includes('Setup Cost')) cls = 'ms-expense';
+      if (m.text.includes('401k')) cls = 'ms-epf';
+      return <span key={i} className={`milestone-tag ${cls}`}>{m.text}</span>;
+    });
+
+    const sampleTaxYear = results?.fireProjections.find(p => p.year === inputs.retirementYear);
+
+    return (
+      <div className="app-container">
+        <div className="app-header">
+          <div className="brand"><span style={{ color: 'var(--primary)' }}><Icon name="flame" /></span><h1>FIRE Architect <span style={{ fontSize: '0.8rem', opacity: 0.6, fontWeight: 400 }}>| Freedom Edition</span></h1></div>
+          {results && <button className="btn-dl" onClick={downloadExcel}><Icon name="download" /> Excel Export</button>}
+        </div>
+
+        <div className="input-deck">
+          <div className="deck-card"><div className="card-header">Timeline</div><div className="card-inputs">
+            <div className="input-wrapper"><label>Start Year</label><input type="number" value={inputs.startYear} onChange={e => handleInput('startYear', e.target.value)} /></div>
+            <div className="input-wrapper"><label>Return India</label><input type="number" value={inputs.returnYear} onChange={e => handleInput('returnYear', e.target.value)} /></div>
+            <div className="input-wrapper"><label>Retire Year</label><input type="number" value={inputs.retirementYear} onChange={e => handleInput('retirementYear', e.target.value)} /></div>
+          </div></div>
+          <div className="deck-card"><div className="card-header" style={{ color: 'var(--accent-purple)' }}>EPF & Bonds</div><div className="card-inputs">
+            <div className="input-wrapper"><label>Current EPF (L)</label><input type="number" step="0.01" value={inputs.epfCurrent} onChange={e => handleInput('epfCurrent', e.target.value)} /></div>
+            <div className="input-wrapper"><label>VPF %</label><input type="number" step="0.01" value={inputs.vpfRate} onChange={e => handleInput('vpfRate', e.target.value)} /></div>
+            <div className="input-wrapper"><label>Bonds (L)</label><input type="number" value={inputs.bondsInitial} onChange={e => handleInput('bondsInitial', e.target.value)} /></div>
+            <div className="input-wrapper"><label>Bond Growth %</label><input type="number" step="0.01" value={inputs.bondAnnualIncrease} onChange={e => handleInput('bondAnnualIncrease', e.target.value)} /></div>
+          </div></div>
+          <div className="deck-card"><div className="card-header">Equity & Flows</div><div className="card-inputs">
+            <div className="input-wrapper"><label>MF Corpus (L)</label><input type="number" value={inputs.mfCurrent} onChange={e => handleInput('mfCurrent', e.target.value)} /></div>
+            <div className="input-wrapper"><label>SIP (L)</label><input type="number" value={inputs.mfSIP} onChange={e => handleInput('mfSIP', e.target.value)} /></div>
+            <div className="input-wrapper"><label>US 401k ($)</label><input type="number" value={inputs.us401k} onChange={e => handleInput('us401k', e.target.value)} /></div>
+            <div className="input-wrapper"><label>401k USD Rate</label><input type="number" value={inputs.usdExchangeRate} onChange={e => handleInput('usdExchangeRate', e.target.value)} /></div>
+          </div></div>
+        </div>
+
+        <div className="action-bar">
+          <button className="btn-run" onClick={() => calculate()}><Icon name="play" /> Run Projection</button>
+        </div>
+
+        {results && (
+          <div>
+            <div className="stats-row">
+              <div className="stat-box">
+                <div className="stat-title">Current FIRE Number ({inputs.fireMultiplier}x)</div>
+                <div className="stat-num">{fmtCr(fireNumberLakhs)}</div>
+                <div style={{ marginTop: '8px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  ₹{currentAnnualExp.toLocaleString()}/yr {taxDrag > 0 ? `+${(taxDrag * 100).toFixed(1)}% tax` : ''}
+                  <div style={{ marginTop: '4px' }}>
+                    <label style={{ fontSize: '0.75rem' }}>Multiplier:</label>
+                    <input type="number" min="20" max="50" step="1" value={inputs.fireMultiplier}
+                      onChange={e => handleInput('fireMultiplier', e.target.value)}
+                      style={{ width: '60px', marginLeft: '8px', padding: '4px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-main)' }} />
+                    x
+                  </div>
+                </div>
+              </div>
+              <div className="stat-box highlight">
+                <div className="stat-title">Progress to Freedom</div>
+                <div className="stat-num">{progressToFire.toFixed(1)}%</div>
+                <div style={{ width: '100%', background: 'var(--bg-input)', borderRadius: '6px', height: '10px', marginTop: '10px', overflow: 'hidden' }}>
+                  <div style={{ width: `${progressToFire}%`, background: 'linear-gradient(90deg, #10b981, #6366f1)', height: '100%', borderRadius: '6px' }}></div>
+                </div>
+              </div>
+              <div className="stat-box">
+                <div className="stat-title">Est. Years to FI</div>
+                <div className="stat-num">{yearsToFI !== null ? yearsToFI : '> ' + (inputs.retirementYear - inputs.startYear)}</div>
+                <div style={{ fontSize: '0.75rem', marginTop: '4px', color: 'var(--text-muted)' }}>on current trajectory</div>
+              </div>
+            </div>
+
+            <div className="tabs">
+              <button className={`tab ${activeTab === 'fire' ? 'active' : ''}`} onClick={() => setActiveTab('fire')}><Icon name="map" /> Freedom Journey</button>
+              <button className={`tab ${activeTab === 'risk' ? 'active' : ''}`} onClick={() => setActiveTab('risk')}><Icon name="alert-triangle" /> Risk & Allocation</button>
+              <button className={`tab ${activeTab === 'expenses' ? 'active' : ''}`} onClick={() => setActiveTab('expenses')}><Icon name="bar-chart-2" /> Expenses</button>
+              <button className={`tab ${activeTab === 'withdrawal' ? 'active' : ''}`} onClick={() => setActiveTab('withdrawal')}><Icon name="log-out" /> Withdrawal & SOR</button>
+            </div>
+
+            {activeTab === 'fire' && (
+              <div className="table-wrapper">
+                <div className="table-controls">
+                  <span className="control-label">Your Journey to Freedom</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Forecast CAGR:</span>
+                    <select className="mini-select" value={inputs.mfRate} onChange={e => { const r = parseFloat(e.target.value); setInputs(p => ({ ...p, mfRate: r })); calculate({ mfRate: r }); }}>
+                      <option value={0.12}>12% Conservative</option>
+                      <option value={0.14}>14% Moderate</option>
+                      <option value={0.16}>16% Aggressive</option>
+                      <option value={0.18}>18% Bull Run</option>
+                    </select>
+                  </div>
+                </div>
+                <table>
+                  <thead><tr><th>Year</th><th>SIP</th><th>MF</th><th>Stocks</th><th>EPF</th><th>401k (₹)</th><th>Total</th><th>One-Time</th><th>Milestones</th></tr></thead>
+                  <tbody>
+                    {results.fireProjections.map((p, i) => (
+                      <tr key={i}>
+                        <td>{p.year}</td>
+                        <td style={{ color: p.sipAmount > 0 ? 'var(--text-main)' : 'var(--text-muted)' }}>{p.sipAmount > 0 ? `₹${p.sipAmount.toFixed(1)}L` : '-'}</td>
+                        <td>{fmtL(p.mf)}</td>
+                        <td>{fmtL(p.stocksIndia)}</td>
+                        <td style={{ color: 'var(--accent-purple)' }}>{fmtL(p.epf)}</td>
+                        <td>{fmtL(p.us401k)}</td>
+                        <td style={{ fontWeight: 700 }}>{fmtL(p.total)}</td>
+                        <td style={{ color: 'var(--accent-pink)' }}>{p.oneTimeDeduction > 0 ? `-₹${p.oneTimeDeduction.toFixed(1)}L` : ''}</td>
+                        <td>{renderMilestones(p.milestones)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {activeTab === 'risk' && (
+              <div>
+                <div className="chart-container">
+                  <div className="chart-header">
+                    <div className="chart-title" style={{ color: '#f59e0b' }}><Icon name="pie-chart" /> Equity Allocation Over Time</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.85rem' }}>
+                      <label className="checkbox-wrapper">
+                        <input type="checkbox" checked={inputs.enableRebalancing} onChange={e => handleInput('enableRebalancing', e.target.checked)} />
+                        Enable Rebalancing
+                      </label>
+                    </div>
+                  </div>
+                  {inputs.enableRebalancing && (
+                    <div style={{ padding: '0 20px 12px', display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px', fontSize: '0.8rem' }}>
+                      <div className="input-wrapper">
+                        <label>Pre-Retirement Target %</label>
+                        <input type="number" min="50" max="100" step="5" value={inputs.targetEquityPre} onChange={e => handleInput('targetEquityPre', e.target.value)} />
+                      </div>
+                      <div className="input-wrapper">
+                        <label>Post-Retirement Target %</label>
+                        <input type="number" min="30" max="80" step="5" value={inputs.targetEquityPost} onChange={e => handleInput('targetEquityPost', e.target.value)} />
+                      </div>
+                      <div className="input-wrapper">
+                        <label>Glide Over (years)</label>
+                        <input type="number" min="0" max="20" value={inputs.glideYears} onChange={e => handleInput('glideYears', e.target.value)} />
+                      </div>
+                    </div>
+                  )}
+                  <div className="chart-wrapper"><ApexChartComponent type="area" series={equityPctSeries} options={equityPctOptions} /></div>
+                  <div style={{ padding: '12px 20px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    Orange = Natural Drift • Green = With Annual Rebalancing • Blue dashed = Your Target<br />
+                    <strong>Rebalancing significantly reduces sequence-of-returns risk in retirement.</strong>
+                  </div>
+                </div>
+
+                <div className="chart-container">
+                  <div className="chart-header"><div className="chart-title" style={{ color: 'var(--primary)' }}><Icon name="layers" /> Net Worth Composition</div></div>
+                  <div className="chart-wrapper"><ApexChartComponent type="bar" series={netWorthSeries} options={netWorthOptions} /></div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'expenses' && (
+              <div className="analysis-grid">
+                <div className="expense-panel">
+                  <div className="card-header" style={{ marginBottom: '16px', color: 'var(--accent-pink)' }}><Icon name="shopping-cart" /> Monthly Living Expenses</div>
+                  {Object.keys(expenses).map(key => (
+                    <div className="expense-row" key={key}><label style={{ textTransform: 'capitalize' }}>{key.replace(/([A-Z])/g, ' $1').trim()}</label><input type="number" value={expenses[key]} onChange={e => handleExpense(key, e.target.value)} /></div>
+                  ))}
+                  <div className="expense-row" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+                    <label>Inflation %</label><input type="number" step="0.01" value={inputs.inflationRate * 100} onChange={e => handleInput('inflationRate', (parseFloat(e.target.value) || 6) / 100)} />
+                  </div>
+                  <div className="total-expense"><span>Total Monthly:</span><span>₹{currentMonthlyExp.toLocaleString()}</span></div>
+
+                  {inputs.applyTax && sampleTaxYear && (
+                    <div className="tax-proof-card">
+                      <div style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--accent-pink)' }}>Tax Impact (Retirement Year)</div>
+                      <div className="tax-row"><span>Gross Passive</span><span>{fmtL(sampleTaxYear.passiveIncomeGross)}</span></div>
+                      <div className="tax-row"><span>Tax Drag (12.5%)</span><span>-{fmtL(sampleTaxYear.monthlyTax)}</span></div>
+                      <div className="tax-row final"><span>Net Income</span><span>{fmtL(sampleTaxYear.passiveIncomeMonthly)}</span></div>
+                    </div>
+                  )}
+
+                  <div className="one-time-section">
+                    <label className="checkbox-wrapper">
+                      <input type="checkbox" checked={showOneTime} onChange={e => { setShowOneTime(e.target.checked); calculate({ oneTimeExpenseTotal: e.target.checked ? Object.values(oneTimeExpenses).reduce((a, b) => a + b, 0) : 0 }); }} />
+                      Include Return-to-India Setup Costs?
+                    </label>
+                    {showOneTime && (
+                      <div className="one-time-grid">
+                        {Object.keys(oneTimeExpenses).map(key => (
+                          <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <label style={{ fontSize: '0.75rem', textTransform: 'capitalize' }}>{key.replace(/([A-Z])/g, ' $1').trim()}</label>
+                            <input type="number" value={oneTimeExpenses[key]} onChange={e => handleOneTime(key, e.target.value)} />
+                          </div>
+                        ))}
+                        <div style={{ gridColumn: '1/-1', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px' }}>
+                          Costs inflated to {inputs.returnYear} year.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="chart-container">
+                    <div className="chart-header">
+                      <div className="chart-title" style={{ color: 'var(--accent-green)' }}><Icon name="trending-up" /> Passive Income vs Expenses</div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                        <input type="checkbox" checked={inputs.applyTax} onChange={e => { setInputs(p => ({ ...p, applyTax: e.target.checked })); calculate({ applyTax: e.target.checked }); }} />
+                        Apply 12.5% Tax Drag
+                      </label>
+                    </div>
+                    <div className="chart-wrapper"><ApexChartComponent type="line" series={incomeExpenseSeries} options={incomeExpenseOptions} /></div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'withdrawal' && (
+              <div>
+                <div className="table-wrapper">
+                  <div className="table-controls">
+                    <span className="control-label">Classic Safe Withdrawal (Constant 12%)</span>
+                    <select className="mini-select" value={selectedWithdrawalRate} onChange={e => setSelectedWithdrawalRate(e.target.value)}>
+                      <option>2%</option><option>3%</option><option>4%</option>
+                    </select>
+                  </div>
+                  {results.withdrawalScenarios[selectedWithdrawalRate] && (
+                    <table>
+                      <thead><tr><th>Year</th><th>Start Corpus</th><th>Monthly Income</th><th>Real Income</th><th>End Corpus</th></tr></thead>
+                      <tbody>
+                        {results.withdrawalScenarios[selectedWithdrawalRate].map((w, i) => (
+                          <tr key={i}>
+                            <td>{w.year}</td>
+                            <td>{fmtL(w.corpusStart)}</td>
+                            <td style={{ color: 'var(--accent-green)' }}>₹{w.withdrawalMonthly.toFixed(0)}L</td>
+                            <td>₹{w.realWithdrawalMonthly.toFixed(0)}L</td>
+                            <td>{fmtL(w.corpusEnd)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                <div className="chart-container">
+                  <div className="chart-header">
+                    <div className="chart-title" style={{ color: '#ef4444' }}><Icon name="alert-triangle" /> Sequence of Returns Risk ({(100 / inputs.fireMultiplier).toFixed(1)}% SWR)</div>
+                  </div>
+                  <div className="chart-wrapper">
+                    <ApexChartComponent
+                      type="line"
+                      series={Object.entries(swrScenarios).map(([name, s]) => ({ name, data: s.data.map(d => d.corpusEnd) }))}
+                      options={{
+                        xaxis: { categories: Object.values(swrScenarios)[0]?.data.map(d => d.year) || [] },
+                        colors: Object.values(swrScenarios).map(s => s.color),
+                        stroke: { width: 4 },
+                        yaxis: { labels: { formatter: v => fmtL(v) } },
+                        tooltip: { y: { formatter: v => fmtL(v) } }
+                      }}
+                    />
+                  </div>
+                  <div style={{ padding: '12px 20px', background: 'rgba(239,68,68,0.1)', borderRadius: '0 0 12px 12px' }}>
+                    <strong>Key Insight:</strong> Poor early returns can deplete corpus even with good long-term average.
+                  </div>
+                </div>
+
+                <div style={{ padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={useBuckets} onChange={e => setUseBuckets(e.target.checked)} />
+                    <strong>Enable 3-Bucket Strategy (Cash | Balanced | Growth)</strong>
+                  </label>
+                  {useBuckets && <div style={{ marginTop: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>Future update: Safer decumulation with cash buffer.</div>}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+
+</html>
