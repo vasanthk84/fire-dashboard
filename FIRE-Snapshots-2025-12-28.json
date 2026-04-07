@@ -1,0 +1,68 @@
+{
+  "version": "1.0",
+  "exportDate": "2025-12-28T06:09:18.989Z",
+  "snapshots": [
+    {
+      "modelId": "snap_1766902116449_q3b0ucvol",
+      "snapshotDate": "2025-12-28T06:08:36.449Z",
+      "label": "Dec 2025 - Year end Review",
+      "tags": [],
+      "notes": "",
+      "assets": {
+        "mfCurrent": 122,
+        "stocksIndia": 29.6,
+        "usStocks": 16,
+        "emergencyFund": 10,
+        "epfCurrent": 62.93,
+        "bondsInitial": 18,
+        "us401k": 52000,
+        "usdExchangeRate": 95
+      },
+      "flows": {
+        "mfSIP": 1.2,
+        "sipStepUpRate": 0.1,
+        "optionSellingMonthly": 0.2,
+        "annualSalary": 94000,
+        "basicPay": 34900
+      },
+      "growthRates": {
+        "mfRate": 0.12,
+        "stocksRate": 0.15,
+        "usRate": 0.12,
+        "inflationRate": 0.06
+      },
+      "bonds": {
+        "bondsInitial": 18,
+        "bondAnnualIncrease": 0.01,
+        "bondRate": 0.1
+      },
+      "expenses": {
+        "monthly": {
+          "rent": 0,
+          "groceries": 0,
+          "utilities": 0,
+          "transport": 0,
+          "health": 0,
+          "entertainment": 0,
+          "misc": 0
+        },
+        "oneTime": {}
+      },
+      "results": {
+        "currentWealth": 258.53,
+        "projectedRetirement": 1417.91,
+        "fireNumber": 0,
+        "yearsToFI": null,
+        "progressToFire": 0
+      },
+      "planningParams": {
+        "startYear": 2025,
+        "retirementYear": 2035,
+        "returnYear": 2030,
+        "withdraw401kYear": 2033,
+        "applyTax": false,
+        "fireMultiplier": 25
+      }
+    }
+  ]
+}
