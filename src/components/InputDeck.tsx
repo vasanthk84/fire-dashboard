@@ -89,7 +89,7 @@ export function InputDeck({ inputs, onInput }: InputDeckProps) {
         <div className="card-inputs">
           <InputField label="MF CAGR" step={0.1} value={inputs.mfRate * 100} onChange={(e) => onInput('mfRate', (Number(e.target.value) || 12) / 100)} />
           <InputField label="Stocks" step={0.1} value={inputs.stocksRate * 100} onChange={(e) => onInput('stocksRate', (Number(e.target.value) || 15) / 100)} />
-          <InputField label="US" step={0.1} value={inputs.usRate * 100} onChange={(e) => onInput('usRate', (Number(e.target.value) || 12) / 100)} />
+          <InputField label="US 401k" step={0.1} value={inputs.usRate * 100} onChange={(e) => onInput('usRate', (Number(e.target.value) || 12) / 100)} title="Used for 401k growth. US stocks are held flat unless you edit the starting value." />
           <InputField label="Inflation" step={0.1} value={inputs.inflationRate * 100} onChange={(e) => onInput('inflationRate', (Number(e.target.value) || 6) / 100)} />
         </div>
       </div>

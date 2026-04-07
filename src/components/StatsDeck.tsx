@@ -16,11 +16,13 @@ export function StatsDeck({ currentWealthLakhs, finalWealth, fireNumberLakhs, pr
       <div className="stat-card">
         <div className="stat-title"><TrendingUp size={14} /> Current Wealth</div>
         <div className="stat-num" style={{ color: 'var(--primary)' }}>{fmtL(currentWealthLakhs)}</div>
+        <div className="stat-subtitle">Across taxable, emergency, bond, and retirement accounts</div>
       </div>
 
       <div className="stat-card">
         <div className="stat-title"><Rocket size={14} /> At Retirement</div>
         <div className="stat-num" style={{ color: 'var(--accent-green)' }}>{fmtL(finalWealth)}</div>
+        <div className="stat-subtitle">Projected corpus at your chosen retirement year</div>
       </div>
 
       <div className="stat-card">

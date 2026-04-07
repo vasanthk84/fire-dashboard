@@ -204,8 +204,6 @@ app.post('/api/calculate', (req, res) => {
 
         if (curMF > 0) curMF = growOneYear(curMF, mfRate, activeSIP);
         curStocks *= (1 + stocksRate);
-        curUSStocks *= (1 + usRate);
-        curEmergency *= 1.06;
         
         if (isRetired) curEPF += curEPF * 0.07; 
         else {

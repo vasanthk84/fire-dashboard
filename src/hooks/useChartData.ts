@@ -140,12 +140,23 @@ export function useChartData({ inputs, results }: UseChartDataProps) {
   const incomeExpenseOptions = useMemo<ApexOptions>(() => ({
     chart: { height: 380, toolbar: { show: true } },
     xaxis: { categories: results?.fireProjections.map((item) => item.year) ?? [], labels: { style: { colors: '#94a3b8', fontSize: '11px' }, rotate: -45 } },
-    yaxis: { labels: { style: { colors: '#94a3b8' } } },
+    yaxis: {
+      title: { text: 'Lakhs per month', style: { color: '#94a3b8' } },
+      labels: {
+        style: { colors: '#94a3b8' },
+        formatter: (value) => `${Number(value).toFixed(1)}L`
+      }
+    },
     colors: ['#00e396', '#ff9f43'],
     fill: { type: ['gradient', 'solid'], gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.1, stops: [0, 90, 100] } },
     stroke: { width: [3, 3], curve: 'smooth' },
     legend: { labels: { colors: '#94a3b8' } },
-    tooltip: { theme: 'dark' },
+    tooltip: {
+      theme: 'dark',
+      y: {
+        formatter: (value) => `${Number(value).toFixed(2)}L / month`
+      }
+    },
     annotations: {
       xaxis: [
         { x: inputs.returnYear, borderColor: '#00cfe8', label: { borderColor: '#00cfe8', style: { color: '#000', background: '#00cfe8' }, text: 'India Return' } },

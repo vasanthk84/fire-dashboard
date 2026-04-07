@@ -85,7 +85,10 @@ export function ExpensesTab(props: ExpensesTabProps) {
       <div>
         <div className="chart-container">
           <div className="chart-header">
-            <div className="chart-title" style={{ color: 'var(--accent-green)' }}><TrendingUp size={18} /> Passive Income vs Expenses</div>
+            <div>
+              <div className="chart-title" style={{ color: 'var(--accent-green)' }}><TrendingUp size={18} /> Monthly Passive Income vs Monthly Expenses</div>
+              <div className="panel-subtitle">Income line is a simplified 4% withdrawal-style estimate from the projected corpus, shown in lakhs per month.</div>
+            </div>
             <label className="checkbox-wrapper">
               <input type="checkbox" checked={applyTax} onChange={(event) => onApplyTaxChange(event.target.checked)} />
               Apply 12.5% Tax
