@@ -1,16 +1,25 @@
 const express = require('express');
 const cors = require('cors');
 const ExcelJS = require('exceljs');
+const fs = require('fs');
 const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+const distPath = path.join(__dirname, 'dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.status(200).send('Frontend runs from the Vite dev server at http://localhost:5173');
+  });
+}
 
 // --- HELPER FUNCTIONS ---
 
@@ -195,8 +204,6 @@ app.post('/api/calculate', (req, res) => {
 
         if (curMF > 0) curMF = growOneYear(curMF, mfRate, activeSIP);
         curStocks *= (1 + stocksRate);
-        curUSStocks *= (1 + usRate);
-        curEmergency *= 1.06;
         
         if (isRetired) curEPF += curEPF * 0.07; 
         else {
