@@ -130,6 +130,7 @@ export function useSnapshots(props: UseSnapshotsProps) {
       },
       planningParams: {
         startYear: inputs.startYear,
+        startMonth: inputs.startMonth,
         retirementYear: inputs.retirementYear,
         returnYear: inputs.returnYear,
         withdraw401kYear: inputs.withdraw401kYear,
@@ -139,6 +140,13 @@ export function useSnapshots(props: UseSnapshotsProps) {
     };
 
     setSnapshots((prev) => [snapshot, ...prev]);
+    setShowSaveModal(false);
+    setSnapshotLabel('');
+    setSnapshotNotes('');
+    setSnapshotTags([]);
+  };
+
+  const closeSaveModal = () => {
     setShowSaveModal(false);
     setSnapshotLabel('');
     setSnapshotNotes('');
@@ -258,6 +266,7 @@ export function useSnapshots(props: UseSnapshotsProps) {
     snapshotNotes,
     snapshotTags,
     setShowSaveModal,
+    closeSaveModal,
     setSnapshotLabel,
     setSnapshotNotes,
     addTag,

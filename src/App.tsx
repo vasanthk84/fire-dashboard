@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   Download,
   Flag,
-  Info,
   Play,
   ShieldAlert,
   ShieldCheck,
@@ -129,21 +128,12 @@ export default function App() {
     <div className="app-container">
       <div className="app-header">
         <div className="brand-block">
-          <div className="hero-kicker">Financial Independence Planner</div>
           <div className="brand">
-            <h1><TrendingUp size={22} /> FIRE Architect Pro</h1>
-          </div>
-          <p className="hero-subtitle">
-            Model wealth accumulation, return-to-India costs, withdrawal strategy, and snapshot comparisons in one dark-mode workspace.
-          </p>
-          <div className="hero-badges">
-            <span className="hero-badge">TSX Modular UI</span>
-            <span className="hero-badge">Vercel Ready</span>
-            <span className="hero-badge">Scenario Planning</span>
+            <h1><TrendingUp size={22} /> FIRE Planner</h1>
           </div>
         </div>
         <div className="hero-sidecard">
-          <div className="hero-card-label">Plan Snapshot</div>
+          <div className="hero-card-label">At a glance</div>
           <div className="hero-metric-grid">
             <div className="hero-metric">
               <span>Current Wealth</span>
@@ -151,11 +141,11 @@ export default function App() {
             </div>
             <div className="hero-metric">
               <span>FIRE Target</span>
-              <strong>{fireNumberLakhs > 0 ? fmtL(fireNumberLakhs) : 'Pending'}</strong>
+              <strong>{fireNumberLakhs > 0 ? fmtL(fireNumberLakhs) : '—'}</strong>
             </div>
             <div className="hero-metric">
-              <span>Status</span>
-              <strong>{results ? `${progressToFire.toFixed(0)}% funded` : 'Ready to model'}</strong>
+              <span>Progress</span>
+              <strong>{results ? `${progressToFire.toFixed(0)}%` : '—'}</strong>
             </div>
           </div>
           {results && (
@@ -168,16 +158,6 @@ export default function App() {
         </div>
       </div>
 
-      <div className="section-heading">
-        <div>
-          <div className="section-eyebrow">Inputs</div>
-          <h2 className="section-title">Plan your accumulation model</h2>
-        </div>
-        <p className="section-note">
-          Update assumptions across assets, contributions, and growth rates before running the projection engine.
-        </p>
-      </div>
-
       <InputDeck inputs={inputs} onInput={handleInput} />
 
       {validation.hasBlocking && (
@@ -188,7 +168,7 @@ export default function App() {
 
       {!validation.hasBlocking && validation.hasAdvisory && (
         <div className="advisory-panel">
-          <div className="advisory-header"><Info size={16} /> Model guardrails</div>
+          <div className="advisory-header">Model guardrails</div>
           <ul className="advisory-list">
             {validation.advisory.map((item) => (
               <li key={item}>{item}</li>
@@ -212,25 +192,7 @@ export default function App() {
       {!results && !calculationError && (
         <div className="empty-dashboard">
           <div className="empty-dashboard-copy">
-            <div className="section-eyebrow">Workflow</div>
-            <h2 className="section-title">Run your first projection</h2>
-            <p className="empty-copy">
-              The dashboard will unlock risk, expense, withdrawal, and snapshot views once you calculate a baseline plan.
-            </p>
-          </div>
-          <div className="empty-points">
-            <div className="empty-point">
-              <strong>1</strong>
-              <span>Set retirement year, assets, and monthly flows.</span>
-            </div>
-            <div className="empty-point">
-              <strong>2</strong>
-              <span>Add lifestyle expenses to calculate a credible FIRE target.</span>
-            </div>
-            <div className="empty-point">
-              <strong>3</strong>
-              <span>Run the plan, then review risk, withdrawals, and snapshots.</span>
-            </div>
+            <h2 className="section-title">Fill in your details and run the projection</h2>
           </div>
         </div>
       )}
@@ -241,21 +203,12 @@ export default function App() {
             <div className={`readiness-card readiness-card-${readiness.tone}`}>
               <div className="readiness-title">{readiness.title}</div>
               <p className="readiness-copy">{readiness.detail}</p>
-              <div className="method-note">
-                Deterministic model with fixed growth, FX, and simplified tax assumptions. Treat it as a planning baseline, not tax or investment advice.
-              </div>
             </div>
           )}
 
           <div className="sensitivity-panel">
             <div className="sensitivity-header">
-              <div>
-                <div className="section-eyebrow">Sensitivity</div>
-                <h3 className="section-title">How fragile is the current plan?</h3>
-              </div>
-              <p className="section-note">
-                Quick stress checks against the same model using slightly worse inflation, return, and expense assumptions.
-              </p>
+              <div className="section-eyebrow">Stress scenarios</div>
             </div>
 
             {sensitivity.isLoading && <div className="tab-panel-loading">Calculating sensitivity summary...</div>}
@@ -288,16 +241,6 @@ export default function App() {
                 ))}
               </div>
             )}
-          </div>
-
-          <div className="section-heading section-heading-compact">
-            <div>
-              <div className="section-eyebrow">Results</div>
-              <h2 className="section-title">Portfolio outlook and retirement readiness</h2>
-            </div>
-            <p className="section-note">
-              Use the tabs below to inspect journey milestones, asset mix, expense runway, and post-retirement withdrawals.
-            </p>
           </div>
 
           <div className="fire-calculator-panel">
@@ -408,7 +351,7 @@ export default function App() {
         currentWealth={fmtL(currentWealthLakhs)}
         progressToFire={progressToFire}
         yearsToFI={yearsToFI}
-        onClose={() => snapshots.setShowSaveModal(false)}
+        onClose={snapshots.closeSaveModal}
         onSave={snapshots.saveSnapshot}
         onLabelChange={snapshots.setSnapshotLabel}
         onNotesChange={snapshots.setSnapshotNotes}

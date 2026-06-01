@@ -1,10 +1,15 @@
-function growOneYear(principal, annualRate, monthlySIP) {
+function growNMonths(principal, annualRate, monthlySIP, nMonths) {
+  if (nMonths <= 0) return principal;
   const monthlyRate = annualRate / 12;
-  const fvPrincipal = principal * Math.pow(1 + monthlyRate, 12);
-  const fvSIP = monthlySIP > 0
-    ? monthlySIP * ((Math.pow(1 + monthlyRate, 12) - 1) / monthlyRate) * (1 + monthlyRate)
-    : 0;
+  const fvPrincipal = principal * Math.pow(1 + monthlyRate, nMonths);
+  const fvSIP = (monthlySIP > 0 && monthlyRate > 0)
+    ? monthlySIP * ((Math.pow(1 + monthlyRate, nMonths) - 1) / monthlyRate) * (1 + monthlyRate)
+    : monthlySIP * nMonths;
   return fvPrincipal + fvSIP;
+}
+
+function growOneYear(principal, annualRate, monthlySIP) {
+  return growNMonths(principal, annualRate, monthlySIP, 12);
 }
 
 function calculateEPFYearly(startBalance, basicPay, interestRate, vpfRate) {
@@ -41,31 +46,32 @@ module.exports = (req, res) => {
     const input = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const parseVal = (val, defaultVal) => (val !== undefined && val !== '' && val !== null) ? parseFloat(val) : defaultVal;
 
-    const startYear = parseInt(input.startYear, 10) || 2025;
-    const retirementYear = parseInt(input.retirementYear, 10) || 2035;
+    const startYear = parseInt(input.startYear, 10) || new Date().getFullYear();
+    const startMonth = Math.min(12, Math.max(1, parseInt(input.startMonth, 10) || 1));
+    const retirementYear = parseInt(input.retirementYear, 10) || (startYear + 10);
     const targetYear = retirementYear;
 
-    const mfCurrent = parseVal(input.mfCurrent, 122);
-    const stocksIndia = parseVal(input.stocksIndia, 29.6);
-    const usStocksINR = parseVal(input.usStocks, 16);
-    const emergencyFund = parseVal(input.emergencyFund, 10);
+    const mfCurrent = parseVal(input.mfCurrent, 0);
+    const stocksIndia = parseVal(input.stocksIndia, 0);
+    const usStocksINR = parseVal(input.usStocks, 0);
+    const emergencyFund = parseVal(input.emergencyFund, 0);
 
-    const us401kUSD = parseVal(input.us401k, 52000);
-    const usdToInr401k = parseVal(input.usdExchangeRate, 95);
-    const epfCurrent = parseVal(input.epfCurrent, 62.93);
-    const basicPay = parseVal(input.basicPay, 34900);
+    const us401kUSD = parseVal(input.us401k, 0);
+    const usdToInr401k = parseVal(input.usdExchangeRate, 86);
+    const epfCurrent = parseVal(input.epfCurrent, 0);
+    const basicPay = parseVal(input.basicPay, 0);
     const epfRate = parseVal(input.epfRate, 0.0825);
-    const vpfRate = parseVal(input.vpfRate, 0.88);
+    const vpfRate = parseVal(input.vpfRate, 0.12);
 
-    const bondsInitial = parseVal(input.bondsInitial, 18);
+    const bondsInitial = parseVal(input.bondsInitial, 0);
     const bondAnnualIncrease = parseVal(input.bondAnnualIncrease, 0.01);
     const bondRate = parseVal(input.bondRate, 0.10);
 
-    const mfSIP = parseVal(input.mfSIP, 1.2);
+    const mfSIP = parseVal(input.mfSIP, 0);
     const sipStepUpRate = parseVal(input.sipStepUpRate, 0.10);
-    const optionSellingMonthly = parseVal(input.optionSellingMonthly, 0.20);
+    const optionSellingMonthly = parseVal(input.optionSellingMonthly, 0);
 
-    const annualSalary = parseVal(input.annualSalary, 94000);
+    const annualSalary = parseVal(input.annualSalary, 0);
     const returnToIndiaYear = parseInt(input.returnYear, 10) || 2030;
     const withdraw401kYear = parseInt(input.withdraw401kYear, 10) || 2033;
     const taxRate401k = 0.37;
@@ -98,6 +104,9 @@ module.exports = (req, res) => {
         const isRetired = year >= retirementYear;
         const isWithdrawing401k = year === withdraw401kYear;
         const yearsPassed = year - startYear;
+        // For the start year, only grow for the remaining months of the year
+        const growMonths = year === startYear ? (13 - startMonth) : 12;
+        const yearFraction = growMonths / 12;
 
         const currentAnnualExpense = (monthlyExpensesStart * 12) * Math.pow(1 + inflationRate, yearsPassed);
         const currentMonthlyExpenseInflated = currentAnnualExpense / 12;
@@ -160,35 +169,36 @@ module.exports = (req, res) => {
 
         if (isRetired) {
           activeSIP = 0;
-          bondInterestToMF = curBonds * bondRate;
+          bondInterestToMF = curBonds * bondRate * yearFraction;
           if (monthlyExpensesStart > 0) {
-            const expenseInLakhs = currentAnnualExpense / 100000;
+            const expenseInLakhs = (currentAnnualExpense * yearFraction) / 100000;
             curMF -= expenseInLakhs;
           }
         } else {
-          const bondInterest = curBonds * bondRate;
-          let bondInjection = currentBondAddition;
+          const bondInterest = curBonds * bondRate * yearFraction;
+          const bondInjection = currentBondAddition * yearFraction;
           currentBondAddition = currentBondAddition * (1 + bondAnnualIncrease);
           curBonds += bondInterest + bondInjection;
           currentSIP = currentSIP * (1 + sipStepUpRate);
         }
 
         if (curMF > 0) {
-          curMF = growOneYear(curMF, mfRate, activeSIP);
+          curMF = growNMonths(curMF, mfRate, activeSIP, growMonths);
         }
 
-        curStocks *= (1 + stocksRate);
-        curUSStocks *= (1 + usRate);
-        curEmergency *= 1.06;
+        curStocks *= Math.pow(1 + stocksRate, yearFraction);
+        curUSStocks *= Math.pow(1 + usRate, yearFraction);
+        curEmergency *= Math.pow(1.06, yearFraction);
 
         if (isRetired) {
-          curEPF += curEPF * 0.07;
+          curEPF += curEPF * 0.07 * yearFraction;
         } else {
           const epfResult = calculateEPFYearly(curEPF * 100000, basicPay, epfRate, vpfRate);
-          curEPF = epfResult.endBalance / 100000;
+          // Scale EPF contribution for partial year
+          curEPF = (curEPF * 100000 + (epfResult.endBalance - curEPF * 100000) * yearFraction) / 100000;
         }
 
-        const optionIncome = growOneYear(0, mfRate, optionSellingMonthly);
+        const optionIncome = growNMonths(0, mfRate, optionSellingMonthly, growMonths);
         curMF += optionIncome;
 
         if (bondInterestToMF > 0) {

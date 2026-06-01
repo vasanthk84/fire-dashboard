@@ -2,6 +2,7 @@ export type TabKey = 'journey' | 'risk' | 'expenses' | 'withdrawal' | 'snapshots
 
 export interface Inputs {
   startYear: number;
+  startMonth: number;   // 1-12
   retirementYear: number;
   returnYear: number;
   withdraw401kYear: number;
@@ -119,5 +120,5 @@ export interface Snapshot {
     yearsToFI: number | null;
     progressToFire: number;
   };
-  planningParams: Pick<Inputs, 'startYear' | 'retirementYear' | 'returnYear' | 'withdraw401kYear' | 'applyTax' | 'fireMultiplier'>;
+  planningParams: Pick<Inputs, 'startYear' | 'startMonth' | 'retirementYear' | 'returnYear' | 'withdraw401kYear' | 'applyTax' | 'fireMultiplier'>;
 }
