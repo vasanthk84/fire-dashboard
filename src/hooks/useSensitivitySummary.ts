@@ -101,33 +101,27 @@ export function useSensitivitySummary({ inputs, results, currentMonthlyExp, oneT
       };
 
       try {
-        const [inflationResult, returnsResult, expensesResult] = await Promise.all([
-          calculatePlan({ ...basePayload, inflationRate: inputs.inflationRate + 0.01 }),
+        const [inflationResult, returnsResult, shockResult] = await Promise.all([
+          calculatePlan({ ...basePayload, inflationRate: inputs.inflationRate + 0.02 }),
           calculatePlan({
             ...basePayload,
             mfRate: Math.max(0, inputs.mfRate - 0.02),
             stocksRate: Math.max(0, inputs.stocksRate - 0.02),
             usRate: Math.max(0, inputs.usRate - 0.02)
           }),
-          calculatePlan({ ...basePayload, monthlyExpenses: currentMonthlyExp * 1.15 })
+          calculatePlan({
+            ...basePayload,
+            mfCurrent: inputs.mfCurrent * 0.7,
+            stocksIndia: inputs.stocksIndia * 0.7,
+            usStocks: inputs.usStocks * 0.7
+          })
         ]);
 
         const nextScenarios = [
           {
-            key: 'inflation',
-            label: 'Inflation Stress',
-            assumption: 'Inflation +1 percentage point',
-            finalWealth: inflationResult.summary.finalWealth,
-            wealthDelta: inflationResult.summary.finalWealth - results.summary.finalWealth,
-            coverage: computeCoverage(inflationResult, inputs.retirementYear),
-            fireYear: computeFireYear(inflationResult, currentMonthlyExp, inputs),
-            tone: 'warning',
-            summary: ''
-          },
-          {
             key: 'returns',
-            label: 'Return Stress',
-            assumption: 'MF, India, and US returns -2 percentage points',
+            label: 'Low returns',
+            assumption: 'Equity CAGR −2%',
             finalWealth: returnsResult.summary.finalWealth,
             wealthDelta: returnsResult.summary.finalWealth - results.summary.finalWealth,
             coverage: computeCoverage(returnsResult, inputs.retirementYear),
@@ -136,14 +130,25 @@ export function useSensitivitySummary({ inputs, results, currentMonthlyExp, oneT
             summary: ''
           },
           {
-            key: 'expenses',
-            label: 'Expense Stress',
-            assumption: 'Monthly expenses +15%',
-            finalWealth: expensesResult.summary.finalWealth,
-            wealthDelta: expensesResult.summary.finalWealth - results.summary.finalWealth,
-            coverage: computeCoverage(expensesResult, inputs.retirementYear),
-            fireYear: computeFireYear(expensesResult, currentMonthlyExp * 1.15, inputs),
+            key: 'inflation',
+            label: 'High inflation',
+            assumption: 'Inflation +2%',
+            finalWealth: inflationResult.summary.finalWealth,
+            wealthDelta: inflationResult.summary.finalWealth - results.summary.finalWealth,
+            coverage: computeCoverage(inflationResult, inputs.retirementYear),
+            fireYear: computeFireYear(inflationResult, currentMonthlyExp, inputs),
             tone: 'warning',
+            summary: ''
+          },
+          {
+            key: 'expenses',
+            label: 'Market shock',
+            assumption: 'Equity −30% today',
+            finalWealth: shockResult.summary.finalWealth,
+            wealthDelta: shockResult.summary.finalWealth - results.summary.finalWealth,
+            coverage: computeCoverage(shockResult, inputs.retirementYear),
+            fireYear: computeFireYear(shockResult, currentMonthlyExp, inputs),
+            tone: 'danger',
             summary: ''
           }
         ].map((scenario) => ({

@@ -1,9 +1,9 @@
 import type { ChangeEvent } from 'react';
-import type { ApexOptions } from 'apexcharts';
-import { Activity, Archive, BarChart2, CheckCircle, Download, Trash2, Upload, Wallet } from 'lucide-react';
-import { ApexChartComponent } from '../ApexChartComponent';
+import { Archive, Download, Play, Upload, Trash2 } from 'lucide-react';
 import type { Snapshot } from '../../types';
 import { fmtL } from '../../utils/formatters';
+import { ApexChartComponent } from '../ApexChartComponent';
+import { CHARTS } from '../../utils/chartBuilders';
 
 interface SnapshotsTabProps {
   snapshots: Snapshot[];
@@ -18,6 +18,7 @@ interface SnapshotsTabProps {
   onToggleSelection: (id: string) => void;
   onLoad: (id: string) => void;
   onDelete: (id: string) => void;
+  themeKey: string;
 }
 
 export function SnapshotsTab(props: SnapshotsTabProps) {
@@ -33,159 +34,159 @@ export function SnapshotsTab(props: SnapshotsTabProps) {
     onClearAll,
     onToggleSelection,
     onLoad,
-    onDelete
+    onDelete,
+    themeKey
   } = props;
 
-  const selected = selectedSnapshots
-    .map((id) => snapshots.find((snapshot) => snapshot.modelId === id))
-    .filter((snapshot): snapshot is Snapshot => Boolean(snapshot))
+  // Selected snapshots sorted chronologically
+  const sel = selectedSnapshots
+    .map((id) => snapshots.find((s) => s.modelId === id))
+    .filter((s): s is Snapshot => Boolean(s))
     .sort((a, b) => new Date(a.snapshotDate).getTime() - new Date(b.snapshotDate).getTime());
 
-  const progressionSeries = [
-    {
-      name: 'Actual Total Wealth',
-      data: selected.map((snapshot) => snapshot.results.currentWealth)
-    },
-    {
-      name: 'FIRE Target',
-      data: selected.map((snapshot) => snapshot.results.fireNumber)
-    }
-  ];
-
-  const progressionOptions: ApexOptions = {
-    chart: { height: 350, toolbar: { show: true } },
-    xaxis: {
-      categories: selected.map((snapshot) => new Date(snapshot.snapshotDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })),
-      labels: { style: { colors: '#94a3b8', fontSize: '11px' }, rotate: -45 }
-    },
-    yaxis: {
-      labels: { style: { colors: '#94a3b8' }, formatter: (value) => fmtL(Number(value)) }
-    },
-    colors: ['#10b981', '#f59e0b'],
-    stroke: { width: [4, 2], curve: 'smooth' },
-    legend: { position: 'top', labels: { colors: '#94a3b8' } },
-    tooltip: { theme: 'dark', y: { formatter: (value) => fmtL(Number(value)) } },
-    grid: { borderColor: '#334155', strokeDashArray: 4 }
-  };
-
   return (
-    <div>
-      <div className="snapshot-section">
-        <div className="snapshot-header">
-          <div className="snapshot-title"><Activity size={18} /> Current Model</div>
+    <div className="stack">
+      <div className="grid-3">
+        <div className="calc">
+          <div className="calc-l">Total wealth</div>
+          <div className="calc-v">{fmtL(currentWealthLakhs)}</div>
         </div>
-
-        <div className="current-model-card">
-          <div className="model-summary">
-            <div className="summary-item">
-              <span className="summary-label">Total Wealth</span>
-              <span className="summary-value">{fmtL(currentWealthLakhs)}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">FIRE Target</span>
-              <span className="summary-value" style={{ color: 'var(--accent-orange)' }}>{fmtL(fireNumberLakhs)}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Progress</span>
-              <span className="summary-value" style={{ color: 'var(--accent-purple)' }}>{progressToFire.toFixed(1)}%</span>
-            </div>
-          </div>
-
-          <div className="snapshot-actions">
-            <button className="btn-snapshot" onClick={onSaveOpen}>Save Snapshot</button>
-            <button className="btn-snapshot secondary" onClick={onExport}><Download size={16} /> Export All ({snapshots.length})</button>
-            <label className="btn-snapshot secondary file-label">
-              <Upload size={16} /> Import
-              <input type="file" accept=".json" onChange={onImport} hidden />
-            </label>
-          </div>
+        <div className="calc">
+          <div className="calc-l">FIRE target</div>
+          <div className="calc-v">{fireNumberLakhs > 0 ? fmtL(fireNumberLakhs) : '—'}</div>
+        </div>
+        <div className="calc">
+          <div className="calc-l">Progress</div>
+          <div className="calc-v">{progressToFire.toFixed(0)}%</div>
         </div>
       </div>
 
-      <div className="snapshot-section">
-        <div className="snapshot-header">
-          <div className="snapshot-title"><Archive size={18} /> Saved Snapshots ({snapshots.length})</div>
-          {snapshots.length > 0 && (
-            <button className="btn-snapshot danger" onClick={onClearAll}><Trash2 size={16} /> Clear All</button>
-          )}
+      <div className="card card-pad">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+          <div>
+            <div className="panel-h">
+              <span className="panel-t">Saved snapshots ({snapshots.length})</span>
+            </div>
+            <div className="panel-cap" style={{ marginLeft: 0 }}>Select two or more to compare progress</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button className="btn btn-sm btn-primary" onClick={onSaveOpen}>
+              <Play size={12} /> Save
+            </button>
+            <button className="btn btn-sm" onClick={onExport} disabled={snapshots.length === 0}>
+              <Download size={12} /> Export
+            </button>
+            <label className="btn btn-sm" style={{ margin: 0 }}>
+              <Upload size={12} /> Import
+              <input type="file" accept=".json" onChange={onImport} hidden />
+            </label>
+            {snapshots.length > 0 && (
+              <button className="btn btn-sm btn-ghost text-neg" onClick={onClearAll}>
+                <Trash2 size={12} /> Clear
+              </button>
+            )}
+          </div>
         </div>
 
         {snapshots.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon">📸</div>
-            <h3>No Snapshots Yet</h3>
-            <p>Save your current financial state to track progress over time</p>
+          <div className="empty">
+            <Archive size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
+            <h3>No Snapshots Saved</h3>
+            <p>Save your current assumptions to build a comparison history.</p>
           </div>
         ) : (
-          <div className="snapshot-list">
-            {snapshots.map((snapshot, index) => {
-              const prev = snapshots[index + 1];
-              const wealthChange = prev ? ((snapshot.results.currentWealth - prev.results.currentWealth) / prev.results.currentWealth) * 100 : 0;
-              const isSelected = selectedSnapshots.includes(snapshot.modelId);
+          <div className="snap-list">
+            {snapshots
+              .slice()
+              .reverse()
+              .map((s, i, arr) => {
+                const prev = arr[i + 1];
+                const chg = prev ? ((s.results.currentWealth - prev.results.currentWealth) / prev.results.currentWealth) * 100 : 0;
+                const on = selectedSnapshots.includes(s.modelId);
 
-              return (
-                <div key={snapshot.modelId} className={`snapshot-item ${isSelected ? 'selected' : ''}`} onClick={() => onToggleSelection(snapshot.modelId)}>
-                  <div className="snapshot-info">
-                    <div className="snapshot-label">
-                      {isSelected && <CheckCircle size={16} />}
-                      {snapshot.label}
+                return (
+                  <div
+                    key={s.modelId}
+                    className={'snap-item' + (on ? ' sel' : '')}
+                    onClick={() => onToggleSelection(s.modelId)}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div className="snap-label">
+                        {s.label}
+                        {s.notes && (
+                          <span style={{ color: 'var(--text-3)', fontWeight: 400, fontSize: 12, marginLeft: 6 }}>
+                            · {s.notes}
+                          </span>
+                        )}
+                      </div>
+                      <div className="snap-meta">
+                        <span className="num">{fmtL(s.results.currentWealth)}</span>
+                        {prev && (
+                          <span className={chg >= 0 ? 'delta-up' : 'delta-dn'}>
+                            {chg >= 0 ? '↑' : '↓'} {Math.abs(chg).toFixed(1)}%
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="snapshot-date">{new Date(snapshot.snapshotDate).toLocaleString()}</div>
-                    <div className="snapshot-metrics">
-                      <div className="metric"><Wallet size={14} /> <span className="metric-value">{fmtL(snapshot.results.currentWealth)}</span></div>
-                      {prev && <div className={`change-indicator ${wealthChange > 0 ? 'positive' : wealthChange < 0 ? 'negative' : 'neutral'}`}>{wealthChange > 0 ? '↑' : wealthChange < 0 ? '↓' : '='} {Math.abs(wealthChange).toFixed(1)}%</div>}
-                      <div className="metric">FIRE: <span className="metric-value">{fmtL(snapshot.results.fireNumber)}</span></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }} onClick={(e) => e.stopPropagation()}>
+                      <div className="num" style={{ color: 'var(--text-3)', fontSize: 12 }}>
+                        {new Date(s.snapshotDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      </div>
+                      <button
+                        className="btn btn-sm btn-ghost"
+                        style={{ padding: 4 }}
+                        onClick={() => onLoad(s.modelId)}
+                        title="Load this snapshot"
+                      >
+                        <Upload size={14} />
+                      </button>
+                      <button
+                        className="btn btn-sm btn-ghost text-neg"
+                        style={{ padding: 4 }}
+                        onClick={() => onDelete(s.modelId)}
+                        title="Delete snapshot"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
-                  <div className="snapshot-item-actions" onClick={(event) => event.stopPropagation()}>
-                    <button className="btn-icon" onClick={() => onLoad(snapshot.modelId)} title="Load this snapshot"><Upload size={16} /></button>
-                    <button className="btn-icon danger" onClick={() => onDelete(snapshot.modelId)} title="Delete snapshot"><Trash2 size={16} /></button>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         )}
       </div>
 
-      {selected.length >= 2 && (
-        <div className="snapshot-section">
-          <div className="snapshot-header">
-            <div className="snapshot-title"><BarChart2 size={18} /> Comparison Analysis</div>
-          </div>
-
-          <div className="chart-container">
-            <div className="chart-header">
-              <div className="chart-title" style={{ color: 'var(--accent-green)' }}>Wealth Progression Over Time</div>
-            </div>
-            <div className="chart-wrapper">
-              <ApexChartComponent type="line" series={progressionSeries} options={progressionOptions} />
+      {sel.length >= 2 && (
+        <div className="card card-pad">
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+            <div>
+              <div className="panel-h">
+                <span className="panel-t">Wealth progression</span>
+              </div>
+              <div className="panel-cap" style={{ marginLeft: 0 }}>Selected snapshots vs FIRE target</div>
             </div>
           </div>
-
-          <div className="comparison-grid">
-            {selected.map((snapshot, index) => {
-              const previous = selected[index - 1];
-              const monthsElapsed = previous ? Math.round((new Date(snapshot.snapshotDate).getTime() - new Date(previous.snapshotDate).getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0;
-              const wealthChange = previous ? snapshot.results.currentWealth - previous.results.currentWealth : 0;
-              const wealthChangePct = previous ? (wealthChange / previous.results.currentWealth) * 100 : 0;
-
+          <ApexChartComponent
+            height={280}
+            dep={'prog' + themeKey + selectedSnapshots.join()}
+            build={CHARTS.progression(sel)}
+          />
+          <div className="grid-3" style={{ marginTop: 16 }}>
+            {sel.map((s, i) => {
+              const prev = sel[i - 1];
+              const d = prev ? s.results.currentWealth - prev.results.currentWealth : 0;
+              const dp = prev ? (d / prev.results.currentWealth) * 100 : 0;
               return (
-                <div key={snapshot.modelId} className="comparison-card">
-                  <div className="comparison-header">{snapshot.label}</div>
-                  <div className="comparison-wealth">{fmtL(snapshot.results.currentWealth)}</div>
-                  {previous && (
-                    <div className={wealthChangePct >= 0 ? 'text-green' : 'text-red'}>
-                      {wealthChangePct >= 0 ? '↑' : '↓'} {fmtL(Math.abs(wealthChange))} ({Math.abs(wealthChangePct).toFixed(1)}%) over {monthsElapsed}m
+                <div className="card card-pad" key={s.modelId} style={{ background: 'var(--surface-2)' }}>
+                  <div className="eyebrow">{s.label}</div>
+                  <div className="num" style={{ fontSize: 20, fontWeight: 700, margin: '8px 0 4px' }}>
+                    {fmtL(s.results.currentWealth)}
+                  </div>
+                  {prev && (
+                    <div className={dp >= 0 ? 'delta-up' : 'delta-dn'} style={{ fontSize: 12 }}>
+                      {dp >= 0 ? '↑' : '↓'} {fmtL(Math.abs(d))} ({Math.abs(dp).toFixed(1)}%)
                     </div>
                   )}
-                  <div className="asset-breakdown">
-                    <div><span>MF:</span><strong>{fmtL(snapshot.assets.mfCurrent)}</strong></div>
-                    <div><span>Stocks:</span><strong>{fmtL(snapshot.assets.stocksIndia)}</strong></div>
-                    <div><span>EPF:</span><strong>{fmtL(snapshot.assets.epfCurrent)}</strong></div>
-                    <div><span>Bonds:</span><strong>{fmtL(snapshot.assets.bondsInitial)}</strong></div>
-                  </div>
-                  {snapshot.notes && <div className="snapshot-note">"{snapshot.notes}"</div>}
                 </div>
               );
             })}

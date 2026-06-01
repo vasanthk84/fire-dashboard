@@ -1,68 +1,86 @@
 import type { FireProjection } from '../../types';
-import { fmtL, milestoneClass } from '../../utils/formatters';
+import { fmtL } from '../../utils/formatters';
+import { ApexChartComponent } from '../ApexChartComponent';
+import { CHARTS } from '../../utils/chartBuilders';
 
 interface JourneyTabProps {
   projections: FireProjection[];
   retirementYear: number;
+  startYear: number;
+  themeKey: string;
 }
 
-export function JourneyTab({ projections, retirementYear }: JourneyTabProps) {
+export function JourneyTab({ projections, retirementYear, startYear, themeKey }: JourneyTabProps) {
   return (
-    <div className="table-wrapper">
-      <div className="table-title">Yearly corpus path with monthly retirement-income estimate</div>
-      <div className="journey-note">
-        <span>Total Corpus includes MF, India stocks, US stocks, bonds, emergency fund, and EPF.</span>
-        <span>401k Side Pot stays outside total until withdrawal year, then gets injected into MF after tax.</span>
+    <div className="stack">
+      <div className="card card-pad">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+          <div>
+            <div className="panel-h">
+              <span className="panel-t">Corpus trajectory</span>
+            </div>
+            <div className="panel-cap" style={{ marginLeft: 0 }}>
+              Projected net worth · {startYear}–{retirementYear + 8}
+            </div>
+          </div>
+        </div>
+        <ApexChartComponent
+          height={300}
+          dep={'j' + themeKey}
+          build={CHARTS.corpus(projections, retirementYear)}
+        />
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Year</th>
-            <th>SIP</th>
-            <th>MF</th>
-            <th>India Stocks</th>
-            <th>US Stocks</th>
-            <th>Bonds</th>
-            <th>Emergency</th>
-            <th>EPF</th>
-            <th>401k Side Pot</th>
-            <th>Total Corpus</th>
-            <th>Net Worth incl. 401k</th>
-            <th>Passive / Mo</th>
-            <th>Expense / Mo</th>
-            <th>Events</th>
-          </tr>
-        </thead>
-        <tbody>
-          {projections.map((projection) => {
-            const netWorthIncluding401k = projection.total + projection.us401k;
 
-            return (
-            <tr key={projection.year} style={{ background: projection.year === retirementYear ? 'rgba(16, 185, 129, 0.05)' : '' }}>
-              <td style={{ fontWeight: 700 }}>{projection.year}</td>
-              <td>{projection.sipAmount > 0 ? fmtL(projection.sipAmount) : '-'}</td>
-              <td>{fmtL(projection.mf)}</td>
-              <td>{fmtL(projection.stocksIndia)}</td>
-              <td>{fmtL(projection.usStocks)}</td>
-              <td>{fmtL(projection.bonds)}</td>
-              <td>{fmtL(projection.emergencyFund)}</td>
-              <td>{fmtL(projection.epf)}</td>
-              <td>{fmtL(projection.us401k)}</td>
-              <td style={{ fontWeight: 700 }}>{fmtL(projection.total)}</td>
-              <td style={{ fontWeight: 700 }}>{fmtL(netWorthIncluding401k)}</td>
-              <td>{fmtL(projection.passiveIncomeMonthly)}</td>
-              <td>{projection.calculatedMonthlyExpense ? fmtL(projection.calculatedMonthlyExpense) : '-'}</td>
-              <td>
-                {projection.milestones.map((milestone, index) => (
-                  <span key={`${projection.year}-${index}`} className={milestoneClass(milestone.type)}>
-                    {milestone.text}
-                  </span>
+      <div className="table-card">
+        <div className="table-head">
+          <div className="panel-t">Year-by-year path</div>
+          <span className="chip">MF · Stocks · US · Bonds · Emergency · EPF</span>
+        </div>
+        <div className="table-scroll" style={{ maxHeight: 520, overflowY: 'auto' }}>
+          <table className="grid">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>MF</th>
+                <th>Stocks IN</th>
+                <th>US</th>
+                <th>Bonds</th>
+                <th>EPF</th>
+                <th>401k</th>
+                <th>Total</th>
+                <th>Passive/mo</th>
+                <th style={{ textAlign: 'left' }}>Events</th>
+              </tr>
+            </thead>
+            <tbody>
+              {projections
+                .filter((p) => p.year <= retirementYear + 12)
+                .map((p) => (
+                  <tr key={p.year} className={p.year === retirementYear ? 'mark' : ''}>
+                    <td className="k">{p.year}</td>
+                    <td>{fmtL(p.mf)}</td>
+                    <td>{fmtL(p.stocksIndia)}</td>
+                    <td>{fmtL(p.usStocks)}</td>
+                    <td>{fmtL(p.bonds)}</td>
+                    <td>{fmtL(p.epf)}</td>
+                    <td>{fmtL(p.us401k)}</td>
+                    <td className="k">{fmtL(p.total)}</td>
+                    <td>{fmtL(p.passiveIncomeMonthly)}</td>
+                    <td style={{ textAlign: 'left' }}>
+                      <div className="chips">
+                        {p.milestones.map((m, i) => (
+                          <span key={i} className={'chip ' + m.type}>
+                            {m.text}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
                 ))}
-              </td>
-            </tr>
-          );})}
-        </tbody>
-      </table>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

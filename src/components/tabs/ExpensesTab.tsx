@@ -1,8 +1,7 @@
-import { ShoppingCart, TrendingUp } from 'lucide-react';
-import type { ApexAxisChartSeries, ApexOptions } from 'apexcharts';
-import type { Expenses, FireProjection, Inputs, OneTimeExpenses } from '../../types';
+import type { Expenses, FireProjection, Inputs, OneTimeExpenses, CalculationResults } from '../../types';
+import { fmtL, fmtRupees } from '../../utils/formatters';
 import { ApexChartComponent } from '../ApexChartComponent';
-import { fmtL } from '../../utils/formatters';
+import { CHARTS, EXPENSE_META, ONETIME_META } from '../../utils/chartBuilders';
 
 interface ExpensesTabProps {
   expenses: Expenses;
@@ -11,12 +10,13 @@ interface ExpensesTabProps {
   currentMonthlyExp: number;
   applyTax: boolean;
   sampleTaxYear?: FireProjection;
-  incomeExpenseSeries: ApexAxisChartSeries;
-  incomeExpenseOptions: ApexOptions;
   onExpenseChange: (key: keyof Expenses, value: string) => void;
   onOneTimeChange: (key: keyof OneTimeExpenses, value: string) => void;
   onShowOneTimeChange: (checked: boolean) => void;
   onApplyTaxChange: (checked: boolean) => void;
+  results: CalculationResults | null;
+  inputs: Inputs;
+  themeKey: string;
 }
 
 export function ExpensesTab(props: ExpensesTabProps) {
@@ -27,76 +27,146 @@ export function ExpensesTab(props: ExpensesTabProps) {
     currentMonthlyExp,
     applyTax,
     sampleTaxYear,
-    incomeExpenseSeries,
-    incomeExpenseOptions,
     onExpenseChange,
     onOneTimeChange,
     onShowOneTimeChange,
-    onApplyTaxChange
+    onApplyTaxChange,
+    results,
+    inputs,
+    themeKey
   } = props;
 
+  const total = EXPENSE_META.reduce((s, e) => s + (expenses[e.key] || 0), 0);
+  const hasExp = total > 0;
+
   return (
-    <div className="analysis-grid">
-      <div className="expense-panel">
-        <div className="card-header" style={{ marginBottom: '16px', color: 'var(--accent-pink)' }}>
-          <ShoppingCart size={14} /> Monthly Expenses
+    <div className="grid-2" style={{ alignItems: 'start' }}>
+      <div className="card card-pad">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+          <div>
+            <div className="panel-h">
+              <span className="panel-t">Monthly expenses</span>
+            </div>
+            <div className="panel-cap" style={{ marginLeft: 0 }}>Drives FIRE target & coverage</div>
+          </div>
         </div>
 
-        {Object.keys(expenses).map((key) => (
-          <div className="expense-row" key={key}>
-            <label style={{ textTransform: 'capitalize' }}>{key.replace(/([A-Z])/g, ' $1').trim()}</label>
-            <input type="number" value={expenses[key as keyof Expenses]} onChange={(event) => onExpenseChange(key as keyof Expenses, event.target.value)} />
+        {EXPENSE_META.map((e) => (
+          <div className="exp-row" key={e.key}>
+            <label>
+              <i style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: e.color, marginRight: 8, verticalAlign: 'middle' }}></i>
+              {e.label}
+            </label>
+            <input
+              className="in num"
+              type="number"
+              value={expenses[e.key] === 0 ? '' : expenses[e.key]}
+              onChange={(ev) => onExpenseChange(e.key, ev.target.value)}
+            />
           </div>
         ))}
 
-        <div className="total-expense">
-          <span>Total Monthly:</span>
-          <span>₹{currentMonthlyExp.toLocaleString()}</span>
+        <div className="exp-total">
+          <span>Total / month</span>
+          <b>{fmtRupees(total)}</b>
         </div>
 
-        {applyTax && sampleTaxYear && (
-          <div className="tax-proof-card">
-            <div className="tax-title">Tax Impact (Retirement)</div>
-            <div className="tax-row"><span>Gross Passive</span><span>{fmtL(sampleTaxYear.passiveIncomeGross)}</span></div>
-            <div className="tax-row"><span>Tax (12.5%)</span><span>-{fmtL(sampleTaxYear.monthlyTax)}</span></div>
-            <div className="tax-row final"><span>Net Income</span><span>{fmtL(sampleTaxYear.passiveIncomeMonthly)}</span></div>
+        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={applyTax}
+              onChange={(e) => onApplyTaxChange(e.target.checked)}
+            />
+            <span className="track"></span>Apply 12.5% tax drag
+          </label>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={showOneTime}
+              onChange={(e) => onShowOneTimeChange(e.target.checked)}
+            />
+            <span className="track"></span>Return-to-India setup costs
+          </label>
+        </div>
+
+        {showOneTime && (
+          <div className="drawer-grid" style={{ marginTop: 14 }}>
+            {ONETIME_META.map((o: { key: keyof OneTimeExpenses; label: string }) => (
+              <div className="in-wrap" key={o.key}>
+                <label>{o.label}</label>
+                <input
+                  className="in"
+                  type="number"
+                  value={oneTimeExpenses[o.key] === 0 ? '' : oneTimeExpenses[o.key]}
+                  onChange={(e) => onOneTimeChange(o.key, e.target.value)}
+                />
+              </div>
+            ))}
           </div>
         )}
 
-        <div className="one-time-section">
-          <label className="checkbox-wrapper">
-            <input type="checkbox" checked={showOneTime} onChange={(event) => onShowOneTimeChange(event.target.checked)} />
-            Return-to-India Setup Costs?
-          </label>
+        {applyTax && sampleTaxYear && (
+          <div className="card card-pad" style={{ marginTop: 14, background: 'var(--surface-2)' }}>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>Tax at retirement</div>
+            <div className="stress-row">
+              <span>Gross passive</span>
+              <strong>{fmtL(sampleTaxYear.passiveIncomeGross)}</strong>
+            </div>
+            <div className="stress-row">
+              <span>Tax (12.5%)</span>
+              <strong className="text-neg">−{fmtL(sampleTaxYear.monthlyTax)}</strong>
+            </div>
+            <div className="stress-row" style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 8 }}>
+              <span>Net / mo</span>
+              <strong className="text-pos">{fmtL(sampleTaxYear.passiveIncomeMonthly)}</strong>
+            </div>
+          </div>
+        )}
+      </div>
 
-          {showOneTime && (
-            <div className="one-time-grid">
-              {Object.keys(oneTimeExpenses).map((key) => (
-                <div key={key} className="mini-input-group">
-                  <label>{key.replace(/([A-Z])/g, ' $1').trim()}</label>
-                  <input type="number" value={oneTimeExpenses[key as keyof OneTimeExpenses]} onChange={(event) => onOneTimeChange(key as keyof OneTimeExpenses, event.target.value)} />
-                </div>
-              ))}
+      <div className="stack">
+        <div className="card card-pad">
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+            <div>
+              <div className="panel-h">
+                <span className="panel-t">Spend breakdown</span>
+              </div>
+            </div>
+          </div>
+          {hasExp ? (
+            <ApexChartComponent
+              height={240}
+              dep={'don' + themeKey + total}
+              build={CHARTS.expenseDonut(expenses)}
+            />
+          ) : (
+            <div className="empty">
+              <p>Add expenses to see the split</p>
             </div>
           )}
         </div>
-      </div>
 
-      <div>
-        <div className="chart-container">
-          <div className="chart-header">
+        <div className="card card-pad">
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
             <div>
-              <div className="chart-title" style={{ color: 'var(--accent-green)' }}><TrendingUp size={18} /> Monthly Passive Income vs Monthly Expenses</div>
-              <div className="panel-subtitle">Income line is a simplified 4% withdrawal-style estimate from the projected corpus, shown in lakhs per month.</div>
+              <div className="panel-h">
+                <span className="panel-t">Passive income vs expenses</span>
+              </div>
+              <div className="panel-cap" style={{ marginLeft: 0 }}>Lakhs per month · post-return</div>
             </div>
-            <label className="checkbox-wrapper">
-              <input type="checkbox" checked={applyTax} onChange={(event) => onApplyTaxChange(event.target.checked)} />
-              Apply 12.5% Tax
-            </label>
           </div>
-          <div className="chart-wrapper">
-            <ApexChartComponent type="line" series={incomeExpenseSeries} options={incomeExpenseOptions} />
-          </div>
+          {results ? (
+            <ApexChartComponent
+              height={280}
+              dep={'ie' + themeKey + applyTax}
+              build={CHARTS.incomeVsExpense(results.fireProjections, inputs.retirementYear, inputs.returnYear, applyTax)}
+            />
+          ) : (
+            <div className="empty">
+              <p>Run calculation to view passive income progression</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
