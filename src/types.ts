@@ -28,6 +28,7 @@ export interface Inputs {
   stocksRate: number;
   usRate: number;
   inflationRate: number;
+  abroadMonthlyExpenses: number;  // pre-returnYear expense level (display only, doesn't change FIRE target)
   monthlyExpenses: number;
   oneTimeExpenseTotal: number;
   applyTax: boolean;

@@ -51,6 +51,10 @@ export function ExpensesTab(props: ExpensesTabProps) {
           </div>
         </div>
 
+        <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 12 }}>
+          India lifestyle · active from <strong>{inputs.returnYear}</strong> · drives FIRE target
+        </div>
+
         {EXPENSE_META.map((e) => (
           <div className="exp-row" key={e.key}>
             <label>

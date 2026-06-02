@@ -77,6 +77,7 @@ module.exports = (req, res) => {
     const taxRate401k = 0.37;
 
     const monthlyExpensesStart = parseVal(input.monthlyExpenses, 0);
+    const abroadMonthlyExpenses = parseVal(input.abroadMonthlyExpenses, 0);
     const oneTimeExpenseTotalRaw = parseVal(input.oneTimeExpenseTotal, 0);
     const applyTax = input.applyTax === true;
     const taxDragRate = 0.125;
@@ -108,8 +109,19 @@ module.exports = (req, res) => {
         const growMonths = year === startYear ? (13 - startMonth) : 12;
         const yearFraction = growMonths / 12;
 
-        const currentAnnualExpense = (monthlyExpensesStart * 12) * Math.pow(1 + inflationRate, yearsPassed);
-        const currentMonthlyExpenseInflated = currentAnnualExpense / 12;
+        const isAbroad = year < returnToIndiaYear;
+
+        // Retirement corpus deduction — always India (post-return) expenses; never abroad
+        const retirementAnnualExpense = (monthlyExpensesStart * 12) * Math.pow(1 + inflationRate, yearsPassed);
+
+        // Display column in table:
+        //   Pre-return  → always null (show —); expenses only start on return to India
+        //   Post-return → inflation-adjusted India expense
+        let displayMonthlyExpenseLakhs = null;
+        if (!isAbroad && monthlyExpensesStart > 0) {
+          const indiaInflated = monthlyExpensesStart * Math.pow(1 + inflationRate, yearsPassed);
+          displayMonthlyExpenseLakhs = parseFloat((indiaInflated / 100000).toFixed(2));
+        }
 
         if (year > startYear) {
           if (year <= returnToIndiaYear) {
@@ -159,7 +171,7 @@ module.exports = (req, res) => {
           passiveIncomeMonthly: parseFloat(passiveIncomeNet.toFixed(2)),
           passiveIncomeGross: parseFloat(passiveIncomeGross.toFixed(2)),
           monthlyTax: parseFloat(monthlyTax.toFixed(2)),
-          calculatedMonthlyExpense: parseFloat((currentMonthlyExpenseInflated / 100000).toFixed(2)) || 0,
+          calculatedMonthlyExpense: displayMonthlyExpenseLakhs,
           oneTimeDeduction: parseFloat(oneTimeDeductionDisplay.toFixed(2)),
           milestones: []
         });
@@ -171,8 +183,7 @@ module.exports = (req, res) => {
           activeSIP = 0;
           bondInterestToMF = curBonds * bondRate * yearFraction;
           if (monthlyExpensesStart > 0) {
-            const expenseInLakhs = (currentAnnualExpense * yearFraction) / 100000;
-            curMF -= expenseInLakhs;
+            curMF -= (retirementAnnualExpense * yearFraction) / 100000;
           }
         } else {
           const bondInterest = curBonds * bondRate * yearFraction;

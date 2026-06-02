@@ -30,6 +30,7 @@ export const initialInputs: Inputs = {
   stocksRate: 0.15,
   usRate: 0.12,
   inflationRate: 0.06,
+  abroadMonthlyExpenses: 0,
   monthlyExpenses: 0,
   oneTimeExpenseTotal: 0,
   applyTax: false,

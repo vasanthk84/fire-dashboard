@@ -434,7 +434,7 @@ export default function App() {
             {overview}
             <div className="section-gap">
               <Suspense fallback={<TabFallback />}>
-                <ActivePanel />
+                {ActivePanel()}
               </Suspense>
             </div>
           </div>

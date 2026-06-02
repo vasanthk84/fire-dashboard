@@ -129,8 +129,13 @@ app.post('/api/calculate', (req, res) => {
         const isWithdrawing401k = year === withdraw401kYear; 
         const yearsPassed = year - startYear;
         
-        const currentAnnualExpense = (monthlyExpensesStart * 12) * Math.pow(1 + inflationRate, yearsPassed);
-        const currentMonthlyExpenseInflated = currentAnnualExpense / 12;
+        const isAbroad = year < returnToIndiaYear;
+        // Only show expenses from the India return year onwards; pre-return years show null (—)
+        const retirementAnnualExpense = (monthlyExpensesStart * 12) * Math.pow(1 + inflationRate, yearsPassed);
+        let displayMonthlyExpenseLakhs = null;
+        if (!isAbroad && monthlyExpensesStart > 0) {
+          displayMonthlyExpenseLakhs = parseFloat(((monthlyExpensesStart * Math.pow(1 + inflationRate, yearsPassed)) / 100000).toFixed(2));
+        }
 
         if (year > startYear) {
             if (year <= returnToIndiaYear) cur401kUSD = calculate401kYearly(cur401kUSD, annualSalary, 0.05, 0.04, usRate);
@@ -177,7 +182,7 @@ app.post('/api/calculate', (req, res) => {
           passiveIncomeMonthly: parseFloat(passiveIncomeNet.toFixed(2)),
           passiveIncomeGross: parseFloat(passiveIncomeGross.toFixed(2)),
           monthlyTax: parseFloat(monthlyTax.toFixed(2)),
-          calculatedMonthlyExpense: parseFloat((currentMonthlyExpenseInflated/100000).toFixed(2)) || 0,
+          calculatedMonthlyExpense: displayMonthlyExpenseLakhs,
           oneTimeDeduction: parseFloat(oneTimeDeductionDisplay.toFixed(2)),
           milestones: [] 
         });
@@ -189,8 +194,7 @@ app.post('/api/calculate', (req, res) => {
           activeSIP = 0;
           bondInterestToMF = curBonds * bondRate;
           if (monthlyExpensesStart > 0) {
-              const expenseInLakhs = currentAnnualExpense / 100000;
-              curMF -= expenseInLakhs;
+              curMF -= retirementAnnualExpense / 100000;
           }
         } else {
           const bondInterest = curBonds * bondRate;
