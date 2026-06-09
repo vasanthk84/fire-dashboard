@@ -138,8 +138,14 @@ app.post('/api/calculate', (req, res) => {
         }
 
         if (year > startYear) {
-            if (year <= returnToIndiaYear) cur401kUSD = calculate401kYearly(cur401kUSD, annualSalary, 0.05, 0.04, usRate);
-            else if (year > withdraw401kYear) cur401kUSD = 0; 
+          if (year <= returnToIndiaYear) {
+            cur401kUSD = calculate401kYearly(cur401kUSD, annualSalary, 0.05, 0.04, usRate);
+          } else if (year <= withdraw401kYear) {
+            // Coast phase: no contributions, monthly compound growth at usRate
+            cur401kUSD = cur401kUSD * Math.pow(1 + usRate / 12, 12);
+          } else {
+            cur401kUSD = 0;
+          }
         }
         
         let display401kINR = (cur401kUSD * usdToInr401k) / 100000;
@@ -208,6 +214,7 @@ app.post('/api/calculate', (req, res) => {
 
         if (curMF > 0) curMF = growOneYear(curMF, mfRate, activeSIP);
         curStocks *= (1 + stocksRate);
+        curUSStocks *= (1 + usRate);
         
         if (isRetired) curEPF += curEPF * 0.07; 
         else {

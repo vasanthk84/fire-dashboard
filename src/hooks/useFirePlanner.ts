@@ -64,11 +64,11 @@ export function useFirePlanner() {
       blocking.push('Retirement year must be after start year.');
     }
 
-    if (inputs.returnYear < inputs.startYear) {
+    if (inputs.returnYear >= 2000 && inputs.returnYear < inputs.startYear) {
       blocking.push('Return-to-India year cannot be before the start year.');
     }
 
-    if (inputs.withdraw401kYear < inputs.startYear) {
+    if (inputs.withdraw401kYear >= 2000 && inputs.withdraw401kYear < inputs.startYear) {
       blocking.push('401k withdrawal year cannot be before the start year.');
     }
 

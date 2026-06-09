@@ -126,7 +126,10 @@ module.exports = (req, res) => {
         if (year > startYear) {
           if (year <= returnToIndiaYear) {
             cur401kUSD = calculate401kYearly(cur401kUSD, annualSalary, 0.05, 0.04, usRate);
-          } else if (year > withdraw401kYear) {
+          } else if (year <= withdraw401kYear) {
+            // Coast phase: no contributions, monthly compound growth at usRate
+            cur401kUSD = cur401kUSD * Math.pow(1 + usRate / 12, 12);
+          } else {
             cur401kUSD = 0;
           }
         }
