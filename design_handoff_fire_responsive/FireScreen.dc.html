@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="width:100%; height:100%; display:flex; flex-direction:{{ d.shellDir }}; background:var(--bg); color:var(--text); font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif; overflow:hidden; -webkit-font-smoothing:antialiased">
+
+  <sc-if value="{{ d.isDesktop }}" hint-placeholder-val="{{ true }}">
+    <aside style="flex:0 0 232px; width:232px; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:18px 14px; gap:4px">
+      <div style="display:flex; align-items:center; gap:10px; padding:6px 8px 16px">
+        <div style="width:32px; height:32px; border-radius:9px; display:grid; place-items:center; background:var(--accent); color:var(--on-accent); font-weight:800; font-size:15px">F</div>
+        <div><div style="font-size:15px; font-weight:700; letter-spacing:-.01em; line-height:1">FIRE Planner</div><div style="font-size:11px; color:var(--text-3); margin-top:3px; font-weight:500">Pro</div></div>
+      </div>
+      <div style="font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); padding:16px 11px 6px; font-weight:700">Analysis</div>
+      <button onClick="{{ d.go.journey }}" style="{{ d.nav.journey }}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 8 3 16 6 23 3 23 18 16 21 8 18 1 21"></polygon><line x1="8" y1="3" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="21"></line></svg>Journey</button>
+      <button onClick="{{ d.go.risk }}" style="{{ d.nav.risk }}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>Risk</button>
+      <button onClick="{{ d.go.expenses }}" style="{{ d.nav.expenses }}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"></path><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"></path><circle cx="16" cy="14" r="1.4" fill="currentColor" stroke="none"></circle></svg>Expenses</button>
+      <button onClick="{{ d.go.withdrawal }}" style="{{ d.nav.withdrawal }}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg>Withdrawal</button>
+      <button onClick="{{ d.go.snapshots }}" style="{{ d.nav.snapshots }}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"></rect><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"></path><line x1="10" y1="12" x2="14" y2="12"></line></svg>Snapshots</button>
+      <div style="margin-top:auto; display:flex; flex-direction:column; gap:8px; padding-top:12px; border-top:1px solid var(--border)">
+        <button onClick="{{ d.go.setup }}" style="{{ d.nav.setup }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"></line><circle cx="9" cy="7" r="2.3" fill="var(--surface)"></circle><line x1="4" y1="17" x2="20" y2="17"></line><circle cx="15" cy="17" r="2.3" fill="var(--surface)"></circle></svg>Assumptions</button>
+        <button style="display:flex; align-items:center; gap:9px; padding:8px 11px; border-radius:8px; border:1px solid transparent; background:none; color:var(--text-2); font-size:13px; font-weight:600; font-family:inherit; cursor:pointer; text-align:left"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Export plan</button>
+      </div>
+    </aside>
+  </sc-if>
+
+  <main style="flex:1; min-width:0; display:flex; flex-direction:column; min-height:0">
+
+    <sc-if value="{{ d.isDesktop }}" hint-placeholder-val="{{ true }}">
+      <header style="display:flex; align-items:center; gap:22px; padding:20px 28px 16px; border-bottom:1px solid var(--border); flex:none">
+        <div><h1 style="font-size:19px; font-weight:700; margin:0; letter-spacing:-.02em">{{ d.screenTitle }}</h1><div style="font-size:12.5px; color:var(--text-3); margin-top:3px">FIRE projection · 2026</div></div>
+        <div style="margin-left:auto; display:flex; align-items:center; gap:22px">
+          <div style="display:flex; gap:2px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:3px">
+            <span style="padding:6px 12px; border-radius:7px; font-size:12px; font-weight:600; background:var(--surface-3); color:var(--text)">Console</span>
+            <span style="padding:6px 12px; border-radius:7px; font-size:12px; font-weight:600; color:var(--text-2)">Report</span>
+          </div>
+          <div style="display:flex; gap:26px">
+            <div style="display:flex; flex-direction:column; gap:3px"><span style="font-size:11px; color:var(--text-3); font-weight:600">Wealth</span><strong style="font-size:16px; font-weight:700; font-family:'JetBrains Mono',ui-monospace,monospace">{{ d.kpiWealth }}</strong></div>
+            <div style="display:flex; flex-direction:column; gap:3px"><span style="font-size:11px; color:var(--text-3); font-weight:600">Target</span><strong style="font-size:16px; font-weight:700; font-family:'JetBrains Mono',ui-monospace,monospace">{{ d.kpiTarget }}</strong></div>
+            <div style="display:flex; flex-direction:column; gap:3px"><span style="font-size:11px; color:var(--text-3); font-weight:600">Progress</span><strong style="font-size:16px; font-weight:700; font-family:'JetBrains Mono',ui-monospace,monospace">{{ d.kpiProgress }}</strong></div>
+          </div>
+        </div>
+      </header>
+    </sc-if>
+
+    <sc-if value="{{ d.isMobile }}" hint-placeholder-val="{{ true }}">
+      <header style="display:flex; align-items:center; gap:12px; padding:30px 16px 14px; border-bottom:1px solid var(--border); background:var(--surface); flex:none">
+        <div style="width:30px; height:30px; border-radius:8px; display:grid; place-items:center; background:var(--accent); color:var(--on-accent); font-weight:800; font-size:14px">F</div>
+        <div style="flex:1; min-width:0"><div style="font-size:15px; font-weight:700; letter-spacing:-.02em; line-height:1.1">{{ d.screenTitle }}</div><div style="font-size:11px; color:var(--text-3); margin-top:2px">FIRE projection · 2026</div></div>
+        <button style="width:34px; height:34px; border-radius:9px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-2); display:grid; place-items:center; cursor:pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6.36 6.36 0 0 0 9 9 9 9 0 1 1-9-9z"></path></svg></button>
+        <button onClick="{{ d.go.setup }}" style="width:34px; height:34px; border-radius:9px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-2); display:grid; place-items:center; cursor:pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"></line><circle cx="9" cy="7" r="2.3" fill="var(--surface-2)"></circle><line x1="4" y1="17" x2="20" y2="17"></line><circle cx="15" cy="17" r="2.3" fill="var(--surface-2)"></circle></svg></button>
+      </header>
+    </sc-if>
+
+    <div style="flex:1; min-height:0; overflow-y:auto; padding:{{ d.contentPad }}; display:flex; flex-direction:column; gap:14px">
+
+      <div style="display:flex; align-items:center; gap:10px">
+        <span style="font-size:11px; font-weight:650; padding:4px 10px; border-radius:999px; display:inline-flex; align-items:center; gap:5px; color:var(--pos); background:color-mix(in srgb, var(--pos) 13%, transparent)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>{{ d.readinessText }}</span>
+      </div>
+
+      <div style="display:flex; flex-wrap:wrap; gap:14px">
+        <sc-for list="{{ d.stats }}" as="s" hint-placeholder-count="4">
+          <div style="flex:1 1 150px; min-width:150px; background:var(--surface); border:1px solid var(--border); border-radius:15px; padding:16px 18px; box-shadow:var(--shadow)">
+            <div style="display:flex; align-items:center; gap:8px; color:var(--text-2); font-size:12px; font-weight:600"><i style="width:7px; height:7px; border-radius:2px; background:var(--accent); display:inline-block"></i>{{ s.label }}</div>
+            <div style="font-size:26px; font-weight:700; margin-top:11px; line-height:1; letter-spacing:-.02em; font-family:'JetBrains Mono',ui-monospace,monospace">{{ s.val }}</div>
+            <sc-if value="{{ s.hasBar }}" hint-placeholder-val="{{ true }}"><div style="height:5px; border-radius:3px; background:var(--surface-3); margin-top:11px; overflow:hidden"><i style="display:block; height:100%; border-radius:3px; background:var(--accent); width:{{ s.barPct }}"></i></div></sc-if>
+            <div style="font-size:11.5px; color:var(--text-3); margin-top:9px; font-weight:500">{{ s.foot }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- ===================== JOURNEY ===================== -->
+      <sc-if value="{{ d.isJourney }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex; flex-direction:column; gap:14px">
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:15px; box-shadow:var(--shadow); padding:16px 18px 18px">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px"><span style="font-size:14.5px; font-weight:700; letter-spacing:-.01em">Corpus trajectory · 2026–2044</span><span style="font-size:11px; color:var(--text-3)">start-of-year ₹L</span></div>
+            <svg viewBox="0 0 100 46" preserveAspectRatio="none" style="width:100%; height:170px; display:block">
+              <defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity="0.28"></stop><stop offset="1" stop-color="var(--accent)" stop-opacity="0"></stop></linearGradient></defs>
+              <line x1="0" y1="11" x2="100" y2="11" stroke="var(--grid)" stroke-width="0.4"></line>
+              <line x1="0" y1="23" x2="100" y2="23" stroke="var(--grid)" stroke-width="0.4"></line>
+              <line x1="0" y1="35" x2="100" y2="35" stroke="var(--grid)" stroke-width="0.4"></line>
+              <path d="{{ d.corpusArea }}" fill="url(#cg)"></path>
+              <path d="{{ d.corpusLine }}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></path>
+              <line x1="{{ d.retireX }}" y1="4" x2="{{ d.retireX }}" y2="42" stroke="var(--warn)" stroke-width="0.5" stroke-dasharray="1.4 1.4"></line>
+            </svg>
+            <div style="display:flex; justify-content:space-between; font-size:10.5px; color:var(--text-3); margin-top:6px; font-family:'JetBrains Mono',ui-monospace,monospace"><span>2026</span><span style="color:var(--warn)">retire 2036</span><span>2044</span></div>
+          </div>
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:15px; box-shadow:var(--shadow); overflow:hidden">
+            <div style="padding:15px 18px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px"><div style="font-size:14.5px; font-weight:700">Year-by-year path</div><span style="font-size:10.5px; font-weight:650; padding:2px 8px; border-radius:999px; border:1px solid var(--border-strong); color:var(--text-2); background:var(--surface-2)">highlight = retirement</span></div>
+            <div style="overflow-x:auto">
+              <table style="width:100%; border-collapse:collapse; font-size:12.5px">
+                <thead><tr>
+                  <th style="text-align:left; font-size:10px; letter-spacing:.03em; text-transform:uppercase; color:var(--text-3); font-weight:700; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--border); position:sticky; left:0">Year</th>
+                  <th style="text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-3); font-weight:700; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--border); white-space:nowrap">MF</th>
+                  <th style="text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-3); font-weight:700; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--border); white-space:nowrap">Stocks</th>
+                  <th style="text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-3); font-weight:700; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--border); white-space:nowrap">US</th>
+                  <th style="text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-3); font-weight:700; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--border); white-space:nowrap">EPF</th>
+                  <th style="text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-3); font-weight:700; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--border); white-space:nowrap">Total</th>
+                  <th style="text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-3); font-weight:700; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--border); white-space:nowrap">Passive/mo</th>
+                  <th style="text-align:left; font-size:10px; text-transform:uppercase; color:var(--text-3); font-weight:700; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--border); white-space:nowrap">Events</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ d.tableRows }}" as="r" hint-placeholder-count="12">
+                    <tr style="{{ r.rowStyle }}">
+                      <td style="text-align:left; padding:9px 12px; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--text); font-weight:600; position:sticky; left:0; background:{{ r.stickyBg }}">{{ r.year }}</td>
+                      <td style="text-align:right; padding:9px 12px; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--text-2); white-space:nowrap">{{ r.mf }}</td>
+                      <td style="text-align:right; padding:9px 12px; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--text-2); white-space:nowrap">{{ r.stocks }}</td>
+                      <td style="text-align:right; padding:9px 12px; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--text-2); white-space:nowrap">{{ r.us }}</td>
+                      <td style="text-align:right; padding:9px 12px; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--text-2); white-space:nowrap">{{ r.epf }}</td>
+                      <td style="text-align:right; padding:9px 12px; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--text); font-weight:600; white-space:nowrap">{{ r.total }}</td>
+                      <td style="text-align:right; padding:9px 12px; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--text-2); white-space:nowrap">{{ r.passive }}</td>
+                      <td style="text-align:left; padding:9px 12px; border-bottom:1px solid var(--border)"><div style="display:flex; flex-wrap:wrap; gap:5px"><sc-for list="{{ r.milestones }}" as="m" hint-placeholder-count="0"><span style="{{ m.chipStyle }}">{{ m.text }}</span></sc-for></div></td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ===================== RISK ===================== -->
+      <sc-if value="{{ d.isRisk }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex; flex-direction:column; gap:14px">
+          <div style="font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); font-weight:700">Stress scenarios · corpus at retirement</div>
+          <div style="display:flex; flex-wrap:wrap; gap:12px">
+            <sc-for list="{{ d.stress }}" as="s" hint-placeholder-count="3">
+              <div style="flex:1 1 240px; min-width:230px; background:var(--surface); border:1px solid var(--border); border-left:3px solid {{ s.edge }}; border-radius:11px; padding:15px 16px; box-shadow:var(--shadow)">
+                <div style="font-size:13.5px; font-weight:700">{{ s.label }}</div>
+                <div style="font-size:11px; color:var(--text-3); margin:2px 0 12px; font-weight:550">{{ s.assumption }}</div>
+                <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:12px; color:var(--text-2)"><span>Corpus</span><strong style="font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--text); font-weight:650">{{ s.corpus }}</strong></div>
+                <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:12px; color:var(--text-2)"><span>vs base</span><strong style="font-family:'JetBrains Mono',ui-monospace,monospace; font-weight:650; color:{{ s.deltaColor }}">{{ s.delta }}</strong></div>
+                <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:12px; color:var(--text-2)"><span>Cover</span><strong style="font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--text); font-weight:650">{{ s.cover }}</strong></div>
+                <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:12px; color:var(--text-2)"><span>FIRE year</span><strong style="font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--text); font-weight:650">{{ s.fireYear }}</strong></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:15px; box-shadow:var(--shadow); padding:16px 18px 18px">
+            <div style="font-size:14.5px; font-weight:700; margin-bottom:2px">Net-worth composition</div>
+            <div style="font-size:12px; color:var(--text-3); margin-bottom:14px">Asset mix over the accumulation path</div>
+            <svg viewBox="0 0 100 46" preserveAspectRatio="none" style="width:100%; height:200px; display:block">
+              <sc-for list="{{ d.compLayers }}" as="L" hint-placeholder-count="6"><path d="{{ L.d }}" fill="{{ L.color }}" opacity="0.9"></path></sc-for>
+            </svg>
+            <div style="display:flex; flex-wrap:wrap; gap:14px; margin-top:14px">
+              <sc-for list="{{ d.assetLegend }}" as="a" hint-placeholder-count="6"><span style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--text-2); font-weight:550"><i style="width:9px; height:9px; border-radius:3px; background:{{ a.color }}; display:inline-block"></i>{{ a.label }}</span></sc-for>
+            </div>
+          </div>
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:15px; box-shadow:var(--shadow); padding:16px 18px 18px">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px">
+              <div style="font-size:14.5px; font-weight:700">Equity allocation &amp; glidepath</div>
+              <label style="display:inline-flex; align-items:center; gap:9px; font-size:12.5px; color:var(--text-2); font-weight:550"><span style="width:34px; height:19px; border-radius:999px; background:var(--accent); border:1px solid var(--accent); position:relative; display:inline-block"><span style="position:absolute; top:1.5px; left:16.5px; width:14px; height:14px; border-radius:50%; background:#fff"></span></span>Rebalance</label>
+            </div>
+            <svg viewBox="0 0 100 46" preserveAspectRatio="none" style="width:100%; height:180px; display:block">
+              <line x1="0" y1="11" x2="100" y2="11" stroke="var(--grid)" stroke-width="0.4"></line>
+              <line x1="0" y1="23" x2="100" y2="23" stroke="var(--grid)" stroke-width="0.4"></line>
+              <line x1="0" y1="35" x2="100" y2="35" stroke="var(--grid)" stroke-width="0.4"></line>
+              <path d="{{ d.glideTarget }}" fill="none" stroke="var(--text-3)" stroke-width="1.4" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"></path>
+              <path d="{{ d.glideDrift }}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></path>
+            </svg>
+            <div style="display:flex; gap:16px; margin-top:12px"><span style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--text-2)"><i style="width:14px; height:2px; background:var(--accent); display:inline-block"></i>Actual equity %</span><span style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--text-2)"><i style="width:14px; height:2px; background:var(--text-3); display:inline-block"></i>Target glidepath</span></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ===================== EXPENSES ===================== -->
+      <sc-if value="{{ d.isExpenses }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start">
+          <div style="flex:1 1 300px; min-width:280px; background:var(--surface); border:1px solid var(--border); border-radius:15px; box-shadow:var(--shadow); padding:16px 18px 18px">
+            <div style="font-size:14.5px; font-weight:700">Monthly expenses</div>
+            <div style="font-size:12px; color:var(--text-3); margin:2px 0 14px">India lifestyle · active from 2031 · drives FIRE target</div>
+            <sc-for list="{{ d.expenseSegments }}" as="e" hint-placeholder-count="7">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:7px 0; border-bottom:1px solid var(--border)">
+                <label style="font-size:12.5px; color:var(--text-2); font-weight:550"><i style="display:inline-block; width:8px; height:8px; border-radius:2px; background:{{ e.color }}; margin-right:8px; vertical-align:middle"></i>{{ e.label }}</label>
+                <div style="width:116px; text-align:right; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'JetBrains Mono',ui-monospace,monospace; font-size:13px; padding:8px 10px">{{ e.amount }}</div>
+              </div>
+            </sc-for>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-top:12px; border-top:1px solid var(--border-strong)"><span style="font-size:12px; color:var(--text-2); font-weight:600">Total / month</span><b style="font-size:17px; font-family:'JetBrains Mono',ui-monospace,monospace">{{ d.expenseTotal }}</b></div>
+            <div style="margin-top:16px; display:flex; flex-direction:column; gap:12px">
+              <label style="display:inline-flex; align-items:center; gap:9px; font-size:12.5px; color:var(--text-2); font-weight:550"><span style="width:34px; height:19px; border-radius:999px; background:var(--surface-3); border:1px solid var(--border-strong); position:relative; display:inline-block"><span style="position:absolute; top:1.5px; left:1.5px; width:14px; height:14px; border-radius:50%; background:var(--text-2)"></span></span>Apply 12.5% tax drag</label>
+              <label style="display:inline-flex; align-items:center; gap:9px; font-size:12.5px; color:var(--text-2); font-weight:550"><span style="width:34px; height:19px; border-radius:999px; background:var(--accent); border:1px solid var(--accent); position:relative; display:inline-block"><span style="position:absolute; top:1.5px; left:16.5px; width:14px; height:14px; border-radius:50%; background:#fff"></span></span>Return-to-India setup costs</label>
+            </div>
+          </div>
+          <div style="flex:1 1 300px; min-width:280px; display:flex; flex-direction:column; gap:14px">
+            <div style="background:var(--surface); border:1px solid var(--border); border-radius:15px; box-shadow:var(--shadow); padding:16px 18px 18px">
+              <div style="font-size:14.5px; font-weight:700; margin-bottom:14px">Spend breakdown</div>
+              <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap; justify-content:center">
+                <svg viewBox="0 0 36 36" style="width:150px; height:150px; transform:rotate(-90deg)">
+                  <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--surface-3)" stroke-width="4"></circle>
+                  <sc-for list="{{ d.expenseSegments }}" as="e" hint-placeholder-count="7"><circle cx="18" cy="18" r="15.915" fill="none" stroke="{{ e.color }}" stroke-width="4" stroke-dasharray="{{ e.dash }}" stroke-dashoffset="{{ e.offset }}"></circle></sc-for>
+                </svg>
+                <div style="display:flex; flex-direction:column; gap:6px">
+                  <sc-for list="{{ d.expenseSegments }}" as="e" hint-placeholder-count="7"><span style="display:inline-flex; align-items:center; gap:7px; font-size:11.5px; color:var(--text-2)"><i style="width:9px; height:9px; border-radius:3px; background:{{ e.color }}; display:inline-block"></i>{{ e.label }} · {{ e.pct }}</span></sc-for>
+                </div>
+              </div>
+            </div>
+            <div style="background:var(--surface); border:1px solid var(--border); border-radius:15px; box-shadow:var(--shadow); padding:16px 18px 18px">
+              <div style="font-size:14.5px; font-weight:700">Passive income vs expenses</div>
+              <div style="font-size:12px; color:var(--text-3); margin:2px 0 16px">₹L per month · post-return</div>
+              <div style="display:flex; align-items:flex-end; gap:8px; height:150px; padding-bottom:20px; position:relative">
+                <sc-for list="{{ d.incomeBars }}" as="b" hint-placeholder-count="8">
+                  <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; height:100%; justify-content:flex-end; position:relative">
+                    <div style="width:100%; display:flex; gap:2px; align-items:flex-end; height:100%">
+                      <div style="flex:1; background:var(--accent); border-radius:2px 2px 0 0; height:{{ b.passiveH }}"></div>
+                      <div style="flex:1; background:var(--neg); border-radius:2px 2px 0 0; height:{{ b.expenseH }}"></div>
+                    </div>
+                    <span style="position:absolute; bottom:-18px; font-size:9px; color:var(--text-3); font-family:'JetBrains Mono',ui-monospace,monospace">{{ b.year }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex; gap:16px; margin-top:6px"><span style="display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--text-2)"><i style="width:9px; height:9px; border-radius:2px; background:var(--accent); display:inline-block"></i>Passive income</span><span style="display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--text-2)"><i style="width:9px; height:9px; border-radius:2px; background:var(--neg); display:inline-block"></i>Expenses</span></div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ===================== WITHDRAWAL ===================== -->
+      <sc-if value="{{ d.isWithdrawal }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex; flex-direction:column; gap:14px">
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:15px; box-shadow:var(--shadow); padding:16px 18px 18px">
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap">
+              <div><div style="font-size:14.5px; font-weight:700">Withdrawal (SWP)</div><div style="font-size:12px; color:var(--text-3); margin-top:2px">LTCG-optimised · FY2025 rules</div></div>
+              <div style="display:flex; gap:2px; background:var(--surface-2); border:1px solid var(--border); border-radius:9px; padding:3px">
+                <span style="padding:6px 11px; border-radius:6px; font-size:12px; font-weight:600; color:var(--text-2)">2%</span>
+                <span style="padding:6px 11px; border-radius:6px; font-size:12px; font-weight:600; color:var(--text-2)">3%</span>
+                <span style="padding:6px 11px; border-radius:6px; font-size:12px; font-weight:600; background:var(--surface); color:var(--text); box-shadow:var(--shadow)">4%</span>
+              </div>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:14px">
+              <sc-for list="{{ d.wdCards }}" as="c" hint-placeholder-count="3">
+                <div style="flex:1 1 180px; min-width:170px; border-radius:15px; padding:16px 18px; border:1px solid {{ c.border }}; background:{{ c.bg }}">
+                  <div style="font-size:11.5px; color:var(--text-2); font-weight:600">{{ c.label }}</div>
+                  <div style="font-size:23px; font-weight:700; margin-top:10px; letter-spacing:-.02em; font-family:'JetBrains Mono',ui-monospace,monospace">{{ c.val }}</div>
+                  <div style="font-size:11.5px; color:var(--text-3); margin-top:8px">{{ c.foot }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="margin-top:18px"><div style="font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); font-weight:700; margin-bottom:10px">Corpus sustainability · 25 yrs @ 4%</div>
+              <svg viewBox="0 0 100 40" preserveAspectRatio="none" style="width:100%; height:160px; display:block">
+                <defs><linearGradient id="dg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity="0.24"></stop><stop offset="1" stop-color="var(--accent)" stop-opacity="0"></stop></linearGradient></defs>
+                <path d="{{ d.depArea }}" fill="url(#dg)"></path>
+                <path d="{{ d.depLine }}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></path>
+              </svg>
+            </div>
+          </div>
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:15px; box-shadow:var(--shadow); overflow:hidden">
+            <div style="padding:15px 18px; border-bottom:1px solid var(--border); font-size:14.5px; font-weight:700">Projected post-tax income</div>
+            <div style="overflow-x:auto">
+              <table style="width:100%; border-collapse:collapse; font-size:12.5px">
+                <thead><tr>
+                  <th style="text-align:left; font-size:10px; text-transform:uppercase; color:var(--text-3); font-weight:700; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--border)">Year</th>
+                  <th style="text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-3); font-weight:700; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--border)">Corpus</th>
+                  <th style="text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-3); font-weight:700; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--border)">Withdrawal</th>
+                  <th style="text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-3); font-weight:700; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--border)">Est. tax</th>
+                  <th style="text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-3); font-weight:700; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--border)">Net / mo</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ d.wdTable }}" as="r" hint-placeholder-count="8">
+                    <tr>
+                      <td style="text-align:left; padding:9px 12px; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--text); font-weight:600">{{ r.year }}</td>
+                      <td style="text-align:right; padding:9px 12px; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--text-2)">{{ r.corpus }}</td>
+                      <td style="text-align:right; padding:9px 12px; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--text-2)">{{ r.withdrawal }}</td>
+                      <td style="text-align:right; padding:9px 12px; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--neg)">{{ r.tax }}</td>
+                      <td style="text-align:right; padding:9px 12px; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--pos)">{{ r.net }}</td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ===================== SNAPSHOTS ===================== -->
+      <sc-if value="{{ d.isSnapshots }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex; flex-direction:column; gap:14px">
+          <div style="display:flex; flex-wrap:wrap; gap:14px">
+            <sc-for list="{{ d.snapStats }}" as="s" hint-placeholder-count="3"><div style="flex:1 1 140px; min-width:130px; background:var(--surface); border:1px solid var(--border); border-radius:15px; padding:16px 18px; box-shadow:var(--shadow)"><div style="font-size:11.5px; color:var(--text-2); font-weight:600">{{ s.label }}</div><div style="font-size:24px; font-weight:700; margin-top:10px; font-family:'JetBrains Mono',ui-monospace,monospace">{{ s.val }}</div></div></sc-for>
+          </div>
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:15px; box-shadow:var(--shadow); padding:16px 18px 18px">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap">
+              <div><div style="font-size:14.5px; font-weight:700">Saved snapshots (3)</div><div style="font-size:12px; color:var(--text-3); margin-top:2px">Select two or more to compare</div></div>
+              <div style="display:flex; gap:8px"><span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:7px 12px; border-radius:8px; background:var(--accent); color:var(--on-accent)">＋ Save</span><span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:7px 12px; border-radius:8px; background:var(--surface-2); border:1px solid var(--border-strong); color:var(--text)">Export</span></div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px">
+              <sc-for list="{{ d.snapItems }}" as="s" hint-placeholder-count="3">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 15px; border-radius:11px; border:1px solid {{ s.border }}; background:{{ s.bg }}">
+                  <div style="display:flex; flex-direction:column; gap:4px; min-width:0">
+                    <div style="font-size:13.5px; font-weight:650">{{ s.label }}<span style="color:var(--text-3); font-weight:400; font-size:12px; margin-left:6px">{{ s.note }}</span></div>
+                    <div style="display:flex; gap:12px; align-items:center; font-size:11.5px"><span style="font-family:'JetBrains Mono',ui-monospace,monospace; color:var(--text-2); font-weight:600">{{ s.wealth }}</span><span style="color:{{ s.deltaColor }}; font-weight:650">{{ s.delta }}</span></div>
+                  </div>
+                  <div style="font-size:12px; color:var(--text-3); font-family:'JetBrains Mono',ui-monospace,monospace; white-space:nowrap">{{ s.date }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:15px; box-shadow:var(--shadow); padding:16px 18px 18px">
+            <div style="font-size:14.5px; font-weight:700">Wealth progression</div>
+            <div style="font-size:12px; color:var(--text-3); margin:2px 0 14px">Selected snapshots vs FIRE target</div>
+            <svg viewBox="0 0 100 40" preserveAspectRatio="none" style="width:100%; height:150px; display:block">
+              <line x1="0" y1="4" x2="100" y2="4" stroke="var(--warn)" stroke-width="0.5" stroke-dasharray="1.4 1.4"></line>
+              <path d="{{ d.progLine }}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></path>
+              <sc-for list="{{ d.progDots }}" as="p" hint-placeholder-count="3"><circle cx="{{ p.x }}" cy="{{ p.y }}" r="1.4" fill="var(--accent)"></circle></sc-for>
+            </svg>
+            <div style="font-size:10.5px; color:var(--warn); margin-top:6px">— — FIRE target ₹6.00Cr</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ===================== SETUP / ASSUMPTIONS ===================== -->
+      <sc-if value="{{ d.isSetup }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start">
+          <sc-for list="{{ d.inputGroups }}" as="g" hint-placeholder-count="6">
+            <div style="flex:1 1 220px; min-width:210px; background:var(--surface); border:1px solid var(--border); border-radius:11px; padding:14px 14px 16px; box-shadow:var(--shadow)">
+              <h4 style="font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--text-3); font-weight:700; margin:0 0 12px">{{ g.title }}</h4>
+              <div style="display:flex; flex-direction:column; gap:10px">
+                <sc-for list="{{ g.fields }}" as="f" hint-placeholder-count="4">
+                  <div style="display:flex; flex-direction:column; gap:5px">
+                    <label style="font-size:11px; color:var(--text-2); font-weight:600">{{ f.label }}</label>
+                    <div style="width:100%; background:var(--surface-2); border:1px solid {{ f.border }}; border-radius:8px; color:{{ f.color }}; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:13px; padding:8px 10px">{{ f.value }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <div style="height:2px"></div>
+    </div>
+
+    <sc-if value="{{ d.isMobile }}" hint-placeholder-val="{{ true }}">
+      <nav style="flex:none; display:flex; background:var(--surface); border-top:1px solid var(--border); padding:6px 4px 8px">
+        <button onClick="{{ d.go.journey }}" style="{{ d.bnav.journey }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 8 3 16 6 23 3 23 18 16 21 8 18 1 21"></polygon><line x1="8" y1="3" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="21"></line></svg><span>Journey</span></button>
+        <button onClick="{{ d.go.risk }}" style="{{ d.bnav.risk }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg><span>Risk</span></button>
+        <button onClick="{{ d.go.expenses }}" style="{{ d.bnav.expenses }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"></path><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"></path></svg><span>Spend</span></button>
+        <button onClick="{{ d.go.withdrawal }}" style="{{ d.bnav.withdrawal }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg><span>Draw</span></button>
+        <button onClick="{{ d.go.snapshots }}" style="{{ d.bnav.snapshots }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"></rect><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"></path></svg><span>Snaps</span></button>
+      </nav>
+    </sc-if>
+
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:820},&quot;tab&quot;:{&quot;editor&quot;:null,&quot;default&quot;:&quot;journey&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;variant&quot;:{&quot;editor&quot;:null,&quot;default&quot;:&quot;desktop&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;onTab&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(t:string)=&gt;void&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const tab = this.props.tab || 'journey';
+    const variant = this.props.variant || 'desktop';
+    const isMobile = variant === 'mobile';
+    if (!this._base) this._base = this.build();
+    const b = this._base;
+
+    const titles = { journey:'Journey', risk:'Risk', expenses:'Expenses', withdrawal:'Withdrawal', snapshots:'Snapshots', setup:'Assumptions' };
+    const set = (t) => () => { this.props.onTab ? this.props.onTab(t) : null; };
+
+    // nav style builders
+    const navItem = (key, active) => {
+      const base = 'display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:8px; font-size:13.5px; font-weight:600; font-family:inherit; cursor:pointer; text-align:left; width:100%; border:1px solid transparent;';
+      if (active) return base + ' background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent); border-color:color-mix(in srgb, var(--accent) 30%, transparent);';
+      return base + ' background:none; color:var(--text-2);';
+    };
+    const bnavItem = (active) => {
+      const base = 'flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 2px; border:none; background:none; font-family:inherit; cursor:pointer; font-size:9.5px; font-weight:600;';
+      return base + (active ? ' color:var(--accent);' : ' color:var(--text-3);');
+    };
+
+    const keys = ['journey','risk','expenses','withdrawal','snapshots','setup'];
+    const go = {}, nav = {}, bnav = {};
+    keys.forEach(k => { go[k] = set(k); nav[k] = navItem(k, tab===k); bnav[k] = bnavItem(tab===k); });
+
+    return {
+      d: {
+        shellDir: isMobile ? 'column' : 'row',
+        isMobile, isDesktop: !isMobile,
+        contentPad: isMobile ? '14px 14px 16px' : '22px 28px 40px',
+        screenTitle: titles[tab] || 'Journey',
+        isJourney: tab==='journey', isRisk: tab==='risk', isExpenses: tab==='expenses',
+        isWithdrawal: tab==='withdrawal', isSnapshots: tab==='snapshots', isSetup: tab==='setup',
+        go, nav, bnav,
+        ...b
+      }
+    };
+  }
+
+  fmtL(v) {
+    if (!isFinite(v)) return '₹0.0L';
+    return v >= 100 ? '₹' + (v/100).toFixed(2) + 'Cr' : '₹' + v.toFixed(1) + 'L';
+  }
+  fmtR(v) { return '₹' + Math.round(v).toLocaleString('en-IN'); }
+
+  path(vals, opts) {
+    const o = Object.assign({ w:100, top:5, bot:42, min:null, max:null }, opts||{});
+    const mn = o.min!=null ? o.min : Math.min(...vals);
+    const mx = o.max!=null ? o.max : Math.max(...vals);
+    const n = vals.length;
+    const pts = vals.map((v,i) => {
+      const x = n===1 ? 0 : (i/(n-1))*o.w;
+      const y = o.bot - (mx===mn ? 0 : (v-mn)/(mx-mn))*(o.bot-o.top);
+      return [x, y];
+    });
+    const line = 'M' + pts.map(p => p[0].toFixed(2)+','+p[1].toFixed(2)).join(' L');
+    const area = line + ' L' + o.w.toFixed(2) + ',' + o.bot.toFixed(2) + ' L0,' + o.bot.toFixed(2) + ' Z';
+    return { line, area, pts };
+  }
+
+  build() {
+    const fmtL = this.fmtL.bind(this), fmtR = this.fmtR.bind(this);
+    const startYear = 2026, retireYear = 2036, returnYear = 2031;
+
+    // ---- projections ----
+    const ratios = { mf:0.335, stocks:0.15, us:0.185, bonds:0.055, epf:0.09, k401:0.185 };
+    const proj = [];
+    let total = 185;
+    for (let i=0; i<=18; i++) {
+      const year = startYear + i;
+      if (i <= 10) total = 185 * Math.pow(640/185, i/10);
+      else total = total*1.055 - 26;
+      const post = year >= retireYear;
+      const eqAdj = post ? Math.max(0.72, 1 - (year-retireYear)*0.02) : 1;
+      const mf = total*ratios.mf*eqAdj, stocks = total*ratios.stocks*eqAdj, us = total*ratios.us*eqAdj;
+      const bonds = total*ratios.bonds*(post?1.5:1), epf = total*ratios.epf, k401 = total*ratios.k401;
+      const passive = year >= returnYear ? total*0.04/12 : 0;
+      const expense = year >= returnYear ? 114000*Math.pow(1.06, year-returnYear) : null;
+      const ms = [];
+      if (year===returnYear) ms.push({type:'life', text:'Return IN'});
+      if (year===2033) ms.push({type:'expense', text:'Home'});
+      if (year===2034) ms.push({type:'life', text:'401k draw'});
+      if (year===retireYear) ms.push({type:'milestone', text:'Retire'});
+      if (year===2040) ms.push({type:'wealth', text:'₹5Cr+'});
+      proj.push({ year, total, mf, stocks, us, bonds, epf, k401, passive, expense, ms });
+    }
+
+    const chipStyle = (type) => {
+      const base = 'font-size:10px; font-weight:650; padding:2px 7px; border-radius:999px; white-space:nowrap; border:1px solid;';
+      const map = {
+        life: ' color:var(--accent); border-color:color-mix(in srgb,var(--accent) 30%,transparent); background:color-mix(in srgb,var(--accent) 14%,transparent);',
+        wealth: ' color:var(--pos); border-color:color-mix(in srgb,var(--pos) 35%,transparent); background:color-mix(in srgb,var(--pos) 13%,transparent);',
+        expense: ' color:var(--neg); border-color:color-mix(in srgb,var(--neg) 35%,transparent); background:color-mix(in srgb,var(--neg) 12%,transparent);',
+        milestone: ' color:var(--warn); border-color:color-mix(in srgb,var(--warn) 38%,transparent); background:color-mix(in srgb,var(--warn) 13%,transparent);'
+      };
+      return base + (map[type]||map.milestone);
+    };
+
+    const tableRows = proj.filter(p => p.year <= startYear+13).map(p => ({
+      year: p.year, mf: fmtL(p.mf), stocks: fmtL(p.stocks), us: fmtL(p.us),
+      epf: fmtL(p.epf), total: fmtL(p.total), passive: p.passive>0 ? fmtL(p.passive) : '—',
+      milestones: p.ms.map(m => ({ text: m.text, chipStyle: chipStyle(m.type) })),
+      rowStyle: p.year===retireYear ? 'background:color-mix(in srgb,var(--accent) 14%,transparent);' : '',
+      stickyBg: p.year===retireYear ? 'color-mix(in srgb,var(--accent) 14%,transparent)' : 'var(--surface)'
+    }));
+
+    // corpus chart
+    const totals = proj.map(p => p.total);
+    const cp = this.path(totals, {min:0});
+    const retireIdx = proj.findIndex(p => p.year===retireYear);
+    const retireX = ((retireIdx/(proj.length-1))*100).toFixed(2);
+
+    // composition stacked
+    const assetLegend = [
+      {label:'Mutual Funds', color:'#4f9dff', key:'mf'},
+      {label:'Stocks IN', color:'#22c55e', key:'stocks'},
+      {label:'US Stocks', color:'#a78bfa', key:'us'},
+      {label:'Bonds', color:'#f59e0b', key:'bonds'},
+      {label:'EPF', color:'#14b8a6', key:'epf'},
+      {label:'401k', color:'#f472b6', key:'k401'}
+    ];
+    const maxTot = Math.max(...proj.map(p => p.mf+p.stocks+p.us+p.bonds+p.epf+p.k401));
+    const order = ['mf','stocks','us','bonds','epf','k401'];
+    const compLayers = [];
+    for (let k=order.length; k>=1; k--) {
+      const cum = proj.map(p => order.slice(0,k).reduce((s,key)=>s+p[key],0));
+      const pp = this.path(cum, {min:0, max:maxTot, top:5, bot:44});
+      compLayers.push({ d: pp.area, color: assetLegend[k-1].color });
+    }
+
+    // glidepath
+    const drift = proj.map(p => {
+      const eq = p.mf+p.stocks+p.us; return Math.round((eq/p.total)*100);
+    });
+    const target = proj.map(p => p.year < retireYear ? 80 : Math.max(60, 80 - (p.year-retireYear)*2));
+    const gd = this.path(drift, {min:30, max:90, top:5, bot:42});
+    const gt = this.path(target, {min:30, max:90, top:5, bot:42});
+
+    // expenses
+    const exp = [
+      {label:'Rent', color:'#4f9dff', amt:45000},
+      {label:'Groceries', color:'#22c55e', amt:22000},
+      {label:'Utilities', color:'#f59e0b', amt:8000},
+      {label:'Transport', color:'#a78bfa', amt:12000},
+      {label:'Health', color:'#ef4444', amt:9000},
+      {label:'Entertainment', color:'#14b8a6', amt:10000},
+      {label:'Misc', color:'#94a3b8', amt:8000}
+    ];
+    const expTotal = exp.reduce((s,e)=>s+e.amt,0);
+    let cumPct = 0;
+    const expenseSegments = exp.map(e => {
+      const pct = (e.amt/expTotal)*100;
+      const seg = { label:e.label, color:e.color, amount:fmtR(e.amt), pct: pct.toFixed(0)+'%',
+        dash: pct.toFixed(2)+' '+(100-pct).toFixed(2), offset: (25 - cumPct).toFixed(2) };
+      cumPct += pct; return seg;
+    });
+
+    // income vs expense bars 2031-2040
+    const ieYears = proj.filter(p => p.year>=returnYear && p.year<=2040);
+    const ieMax = Math.max(...ieYears.map(p => Math.max(p.passive, p.expense/100000)));
+    const incomeBars = ieYears.map(p => ({
+      year: String(p.year).slice(2),
+      passiveH: ((p.passive/ieMax)*100).toFixed(1)+'%',
+      expenseH: (((p.expense/100000)/ieMax)*100).toFixed(1)+'%'
+    }));
+
+    // stress
+    const stress = [
+      { label:'Market crash', assumption:'−30% equity shock', corpus:fmtL(468), delta:'−'+fmtL(172), tone:'danger', cover:'78%', fireYear:'2039' },
+      { label:'High inflation', assumption:'8% vs 6% assumed', corpus:fmtL(640), delta:'−'+fmtL(0), tone:'warning', cover:'71%', fireYear:'2038' },
+      { label:'Low returns', assumption:'CAGR −2% across', corpus:fmtL(545), delta:'−'+fmtL(95), tone:'warning', cover:'86%', fireYear:'2038' }
+    ].map(s => ({
+      ...s,
+      edge: s.tone==='danger' ? 'var(--neg)' : s.tone==='warning' ? 'var(--warn)' : 'var(--text-3)',
+      deltaColor: 'var(--neg)'
+    }));
+
+    // withdrawal
+    const wdCards = [
+      { label:'Annual withdrawal', val:fmtL(25.6), foot:'Sell 4% of units', hl:false },
+      { label:'Taxable component', val:fmtL(15.4), foot:'40% is principal', hl:false },
+      { label:'Est. LTCG tax', val:'₹14,700/mo', foot:'vs old ₹1.8L/yr', hl:true }
+    ].map(c => ({
+      ...c,
+      border: c.hl ? 'color-mix(in srgb,var(--accent) 30%,transparent)' : 'var(--border)',
+      bg: c.hl ? 'color-mix(in srgb,var(--accent) 14%,transparent)' : 'var(--surface)'
+    }));
+    let corpus = 640;
+    const wdTable = [];
+    const depVals = [];
+    for (let y=0; y<12; y++) {
+      const year = retireYear + y;
+      const withdrawal = corpus*0.04;
+      const tax = withdrawal*0.6*0.125;
+      const net = (withdrawal - tax)/12*100000;
+      wdTable.push({ year, corpus:fmtL(corpus), withdrawal:fmtL(withdrawal), tax:'−'+fmtL(tax), net:fmtR(net) });
+      depVals.push(corpus);
+      corpus = corpus*1.055 - withdrawal;
+    }
+    const dep = this.path(depVals, {min:0, top:5, bot:38, w:100});
+
+    // snapshots
+    const snapStats = [
+      { label:'Total wealth', val:fmtL(185) },
+      { label:'FIRE target', val:fmtL(600) },
+      { label:'Progress', val:'31%' }
+    ];
+    const snapItems = [
+      { label:'Baseline', note:'· initial plan', wealth:fmtL(172), delta:'', date:'Jan 2026', deltaColor:'var(--text-3)', sel:false },
+      { label:'Post bonus', note:'· added ₹9L MF', wealth:fmtL(181), delta:'↑ 5.2%', date:'Apr 2026', deltaColor:'var(--pos)', sel:true },
+      { label:'Current', note:'· July review', wealth:fmtL(185), delta:'↑ 2.2%', date:'Jul 2026', deltaColor:'var(--pos)', sel:true }
+    ].map(s => ({
+      ...s,
+      border: s.sel ? 'var(--accent)' : 'var(--border)',
+      bg: s.sel ? 'color-mix(in srgb,var(--accent) 14%,transparent)' : 'var(--surface)'
+    }));
+    const progVals = [172, 181, 185];
+    const pg = this.path(progVals, {min:150, max:600, top:5, bot:38, w:100});
+    const progDots = pg.pts.map(p => ({ x:p[0].toFixed(2), y:p[1].toFixed(2) }));
+
+    // setup inputs
+    const acc = (border,color) => ({border,color});
+    const F = (label,value,accent) => ({ label, value, border: accent?'color-mix(in srgb,var(--pos) 55%,var(--border))':'var(--border)', color: accent?'var(--pos)':'var(--text)' });
+    const inputGroups = [
+      { title:'Timeline', fields:[F('Start Date','Jan 2026'),F('Retire','2036'),F('Return IN','2031'),F('401k Draw','2034')] },
+      { title:'Assets · ₹L', fields:[F('Mutual Funds','62.0'),F('MF Principal','44.0',true),F('Stocks IN','28.0'),F('US Stocks','34.0'),F('Emergency','12.0')] },
+      { title:'Retirement', fields:[F('401k · $','46,000'),F('₹/$','86'),F('US Salary · $','120,000'),F('EPF · ₹L','15.0')] },
+      { title:'Flows · ₹L/mo', fields:[F('MF SIP','0.6'),F('Step-up %','10'),F('Options','0.3')] },
+      { title:'Bonds', fields:[F('Initial · ₹L','8.0'),F('Add %','1.0'),F('Rate %','7.0')] },
+      { title:'Rates · %', fields:[F('MF CAGR','12.0'),F('Stocks','15.0'),F('US 401k','12.0'),F('Inflation','6.0')] }
+    ];
+
+    const stats = [
+      { label:'Current wealth', val:fmtL(185), foot:'Liquid + retirement accounts', hasBar:false },
+      { label:'At retirement', val:fmtL(640), foot:'Projected corpus · 2036', hasBar:false },
+      { label:'FIRE target', val:fmtL(600), foot:'31% complete · 4.0% SWR', hasBar:true, barPct:'31%' },
+      { label:'Years to FIRE', val:'9y', foot:'Target 2035', hasBar:false }
+    ];
+
+    return {
+      kpiWealth:'₹1.85Cr', kpiTarget:'₹6.00Cr', kpiProgress:'31%',
+      readinessText:'On track · FIRE by 2035',
+      stats, tableRows,
+      corpusArea: cp.area, corpusLine: cp.line, retireX,
+      compLayers, assetLegend,
+      glideDrift: gd.line, glideTarget: gt.line,
+      expenseSegments, expenseTotal: fmtR(expTotal), incomeBars,
+      stress, wdCards, wdTable, depArea: dep.area, depLine: dep.line,
+      snapStats, snapItems, progLine: pg.line, progDots,
+      inputGroups
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -34,7 +34,7 @@ export function WithdrawalTab({ results, inputs, selectedWithdrawalRate, onSelec
   return (
     <div className="stack">
       <div className="card card-pad">
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
           <div>
             <div className="panel-h">
               <span className="panel-t">Withdrawal (SWP)</span>
@@ -43,7 +43,7 @@ export function WithdrawalTab({ results, inputs, selectedWithdrawalRate, onSelec
           </div>
           <select
             className="in"
-            style={{ width: 170 }}
+            style={{ width: 170, maxWidth: '100%' }}
             value={selectedWithdrawalRate}
             onChange={(e) => onSelectedRateChange(e.target.value)}
           >

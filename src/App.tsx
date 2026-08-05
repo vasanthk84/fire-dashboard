@@ -394,7 +394,7 @@ export default function App() {
         </aside>
 
         <main className="console-main">
-          <header className="head">
+          <header className="head head-desktop">
             <div>
               <h1>{tabsMeta.find((x) => x.key === activeTab)?.label}</h1>
               <div className="sub">FIRE projection · {inputs.startYear}</div>
@@ -402,6 +402,35 @@ export default function App() {
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 22 }}>
               {chromeControls}
               {kpis}
+            </div>
+          </header>
+
+          <header className="head head-mobile">
+            <div className="logo">F</div>
+            <div className="head-mobile-title">
+              <h1>{tabsMeta.find((x) => x.key === activeTab)?.label}</h1>
+              <div className="sub">FIRE projection · {inputs.startYear}</div>
+            </div>
+            <div className="head-mobile-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon"
+                title={theme[0].toUpperCase() + theme.slice(1) + ' theme'}
+                onClick={() => {
+                  const order: Array<'dark' | 'light' | 'paper'> = ['dark', 'light', 'paper'];
+                  setTheme(order[(order.indexOf(theme) + 1) % order.length]);
+                }}
+              >
+                {theme === 'dark' ? <Moon size={17} /> : theme === 'light' ? <Sun size={17} /> : <BookOpen size={17} />}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon"
+                title="Assumptions"
+                onClick={() => setDrawerOpen(true)}
+              >
+                <SlidersHorizontal size={17} />
+              </button>
             </div>
           </header>
 
@@ -439,6 +468,22 @@ export default function App() {
             </div>
           </div>
         </main>
+
+        <nav className="bottom-nav">
+          {tabsMeta.map((x) => {
+            const Icon = tabIcons[x.key];
+            return (
+              <button
+                key={x.key}
+                className={'bottom-nav-item' + (activeTab === x.key ? ' active' : '')}
+                onClick={() => setActiveTab(x.key)}
+              >
+                <Icon size={19} />
+                <span>{x.label}</span>
+              </button>
+            );
+          })}
+        </nav>
 
         <div className={'drawer-scrim' + (drawerOpen ? ' open' : '')} onClick={() => setDrawerOpen(false)}></div>
         <aside className={'drawer' + (drawerOpen ? ' open' : '')}>

@@ -62,14 +62,14 @@ export function SnapshotsTab(props: SnapshotsTabProps) {
       </div>
 
       <div className="card card-pad">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
           <div>
             <div className="panel-h">
               <span className="panel-t">Saved snapshots ({snapshots.length})</span>
             </div>
             <div className="panel-cap" style={{ marginLeft: 0 }}>Select two or more to compare progress</div>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             <button className="btn btn-sm btn-primary" onClick={onSaveOpen}>
               <Play size={12} /> Save
             </button>
