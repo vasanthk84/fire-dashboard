@@ -163,7 +163,12 @@ module.exports = (req, res) => {
 
         const total = curMF + curStocks + curUSStocks + curBonds + curEmergency + curEPF + curOptions;
 
-        const passiveIncomeGross = total > 0 ? (total * 0.04) / 12 : 0;
+        // The 4% SWR estimate is a generic passive-income yardstick for assets
+        // that don't have their own explicit income model. The options portfolio
+        // already has one (its actual premium yield, below) — including it again
+        // here would double-count that income and overstate readiness/coverage.
+        const passiveEligibleBase = curMF + curStocks + curUSStocks + curBonds + curEmergency + curEPF;
+        const passiveIncomeGross = passiveEligibleBase > 0 ? (passiveEligibleBase * 0.04) / 12 : 0;
         let passiveIncomeNet = passiveIncomeGross;
         let monthlyTax = 0;
 

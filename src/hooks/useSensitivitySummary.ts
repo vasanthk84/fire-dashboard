@@ -5,7 +5,7 @@ import type { CalculationResults, Inputs } from '../types';
 type SensitivityTone = 'success' | 'warning' | 'danger';
 
 export interface SensitivityScenario {
-  key: 'inflation' | 'returns' | 'expenses';
+  key: 'inflation' | 'returns' | 'expenses' | 'fx';
   label: string;
   assumption: string;
   tone: SensitivityTone;
@@ -101,7 +101,7 @@ export function useSensitivitySummary({ inputs, results, currentMonthlyExp, oneT
       };
 
       try {
-        const [inflationResult, returnsResult, shockResult] = await Promise.all([
+        const [inflationResult, returnsResult, shockResult, fxResult] = await Promise.all([
           calculatePlan({ ...basePayload, inflationRate: inputs.inflationRate + 0.02 }),
           calculatePlan({
             ...basePayload,
@@ -114,6 +114,10 @@ export function useSensitivitySummary({ inputs, results, currentMonthlyExp, oneT
             mfCurrent: inputs.mfCurrent * 0.7,
             stocksIndia: inputs.stocksIndia * 0.7,
             usStocks: inputs.usStocks * 0.7
+          }),
+          calculatePlan({
+            ...basePayload,
+            usdExchangeRate: inputs.usdExchangeRate * 0.85
           })
         ]);
 
@@ -149,6 +153,17 @@ export function useSensitivitySummary({ inputs, results, currentMonthlyExp, oneT
             coverage: computeCoverage(shockResult, inputs.retirementYear),
             fireYear: computeFireYear(shockResult, currentMonthlyExp, inputs),
             tone: 'danger',
+            summary: ''
+          },
+          {
+            key: 'fx',
+            label: 'Rupee strengthens',
+            assumption: '₹/$ −15%',
+            finalWealth: fxResult.summary.finalWealth,
+            wealthDelta: fxResult.summary.finalWealth - results.summary.finalWealth,
+            coverage: computeCoverage(fxResult, inputs.retirementYear),
+            fireYear: computeFireYear(fxResult, currentMonthlyExp, inputs),
+            tone: 'warning',
             summary: ''
           }
         ].map((scenario) => ({
