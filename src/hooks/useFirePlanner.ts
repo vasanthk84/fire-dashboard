@@ -45,14 +45,9 @@ export function useFirePlanner() {
       return null;
     }
 
-    for (let index = 0; index < results.fireProjections.length; index += 1) {
-      if (results.fireProjections[index].total >= fireNumberLakhs) {
-        return index;
-      }
-    }
-
-    return null;
-  }, [fireNumberLakhs, results]);
+    const hit = results.fireProjections.find((projection) => projection.total >= fireNumberLakhs);
+    return hit ? hit.year - inputs.startYear : null;
+  }, [fireNumberLakhs, inputs.startYear, results]);
 
   const sampleTaxYear = results?.fireProjections.find((projection) => projection.year === inputs.retirementYear);
 
@@ -99,6 +94,8 @@ export function useFirePlanner() {
 
     if (currentMonthlyExp === 0) {
       advisory.push('Monthly expenses are still zero, so the FIRE target will not represent your actual lifestyle requirement.');
+    } else if (fireNumberLakhs > 0 && currentWealthLakhs >= fireNumberLakhs) {
+      advisory.push(`Your FIRE target (${fireNumberLakhs.toFixed(1)}L) is already below your current wealth (${currentWealthLakhs.toFixed(1)}L) — "Years to FIRE" will show 0. Double-check that all your monthly expenses are filled in on the Expenses tab; an incomplete list understates your real target.`);
     }
 
     if (showOneTime && totalOneTime === 0) {
@@ -127,7 +124,7 @@ export function useFirePlanner() {
       hasBlocking: blocking.length > 0,
       hasAdvisory: advisory.length > 0
     };
-  }, [currentMonthlyExp, expenses, inputs, oneTimeExpenses, showOneTime, totalOneTime]);
+  }, [currentMonthlyExp, currentWealthLakhs, expenses, fireNumberLakhs, inputs, oneTimeExpenses, showOneTime, totalOneTime]);
 
   const handleInput = (key: keyof Inputs, value: number | boolean) => {
     setInputs((prev) => ({ ...prev, [key]: value }));

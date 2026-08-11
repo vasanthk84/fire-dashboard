@@ -69,12 +69,22 @@ module.exports = (req, res) => {
 
     const mfSIP = parseVal(input.mfSIP, 0);
     const sipStepUpRate = parseVal(input.sipStepUpRate, 0.10);
-    const optionSellingMonthly = parseVal(input.optionSellingMonthly, 0);
+    const optionsPortfolioValue = parseVal(input.optionsPortfolioValue, 0);
+    const optionsYieldPct = parseVal(input.optionsYieldPct, 0.20);
 
     const annualSalary = parseVal(input.annualSalary, 0);
     const returnToIndiaYear = parseInt(input.returnYear, 10) || 2030;
     const withdraw401kYear = parseInt(input.withdraw401kYear, 10) || 2033;
-    const taxRate401k = 0.37;
+    const currentAge = parseVal(input.currentAge, 40);
+    const retirementIncomeTaxRate = parseVal(input.retirementIncomeTaxRate, 0.22);
+    const earlyWithdrawalPenalty = 0.10;
+    // IRS rule: withdrawals before age 59½ incur ordinary income tax PLUS a 10%
+    // early withdrawal penalty; at/after 59½, only ordinary income tax applies.
+    const ageAtWithdrawal = currentAge + (withdraw401kYear - startYear);
+    const isEarlyWithdrawal = ageAtWithdrawal < 59.5;
+    const taxRate401k = isEarlyWithdrawal
+      ? retirementIncomeTaxRate + earlyWithdrawalPenalty
+      : retirementIncomeTaxRate;
 
     const monthlyExpensesStart = parseVal(input.monthlyExpenses, 0);
     const abroadMonthlyExpenses = parseVal(input.abroadMonthlyExpenses, 0);
@@ -86,6 +96,7 @@ module.exports = (req, res) => {
     const stocksRate = parseVal(input.stocksRate, 0.15);
     const usRate = parseVal(input.usRate, 0.12);
     const inflationRate = parseVal(input.inflationRate, 0.06);
+    const postFireRate = parseVal(input.postFireRate, 0.065);
 
     const generateProjection = () => {
       const projection = [];
@@ -97,6 +108,7 @@ module.exports = (req, res) => {
       let curEmergency = emergencyFund;
       let curEPF = epfCurrent;
       let cur401kUSD = us401kUSD;
+      let curOptions = optionsPortfolioValue;
 
       let currentBondAddition = bondsInitial * bondAnnualIncrease;
       let currentSIP = mfSIP;
@@ -149,7 +161,7 @@ module.exports = (req, res) => {
           oneTimeDeductionDisplay = costInLakhs;
         }
 
-        const total = curMF + curStocks + curUSStocks + curBonds + curEmergency + curEPF;
+        const total = curMF + curStocks + curUSStocks + curBonds + curEmergency + curEPF + curOptions;
 
         const passiveIncomeGross = total > 0 ? (total * 0.04) / 12 : 0;
         let passiveIncomeNet = passiveIncomeGross;
@@ -160,6 +172,12 @@ module.exports = (req, res) => {
           passiveIncomeNet = passiveIncomeGross - monthlyTax;
         }
 
+        // Options premium income (covered calls / cash-secured puts): a yield on
+        // the options-linked portfolio, active every year including retirement —
+        // this is an ongoing trading strategy, not tied to employment.
+        const optionsAnnualIncome = curOptions * optionsYieldPct * yearFraction;
+        const optionsIncomeMonthly = optionsAnnualIncome / 12;
+
         projection.push({
           year,
           mf: parseFloat(curMF.toFixed(2)),
@@ -169,6 +187,8 @@ module.exports = (req, res) => {
           epf: parseFloat(curEPF.toFixed(2)),
           us401k: parseFloat(display401kINR.toFixed(2)),
           emergencyFund: parseFloat(curEmergency.toFixed(2)),
+          optionsPortfolio: parseFloat(curOptions.toFixed(2)),
+          optionsIncomeMonthly: parseFloat(optionsIncomeMonthly.toFixed(3)),
           sipAmount: isRetired ? 0 : parseFloat(currentSIP.toFixed(2)),
           total: parseFloat(total.toFixed(2)),
           passiveIncomeMonthly: parseFloat(passiveIncomeNet.toFixed(2)),
@@ -212,8 +232,10 @@ module.exports = (req, res) => {
           curEPF = (curEPF * 100000 + (epfResult.endBalance - curEPF * 100000) * yearFraction) / 100000;
         }
 
-        const optionIncome = growNMonths(0, mfRate, optionSellingMonthly, growMonths);
-        curMF += optionIncome;
+        // Underlying options-linked stocks appreciate like any equity holding;
+        // the premium income already computed above is swept out as cash into MF.
+        curOptions *= Math.pow(1 + stocksRate, yearFraction);
+        curMF += optionsAnnualIncome;
 
         if (bondInterestToMF > 0) {
           curMF += bondInterestToMF;
@@ -260,37 +282,72 @@ module.exports = (req, res) => {
     const p401k = fireProjections.find((p) => p.year === withdraw401kYear);
     const net401kINR = p401k ? p401k.us401k : 0;
 
+    // Fixed real withdrawal ("Trinity study" / 4%-rule) model: the withdrawal
+    // amount is set ONCE at retirement (rate × corpus at retirement), then only
+    // inflation-adjusted every year after — it does not fluctuate with the
+    // portfolio balance. This is what "corpus lasts N years at X% SWR" means.
     const withdrawalRates = [0.02, 0.03, 0.04];
     const withdrawalScenarios = {};
+    const withdrawalSustainability = {};
+    const withdrawalHorizonYears = 30;
 
     withdrawalRates.forEach((rate) => {
       const projections = [];
       let corpus = finalWealth;
+      const firstYearWithdrawal = finalWealth * rate;
+      let depletionYear = null;
 
-      for (let y = targetYear; y <= targetYear + 25; y++) {
-        const w = corpus * rate;
-        const netMonthlyIncome = (w / 12) * (applyTax ? (1 - taxDragRate) : 1);
-        const growth = corpus * 0.12;
-        const end = corpus - w + growth;
+      for (let y = targetYear; y <= targetYear + withdrawalHorizonYears; y++) {
+        const yearsIntoRetirement = y - targetYear;
+        // Real spending held constant; nominal withdrawal rises with inflation
+        const nominalAnnualWithdrawal = corpus > 0
+          ? firstYearWithdrawal * Math.pow(1 + inflationRate, yearsIntoRetirement)
+          : 0;
+        const actualWithdrawal = Math.min(nominalAnnualWithdrawal, corpus);
+        const netMonthlyIncome = (actualWithdrawal / 12) * (applyTax ? (1 - taxDragRate) : 1);
+
+        const corpusStart = corpus;
+        const afterWithdrawal = corpus - actualWithdrawal;
+        const growth = afterWithdrawal * postFireRate;
+        const end = Math.max(0, afterWithdrawal + growth);
+
+        if (end <= 0 && depletionYear === null && corpusStart > 0) {
+          depletionYear = y;
+        }
 
         projections.push({
           year: y,
-          corpusStart: corpus,
+          corpusStart,
           withdrawalMonthly: netMonthlyIncome,
-          realWithdrawalMonthly: netMonthlyIncome / Math.pow(1 + inflationRate, y - targetYear),
-          corpusEnd: end
+          realWithdrawalMonthly: netMonthlyIncome / Math.pow(1 + inflationRate, yearsIntoRetirement),
+          corpusEnd: end,
+          depleted: corpusStart <= 0
         });
 
         corpus = end;
       }
 
-      withdrawalScenarios[`${(rate * 100).toFixed(0)}%`] = projections;
+      const label = `${(rate * 100).toFixed(0)}%`;
+      withdrawalScenarios[label] = projections;
+      withdrawalSustainability[label] = {
+        depletionYear,
+        sustainableYears: depletionYear ? depletionYear - targetYear : null,
+        horizonYears: withdrawalHorizonYears
+      };
     });
 
     return res.status(200).json({
-      summary: { startWealth: fireProjections[0].total, finalWealth, net401kINR },
+      summary: {
+        startWealth: fireProjections[0].total,
+        finalWealth,
+        net401kINR,
+        ageAtWithdrawal401k: ageAtWithdrawal,
+        isEarlyWithdrawal401k: isEarlyWithdrawal,
+        taxRate401k
+      },
       fireProjections,
       withdrawalScenarios,
+      withdrawalSustainability,
       inputs: { ...input }
     });
   } catch (error) {

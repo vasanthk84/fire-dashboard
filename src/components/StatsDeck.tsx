@@ -1,5 +1,6 @@
 import { Clock3, Rocket, Target, Wallet } from 'lucide-react';
 import { fmtL } from '../utils/formatters';
+import { NumberInput } from './NumberInput';
 
 interface StatsDeckProps {
   currentWealthLakhs: number;
@@ -47,15 +48,15 @@ export function StatsDeck({
         <div className="stat-top">
           <Target size={15} /> FIRE target
           <span className="stepper" style={{ marginLeft: 'auto' }}>
-            <input
+            <NumberInput
               className="in num"
               style={{ width: 56, padding: '4px 6px' }}
-              type="number"
-              min="20"
-              max="40"
-              step="0.5"
+              min={20}
+              max={40}
+              step={0.5}
+              emptyFallback={25}
               value={inputs.fireMultiplier}
-              onChange={(e) => onMultiplierChange(Number(e.target.value) || 25)}
+              onCommit={onMultiplierChange}
             />
             <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 2 }}>×</span>
           </span>

@@ -241,6 +241,42 @@ export default function App() {
     </div>
   );
 
+  const banners = (
+    <>
+      {validation.hasBlocking && (
+        <div className="banner warn">
+          <AlertCircle size={16} /> {validation.blocking[0]}
+        </div>
+      )}
+
+      {!validation.hasBlocking && validation.hasAdvisory && (
+        <div className="banner warn" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+            <AlertTriangle size={16} /> Model Guardrails
+          </div>
+          <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: '12px', color: 'var(--text-2)' }}>
+            {validation.advisory.map((item) => (
+              <li key={item} style={{ marginTop: 4 }}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {calculationError && (
+        <div className="banner warn text-neg" style={{ borderColor: 'var(--neg)', background: 'color-mix(in srgb, var(--neg) 10%, transparent)' }}>
+          <AlertCircle size={16} /> {calculationError}
+        </div>
+      )}
+
+      {results?.summary.isEarlyWithdrawal401k && (
+        <div className="banner warn" style={{ borderColor: 'var(--neg)', background: 'color-mix(in srgb, var(--neg) 10%, transparent)', color: 'var(--neg)' }}>
+          <AlertCircle size={16} />
+          401k Draw year has you withdrawing at age {results.summary.ageAtWithdrawal401k} — before 59½, the IRS adds a 10% early withdrawal penalty on top of income tax ({(results.summary.taxRate401k * 100).toFixed(0)}% total applied).
+        </div>
+      )}
+    </>
+  );
+
   const overview = (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
@@ -274,6 +310,7 @@ export default function App() {
             projections={results.fireProjections}
             retirementYear={inputs.retirementYear}
             startYear={inputs.startYear}
+            withdraw401kYear={inputs.withdraw401kYear}
             themeKey={themeKey}
           />
         );
@@ -435,30 +472,7 @@ export default function App() {
           </header>
 
           <div className="content stack">
-            {validation.hasBlocking && (
-              <div className="banner warn">
-                <AlertCircle size={16} /> {validation.blocking[0]}
-              </div>
-            )}
-
-            {!validation.hasBlocking && validation.hasAdvisory && (
-              <div className="banner warn" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
-                  <AlertTriangle size={16} /> Model Guardrails
-                </div>
-                <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: '12px', color: 'var(--text-2)' }}>
-                  {validation.advisory.map((item) => (
-                    <li key={item} style={{ marginTop: 4 }}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {calculationError && (
-              <div className="banner warn text-neg" style={{ borderColor: 'var(--neg)', background: 'color-mix(in srgb, var(--neg) 10%, transparent)' }}>
-                <AlertCircle size={16} /> {calculationError}
-              </div>
-            )}
+            {banners}
 
             {overview}
             <div className="section-gap">
@@ -560,30 +574,7 @@ export default function App() {
         </div>
 
         <div className="content stack">
-          {validation.hasBlocking && (
-            <div className="banner warn">
-              <AlertCircle size={16} /> {validation.blocking[0]}
-            </div>
-          )}
-
-          {!validation.hasBlocking && validation.hasAdvisory && (
-            <div className="banner warn" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
-                <AlertTriangle size={16} /> Model Guardrails
-              </div>
-              <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: '12px', color: 'var(--text-2)' }}>
-                {validation.advisory.map((item) => (
-                  <li key={item} style={{ marginTop: 4 }}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {calculationError && (
-            <div className="banner warn text-neg" style={{ borderColor: 'var(--neg)', background: 'color-mix(in srgb, var(--neg) 10%, transparent)' }}>
-              <AlertCircle size={16} /> {calculationError}
-            </div>
-          )}
+          {banners}
 
           <InputDeck
             inputs={inputs}

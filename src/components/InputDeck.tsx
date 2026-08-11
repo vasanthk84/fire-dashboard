@@ -1,5 +1,5 @@
-import type { ChangeEvent } from 'react';
 import type { Inputs } from '../types';
+import { NumberInput } from './NumberInput';
 
 interface InputDeckProps {
   inputs: Inputs;
@@ -14,6 +14,7 @@ interface FieldMeta {
   pct?: boolean;
   accent?: boolean;
   title?: string;
+  ageResettable?: boolean;
 }
 
 interface GroupMeta {
@@ -28,9 +29,11 @@ export const INPUT_GROUPS: GroupMeta[] = [
     title: 'Timeline',
     fields: [
       { key: 'startMonth', label: 'Start Date', type: 'month-year', title: 'Month and Year when your plan starts' },
+      { key: 'currentAge', label: 'Current age', step: 1, title: 'Your current age — used to check the 401k withdrawal year against the age-59½ rule' },
       { key: 'retirementYear', label: 'Retire', type: 'year', title: 'Planned retirement year' },
       { key: 'returnYear', label: 'Return IN', type: 'year', title: 'Year of returning to India' },
-      { key: 'withdraw401kYear', label: '401k Draw', type: 'year', title: 'Year you begin 401k withdrawals' }
+      { key: 'withdraw401kYear', label: '401k Draw', type: 'year', ageResettable: true, title: 'Year you begin 401k withdrawals. Before you turn 59½, the IRS applies ordinary income tax PLUS a 10% early withdrawal penalty. At/after 59½, only ordinary income tax applies.' },
+      { key: 'retirementIncomeTaxRate', label: '401k tax rate (59½+)', step: 1, pct: true, title: 'Ordinary US income tax rate applied to 401k withdrawals taken at/after age 59½ (no penalty). Typically lower than your working-years bracket.' }
     ]
   },
   {
@@ -57,8 +60,14 @@ export const INPUT_GROUPS: GroupMeta[] = [
     title: 'Flows · ₹L/mo',
     fields: [
       { key: 'mfSIP', label: 'MF SIP', step: 0.1, title: 'Monthly Mutual Fund SIP in Lakhs' },
-      { key: 'sipStepUpRate', label: 'Step-up %', step: 1, pct: true, title: 'Annual SIP increase percentage' },
-      { key: 'optionSellingMonthly', label: 'Options', step: 0.1, title: 'Monthly option-selling income in Lakhs' }
+      { key: 'sipStepUpRate', label: 'Step-up %', step: 1, pct: true, title: 'Annual SIP increase percentage' }
+    ]
+  },
+  {
+    title: 'Options income',
+    fields: [
+      { key: 'optionsPortfolioValue', label: 'Portfolio · ₹L', step: 0.1, title: 'Value of the stock portfolio you write covered calls / cash-secured puts against, in Lakhs' },
+      { key: 'optionsYieldPct', label: 'Premium yield %/yr', step: 0.5, pct: true, title: 'Annualised option premium income as a % of the options portfolio (e.g. covered call / CSP premium). Continues through retirement — this models an active options-selling strategy, not passive returns.' }
     ]
   },
   {
@@ -75,7 +84,8 @@ export const INPUT_GROUPS: GroupMeta[] = [
       { key: 'mfRate', label: 'MF CAGR', step: 0.1, pct: true, title: 'Assumed Mutual Fund annual return rate' },
       { key: 'stocksRate', label: 'Stocks', step: 0.1, pct: true, title: 'Assumed Indian Stocks annual return rate' },
       { key: 'usRate', label: 'US 401k', step: 0.1, pct: true, title: 'Assumed US 401k annual return rate' },
-      { key: 'inflationRate', label: 'Inflation', step: 0.1, pct: true, title: 'Assumed annual inflation rate' }
+      { key: 'inflationRate', label: 'Inflation', step: 0.1, pct: true, title: 'Assumed annual inflation rate' },
+      { key: 'postFireRate', label: 'Post-FI return', step: 0.1, pct: true, title: 'Assumed portfolio return AFTER retirement (typically lower than pre-FI equity CAGR, since retirees de-risk). Governs whether the corpus depletes, holds flat, or grows under your chosen withdrawal rate.' }
     ]
   }
 ];
@@ -106,12 +116,11 @@ export function InputField({
               <option key={m} value={i + 1}>{m}</option>
             ))}
           </select>
-          <input
+          <NumberInput
             className="in"
-            type="number"
-            step="1"
+            step={1}
             value={inputs.startYear}
-            onChange={(e) => onInput('startYear', Number(e.target.value))}
+            onCommit={(n) => onInput('startYear', n)}
           />
         </div>
       </div>
@@ -119,36 +128,47 @@ export function InputField({
   }
 
   if (f.type === 'year') {
+    const age59YearOffset = Math.ceil(59.5 - inputs.currentAge);
+    const suggestedYear = inputs.startYear + age59YearOffset;
+    const showReset = f.ageResettable && inputs.currentAge > 0 && Number(raw) !== suggestedYear;
+
     return (
       <div className="in-wrap" title={f.title}>
         <label>{f.label}</label>
-        <input
-          className="in"
-          type="number"
-          step="1"
-          value={Number(raw) || 0}
-          onChange={(e) => onInput(f.key, Number(e.target.value))}
-        />
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <NumberInput
+            className="in"
+            step={1}
+            value={Number(raw) || 0}
+            onCommit={(n) => onInput(f.key, n)}
+          />
+          {showReset && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ padding: '6px 8px', fontSize: 11, whiteSpace: 'nowrap', flex: '0 0 auto' }}
+              title={`Reset to age 59½ (${suggestedYear})`}
+              onClick={() => onInput(f.key, suggestedYear)}
+            >
+              ↻ {suggestedYear}
+            </button>
+          )}
+        </div>
       </div>
     );
   }
 
   // Handle percentages (convert e.g., 0.12 to 12)
-  const val = f.pct ? Math.round((Number(raw) || 0) * 1000) / 10 : raw;
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const v = Number(e.target.value) || 0;
-    onInput(f.key, f.pct ? v / 100 : v);
-  };
+  const val = f.pct ? Math.round((Number(raw) || 0) * 1000) / 10 : Number(raw) || 0;
 
   return (
     <div className="in-wrap" title={f.title}>
       <label>{f.label}</label>
-      <input
+      <NumberInput
         className={'in' + (f.accent ? ' accent' : '')}
-        type="number"
         step={f.step ?? 'any'}
         value={typeof val === 'boolean' ? (val ? 1 : 0) : val}
-        onChange={handleChange}
+        onCommit={(n) => onInput(f.key, f.pct ? n / 100 : n)}
       />
     </div>
   );

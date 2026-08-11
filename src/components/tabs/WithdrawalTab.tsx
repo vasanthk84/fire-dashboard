@@ -15,6 +15,9 @@ export function WithdrawalTab({ results, inputs, selectedWithdrawalRate, onSelec
   const scenario = results.withdrawalScenarios[selectedWithdrawalRate] ?? [];
   if (scenario.length === 0) return null;
 
+  const sustainability = results.withdrawalSustainability?.[selectedWithdrawalRate];
+  const postFireRatePct = ((inputs.postFireRate ?? 0.065) * 100).toFixed(1);
+
   const annual = scenario[0].withdrawalMonthly * 12;
   const corpus = results.summary.finalWealth;
   const yrs = inputs.retirementYear - inputs.startYear;
@@ -64,7 +67,23 @@ export function WithdrawalTab({ results, inputs, selectedWithdrawalRate, onSelec
         </div>
 
         <div style={{ marginTop: 18 }}>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Corpus sustainability · 25 yrs @ {selectedWithdrawalRate}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+            <div className="eyebrow">
+              Corpus sustainability · {sustainability?.horizonYears ?? 30}-yr horizon @ {selectedWithdrawalRate}
+            </div>
+            {sustainability?.depletionYear ? (
+              <span className="tag bad">
+                Depletes {sustainability.depletionYear} · lasts {sustainability.sustainableYears}y
+              </span>
+            ) : (
+              <span className="tag ok">
+                Sustains full {sustainability?.horizonYears ?? 30}y horizon
+              </span>
+            )}
+          </div>
+          <div className="panel-cap" style={{ marginLeft: 0, marginBottom: 12 }}>
+            Fixed real withdrawal, inflation-adjusted yearly · post-FI return assumed {postFireRatePct}%
+          </div>
           <ApexChartComponent
             height={240}
             dep={'dep' + themeKey + selectedWithdrawalRate}
@@ -90,16 +109,18 @@ export function WithdrawalTab({ results, inputs, selectedWithdrawalRate, onSelec
             </thead>
             <tbody>
               {scenario.map((r) => {
-                const gs = Math.max(0, (r.corpusStart - principal) / r.corpusStart);
+                const gs = r.corpusStart > 0 ? Math.max(0, (r.corpusStart - principal) / r.corpusStart) : 0;
                 const aw = r.withdrawalMonthly * 12;
-                const tax = Math.max(0, aw * gs - 1.25) * 0.125;
+                const tax = r.depleted ? 0 : Math.max(0, aw * gs - 1.25) * 0.125;
                 return (
-                  <tr key={r.year}>
+                  <tr key={r.year} className={r.depleted ? 'text-neg' : ''}>
                     <td className="k">{r.year}</td>
-                    <td>{fmtL(r.corpusStart)}</td>
-                    <td>{fmtL(aw)}</td>
-                    <td className="text-neg">−{fmtL(tax)}</td>
-                    <td className="text-pos">{fmtRupees(((aw - tax) / 12) * 100000)}</td>
+                    <td>{r.depleted ? '—' : fmtL(r.corpusStart)}</td>
+                    <td>{r.depleted ? '—' : fmtL(aw)}</td>
+                    <td className="text-neg">{r.depleted ? '—' : `−${fmtL(tax)}`}</td>
+                    <td className={r.depleted ? '' : 'text-pos'}>
+                      {r.depleted ? 'Depleted' : fmtRupees(((aw - tax) / 12) * 100000)}
+                    </td>
                   </tr>
                 );
               })}

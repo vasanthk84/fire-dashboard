@@ -3,9 +3,11 @@ export type TabKey = 'journey' | 'risk' | 'expenses' | 'withdrawal' | 'snapshots
 export interface Inputs {
   startYear: number;
   startMonth: number;   // 1-12
+  currentAge: number;
   retirementYear: number;
   returnYear: number;
   withdraw401kYear: number;
+  retirementIncomeTaxRate: number;
   mfCurrent: number;
   mfPrincipal: number;
   stocksIndia: number;
@@ -22,12 +24,14 @@ export interface Inputs {
   bondRate: number;
   mfSIP: number;
   sipStepUpRate: number;
-  optionSellingMonthly: number;
+  optionsPortfolioValue: number;
+  optionsYieldPct: number;
   annualSalary: number;
   mfRate: number;
   stocksRate: number;
   usRate: number;
   inflationRate: number;
+  postFireRate: number;
   abroadMonthlyExpenses: number;  // pre-returnYear expense level (display only, doesn't change FIRE target)
   monthlyExpenses: number;
   oneTimeExpenseTotal: number;
@@ -71,6 +75,8 @@ export interface FireProjection {
   epf: number;
   us401k: number;
   emergencyFund: number;
+  optionsPortfolio: number;
+  optionsIncomeMonthly: number;
   sipAmount: number;
   total: number;
   passiveIncomeMonthly: number;
@@ -87,6 +93,13 @@ export interface WithdrawalProjection {
   withdrawalMonthly: number;
   realWithdrawalMonthly: number;
   corpusEnd: number;
+  depleted: boolean;
+}
+
+export interface WithdrawalSustainability {
+  depletionYear: number | null;
+  sustainableYears: number | null;
+  horizonYears: number;
 }
 
 export interface CalculationResults {
@@ -94,9 +107,13 @@ export interface CalculationResults {
     startWealth: number;
     finalWealth: number;
     net401kINR: number;
+    ageAtWithdrawal401k: number;
+    isEarlyWithdrawal401k: boolean;
+    taxRate401k: number;
   };
   fireProjections: FireProjection[];
   withdrawalScenarios: Record<string, WithdrawalProjection[]>;
+  withdrawalSustainability: Record<string, WithdrawalSustainability>;
   inputs: Partial<Inputs>;
 }
 
@@ -107,7 +124,7 @@ export interface Snapshot {
   tags: string[];
   notes: string;
   assets: Pick<Inputs, 'mfCurrent' | 'stocksIndia' | 'usStocks' | 'emergencyFund' | 'epfCurrent' | 'bondsInitial' | 'us401k' | 'usdExchangeRate'>;
-  flows: Pick<Inputs, 'mfSIP' | 'sipStepUpRate' | 'optionSellingMonthly' | 'annualSalary' | 'basicPay'>;
+  flows: Pick<Inputs, 'mfSIP' | 'sipStepUpRate' | 'optionsPortfolioValue' | 'optionsYieldPct' | 'annualSalary' | 'basicPay'>;
   growthRates: Pick<Inputs, 'mfRate' | 'stocksRate' | 'usRate' | 'inflationRate'>;
   bonds: Pick<Inputs, 'bondsInitial' | 'bondAnnualIncrease' | 'bondRate'>;
   expenses: {
@@ -121,5 +138,5 @@ export interface Snapshot {
     yearsToFI: number | null;
     progressToFire: number;
   };
-  planningParams: Pick<Inputs, 'startYear' | 'startMonth' | 'retirementYear' | 'returnYear' | 'withdraw401kYear' | 'applyTax' | 'fireMultiplier'>;
+  planningParams: Pick<Inputs, 'startYear' | 'startMonth' | 'currentAge' | 'retirementYear' | 'returnYear' | 'withdraw401kYear' | 'retirementIncomeTaxRate' | 'applyTax' | 'fireMultiplier'>;
 }

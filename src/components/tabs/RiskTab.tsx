@@ -3,6 +3,7 @@ import type { CalculationResults, Inputs } from '../../types';
 import { fmtL } from '../../utils/formatters';
 import { ApexChartComponent } from '../ApexChartComponent';
 import { CHARTS, ASSET_SERIES } from '../../utils/chartBuilders';
+import { NumberInput } from '../NumberInput';
 
 interface RiskTabProps {
   results: CalculationResults;
@@ -145,29 +146,26 @@ export function RiskTab({ results, inputs, onInput, stress, themeKey }: RiskTabP
           <div className="grid-3" style={{ marginBottom: 16, maxWidth: 460 }}>
             <div className="in-wrap">
               <label>Pre-retire %</label>
-              <input
+              <NumberInput
                 className="in"
-                type="number"
                 value={inputs.targetEquityPre}
-                onChange={(e) => onInput('targetEquityPre', Number(e.target.value))}
+                onCommit={(n) => onInput('targetEquityPre', n)}
               />
             </div>
             <div className="in-wrap">
               <label>Post-retire %</label>
-              <input
+              <NumberInput
                 className="in"
-                type="number"
                 value={inputs.targetEquityPost}
-                onChange={(e) => onInput('targetEquityPost', Number(e.target.value))}
+                onCommit={(n) => onInput('targetEquityPost', n)}
               />
             </div>
             <div className="in-wrap">
               <label>Glide years</label>
-              <input
+              <NumberInput
                 className="in"
-                type="number"
                 value={inputs.glideYears}
-                onChange={(e) => onInput('glideYears', Number(e.target.value))}
+                onCommit={(n) => onInput('glideYears', n)}
               />
             </div>
           </div>

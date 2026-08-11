@@ -102,7 +102,8 @@ export function useSnapshots(props: UseSnapshotsProps) {
       flows: {
         mfSIP: inputs.mfSIP,
         sipStepUpRate: inputs.sipStepUpRate,
-        optionSellingMonthly: inputs.optionSellingMonthly,
+        optionsPortfolioValue: inputs.optionsPortfolioValue,
+        optionsYieldPct: inputs.optionsYieldPct,
         annualSalary: inputs.annualSalary,
         basicPay: inputs.basicPay
       },
@@ -131,9 +132,11 @@ export function useSnapshots(props: UseSnapshotsProps) {
       planningParams: {
         startYear: inputs.startYear,
         startMonth: inputs.startMonth,
+        currentAge: inputs.currentAge,
         retirementYear: inputs.retirementYear,
         returnYear: inputs.returnYear,
         withdraw401kYear: inputs.withdraw401kYear,
+        retirementIncomeTaxRate: inputs.retirementIncomeTaxRate,
         applyTax: inputs.applyTax,
         fireMultiplier: inputs.fireMultiplier
       }

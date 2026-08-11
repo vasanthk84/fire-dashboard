@@ -2,6 +2,7 @@ import type { Expenses, FireProjection, Inputs, OneTimeExpenses, CalculationResu
 import { fmtL, fmtRupees } from '../../utils/formatters';
 import { ApexChartComponent } from '../ApexChartComponent';
 import { CHARTS, EXPENSE_META, ONETIME_META } from '../../utils/chartBuilders';
+import { NumberInput } from '../NumberInput';
 
 interface ExpensesTabProps {
   expenses: Expenses;
@@ -61,11 +62,10 @@ export function ExpensesTab(props: ExpensesTabProps) {
               <i style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: e.color, marginRight: 8, verticalAlign: 'middle' }}></i>
               {e.label}
             </label>
-            <input
+            <NumberInput
               className="in num"
-              type="number"
-              value={expenses[e.key] === 0 ? '' : expenses[e.key]}
-              onChange={(ev) => onExpenseChange(e.key, ev.target.value)}
+              value={expenses[e.key]}
+              onCommit={(n) => onExpenseChange(e.key, String(n))}
             />
           </div>
         ))}
@@ -99,11 +99,10 @@ export function ExpensesTab(props: ExpensesTabProps) {
             {ONETIME_META.map((o: { key: keyof OneTimeExpenses; label: string }) => (
               <div className="in-wrap" key={o.key}>
                 <label>{o.label}</label>
-                <input
+                <NumberInput
                   className="in"
-                  type="number"
-                  value={oneTimeExpenses[o.key] === 0 ? '' : oneTimeExpenses[o.key]}
-                  onChange={(e) => onOneTimeChange(o.key, e.target.value)}
+                  value={oneTimeExpenses[o.key]}
+                  onCommit={(n) => onOneTimeChange(o.key, String(n))}
                 />
               </div>
             ))}
