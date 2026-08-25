@@ -1,4 +1,4 @@
-export type TabKey = 'journey' | 'risk' | 'expenses' | 'withdrawal' | 'snapshots';
+export type TabKey = 'journey' | 'risk' | 'expenses' | 'withdrawal' | 'snapshots' | 'retirement401k' | 'pfReinvest';
 
 export interface Inputs {
   startYear: number;
@@ -41,6 +41,26 @@ export interface Inputs {
   targetEquityPre: number;
   targetEquityPost: number;
   glideYears: number;
+
+  // --- 401k Projector ---
+  us401kContribPct: number;      // employee 401k contribution, e.g. 0.05
+  us401kEmployerMatchPct: number; // employer match, e.g. 0.04
+
+  // --- PF Closure & Reinvestment ---
+  pfWithdrawalMonth: number;      // 1-12, month PF/gratuity/superannuation are withdrawn
+  pfWithdrawalYear: number;       // year PF is closed and withdrawn
+  gratuityAmount: number;         // ₹ gratuity payout at separation
+  superannuationBalance: number;  // ₹ TCS superannuation fund balance (per latest statement)
+  superMonthlyContribution: number; // ₹ latest observed monthly employer contribution to superannuation
+  superInterestRatePct: number;   // annual %, implied from the superannuation statement's interest credit
+  superCommutationPct: number;    // fraction of superannuation taken as tax-free lump sum (1/3, 1/2, or 0 for full annuity)
+  annuityRatePct: number;         // assumed annual payout rate on the annuitised superannuation portion, e.g. 0.06
+  pfCashAllocPct: number;         // % of withdrawn PF+gratuity+super-lump kept as cash (savings account)
+  pfCashRatePct: number;          // annual interest %, cash bucket (e.g. Equitas savings)
+  pfBondAllocPct: number;         // % of the withdrawn corpus put into bonds/debt funds
+  pfBondRatePct: number;          // annual yield %, bond/debt fund bucket
+  pfWheelYieldPctMonthly: number; // monthly option-wheeling premium yield % (remainder after cash + bonds)
+  pfReinvestTaxPct: number;       // assumed tax % on reinvestment income
 }
 
 export interface Expenses {
@@ -110,6 +130,11 @@ export interface CalculationResults {
     ageAtWithdrawal401k: number;
     isEarlyWithdrawal401k: boolean;
     taxRate401k: number;
+    pfWithdrawalYear: number;
+    pfWithdrawalMonth: number;
+    pfAnnuityMonthlyIncomeLakhs: number;
+    pfBlendedReinvestRate: number;
+    superannuationAtWithdrawalINR: number;
   };
   fireProjections: FireProjection[];
   withdrawalScenarios: Record<string, WithdrawalProjection[]>;
@@ -139,4 +164,25 @@ export interface Snapshot {
     progressToFire: number;
   };
   planningParams: Pick<Inputs, 'startYear' | 'startMonth' | 'currentAge' | 'retirementYear' | 'returnYear' | 'withdraw401kYear' | 'retirementIncomeTaxRate' | 'applyTax' | 'fireMultiplier'>;
+  // Optional: absent on snapshots saved before these tools existed. loadSnapshot
+  // leaves the current values untouched when a snapshot doesn't have these —
+  // it never has to be re-created just because it predates a schema addition.
+  retirement401k?: Pick<Inputs, 'us401kContribPct' | 'us401kEmployerMatchPct'>;
+  pfReinvestment?: Pick<
+    Inputs,
+    | 'pfWithdrawalMonth'
+    | 'pfWithdrawalYear'
+    | 'gratuityAmount'
+    | 'superannuationBalance'
+    | 'superMonthlyContribution'
+    | 'superInterestRatePct'
+    | 'superCommutationPct'
+    | 'annuityRatePct'
+    | 'pfCashAllocPct'
+    | 'pfCashRatePct'
+    | 'pfBondAllocPct'
+    | 'pfBondRatePct'
+    | 'pfWheelYieldPctMonthly'
+    | 'pfReinvestTaxPct'
+  >;
 }

@@ -14,7 +14,10 @@ import {
   Sun,
   Moon,
   ShieldCheck,
-  DownloadCloud
+  DownloadCloud,
+  PiggyBank,
+  Landmark,
+  RotateCcw
 } from 'lucide-react';
 import { InputDeck, INPUT_GROUPS, InputField } from './components/InputDeck';
 import { SaveSnapshotModal } from './components/SaveSnapshotModal';
@@ -31,6 +34,8 @@ const RiskTab = lazy(() => import('./components/tabs/RiskTab').then((module) => 
 const ExpensesTab = lazy(() => import('./components/tabs/ExpensesTab').then((module) => ({ default: module.ExpensesTab })));
 const WithdrawalTab = lazy(() => import('./components/tabs/WithdrawalTab').then((module) => ({ default: module.WithdrawalTab })));
 const SnapshotsTab = lazy(() => import('./components/tabs/SnapshotsTab').then((module) => ({ default: module.SnapshotsTab })));
+const Retirement401kTab = lazy(() => import('./components/tabs/Retirement401kTab').then((module) => ({ default: module.Retirement401kTab })));
+const PFReinvestmentTab = lazy(() => import('./components/tabs/PFReinvestmentTab').then((module) => ({ default: module.PFReinvestmentTab })));
 
 function TabFallback() {
   return <div className="tab-panel-loading">Loading panel...</div>;
@@ -41,6 +46,8 @@ const tabIcons = {
   risk: Shield,
   expenses: Wallet,
   withdrawal: PlusCircle,
+  retirement401k: PiggyBank,
+  pfReinvest: Landmark,
   snapshots: Archive
 };
 
@@ -49,6 +56,8 @@ const tabsMeta = [
   { key: 'risk' as TabKey, label: 'Risk' },
   { key: 'expenses' as TabKey, label: 'Expenses' },
   { key: 'withdrawal' as TabKey, label: 'Withdrawal' },
+  { key: 'retirement401k' as TabKey, label: '401k Projector' },
+  { key: 'pfReinvest' as TabKey, label: 'PF Reinvest' },
   { key: 'snapshots' as TabKey, label: 'Snapshots' }
 ];
 
@@ -90,6 +99,7 @@ export default function App() {
     handleExpense,
     handleOneTime,
     runCalculation,
+    resetToDefaults,
     setExpenses,
     setOneTimeExpenses,
     sumExpenses,
@@ -148,6 +158,12 @@ export default function App() {
   const handleMultiplierChange = (val: number) => {
     handleInput('fireMultiplier', val);
     void runCalculation({ fireMultiplier: val });
+  };
+
+  const handleResetToDefaults = () => {
+    if (window.confirm('Reset all inputs and expenses back to the app defaults? Your saved Snapshots are not affected.')) {
+      void resetToDefaults();
+    }
   };
 
   // Theme Key used to rebuild charts
@@ -361,6 +377,30 @@ export default function App() {
             themeKey={themeKey}
           />
         );
+      case 'retirement401k':
+        return (
+          <Retirement401kTab
+            results={results}
+            inputs={inputs}
+            onInput={(k, v) => {
+              handleInput(k, v);
+              void runCalculation({ [k]: v });
+            }}
+            themeKey={themeKey}
+          />
+        );
+      case 'pfReinvest':
+        return (
+          <PFReinvestmentTab
+            results={results}
+            inputs={inputs}
+            onInput={(k, v) => {
+              handleInput(k, v);
+              void runCalculation({ [k]: v });
+            }}
+            themeKey={themeKey}
+          />
+        );
       case 'snapshots':
         return (
           <SnapshotsTab
@@ -427,6 +467,15 @@ export default function App() {
                 Export plan
               </button>
             )}
+            <button
+              className="btn btn-ghost"
+              style={{ width: '100%', justifyContent: 'flex-start' }}
+              title="Clears your saved plan and restores the app defaults"
+              onClick={handleResetToDefaults}
+            >
+              <RotateCcw size={15} />
+              Reset to defaults
+            </button>
           </div>
         </aside>
 
@@ -562,6 +611,13 @@ export default function App() {
           {kpis}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
             {chromeControls}
+            <button
+              className="btn btn-sm btn-ghost"
+              title="Clears your saved plan and restores the app defaults"
+              onClick={handleResetToDefaults}
+            >
+              <RotateCcw size={14} /> Reset
+            </button>
             {results && (
               <button
                 className="btn btn-sm btn-primary"

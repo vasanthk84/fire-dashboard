@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { initialExpenses, initialInputs, initialOneTimeExpenses } from '../constants';
 import { calculatePlan } from '../services/api';
+import { clearPersistedPlan, loadPersistedPlan, mergeWithDefaults, savePersistedPlan } from '../utils/persistence';
 import type { CalculationResults, Expenses, Inputs, OneTimeExpenses } from '../types';
 
 function sumValues<T extends object>(values: T): number {
@@ -13,13 +14,36 @@ function findNegativeEntry(values: Record<string, number>): string | null {
 }
 
 export function useFirePlanner() {
-  const [inputs, setInputs] = useState<Inputs>(initialInputs);
+  // Restore a previously saved plan (if any) so a page reload doesn't reset
+  // everything back to the built-in defaults. Missing/new fields fall back to
+  // the current code defaults rather than becoming undefined.
+  const [inputs, setInputs] = useState<Inputs>(() => mergeWithDefaults(initialInputs, loadPersistedPlan()?.inputs));
   const [results, setResults] = useState<CalculationResults | null>(null);
-  const [expenses, setExpenses] = useState<Expenses>(initialExpenses);
-  const [oneTimeExpenses, setOneTimeExpenses] = useState<OneTimeExpenses>(initialOneTimeExpenses);
-  const [showOneTime, setShowOneTime] = useState(false);
+  const [expenses, setExpenses] = useState<Expenses>(() => mergeWithDefaults(initialExpenses, loadPersistedPlan()?.expenses));
+  const [oneTimeExpenses, setOneTimeExpenses] = useState<OneTimeExpenses>(() =>
+    mergeWithDefaults(initialOneTimeExpenses, loadPersistedPlan()?.oneTimeExpenses)
+  );
+  const [showOneTime, setShowOneTime] = useState(() => loadPersistedPlan()?.showOneTime ?? false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculationError, setCalculationError] = useState<string | null>(null);
+
+  // Autosave, debounced so a dragged slider doesn't hammer localStorage with a
+  // write on every intermediate value.
+  const saveTimeoutRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (saveTimeoutRef.current !== null) {
+      window.clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = window.setTimeout(() => {
+      savePersistedPlan({ inputs, expenses, oneTimeExpenses, showOneTime });
+    }, 300);
+
+    return () => {
+      if (saveTimeoutRef.current !== null) {
+        window.clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [inputs, expenses, oneTimeExpenses, showOneTime]);
 
   const currentMonthlyExp = useMemo(() => sumValues(expenses), [expenses]);
   const currentAnnualExp = currentMonthlyExp * 12;
@@ -180,6 +204,30 @@ export function useFirePlanner() {
     }
   };
 
+  // Clears the saved plan and restores the app's built-in defaults. Snapshots
+  // (a separate feature/localStorage key) are untouched.
+  const resetToDefaults = async () => {
+    clearPersistedPlan();
+    setInputs(initialInputs);
+    setExpenses(initialExpenses);
+    setOneTimeExpenses(initialOneTimeExpenses);
+    setShowOneTime(false);
+    setCalculationError(null);
+    setIsCalculating(true);
+
+    try {
+      const data = await calculatePlan({ ...initialInputs, monthlyExpenses: 0, oneTimeExpenseTotal: 0 });
+      setResults(data);
+      return data;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to calculate FIRE plan';
+      setCalculationError(message);
+      return null;
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
   return {
     inputs,
     setInputs,
@@ -204,6 +252,7 @@ export function useFirePlanner() {
     handleExpense,
     handleOneTime,
     runCalculation,
+    resetToDefaults,
     sumExpenses: sumValues,
     initialOneTimeExpenses
   };

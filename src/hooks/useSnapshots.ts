@@ -139,6 +139,26 @@ export function useSnapshots(props: UseSnapshotsProps) {
         retirementIncomeTaxRate: inputs.retirementIncomeTaxRate,
         applyTax: inputs.applyTax,
         fireMultiplier: inputs.fireMultiplier
+      },
+      retirement401k: {
+        us401kContribPct: inputs.us401kContribPct,
+        us401kEmployerMatchPct: inputs.us401kEmployerMatchPct
+      },
+      pfReinvestment: {
+        pfWithdrawalMonth: inputs.pfWithdrawalMonth,
+        pfWithdrawalYear: inputs.pfWithdrawalYear,
+        gratuityAmount: inputs.gratuityAmount,
+        superannuationBalance: inputs.superannuationBalance,
+        superMonthlyContribution: inputs.superMonthlyContribution,
+        superInterestRatePct: inputs.superInterestRatePct,
+        superCommutationPct: inputs.superCommutationPct,
+        annuityRatePct: inputs.annuityRatePct,
+        pfCashAllocPct: inputs.pfCashAllocPct,
+        pfCashRatePct: inputs.pfCashRatePct,
+        pfBondAllocPct: inputs.pfBondAllocPct,
+        pfBondRatePct: inputs.pfBondRatePct,
+        pfWheelYieldPctMonthly: inputs.pfWheelYieldPctMonthly,
+        pfReinvestTaxPct: inputs.pfReinvestTaxPct
       }
     };
 
@@ -193,7 +213,9 @@ export function useSnapshots(props: UseSnapshotsProps) {
       ...snapshot.flows,
       ...snapshot.growthRates,
       ...snapshot.bonds,
-      ...snapshot.planningParams
+      ...snapshot.planningParams,
+      ...(snapshot.retirement401k ?? {}),
+      ...(snapshot.pfReinvestment ?? {})
     }));
     setExpenses(snapshot.expenses.monthly);
     setOneTimeExpenses(nextOneTimeExpenses);
@@ -205,6 +227,8 @@ export function useSnapshots(props: UseSnapshotsProps) {
       ...snapshot.growthRates,
       ...snapshot.bonds,
       ...snapshot.planningParams,
+      ...(snapshot.retirement401k ?? {}),
+      ...(snapshot.pfReinvestment ?? {}),
       monthlyExpenses: sumExpenses(snapshot.expenses.monthly),
       oneTimeExpenseTotal: sumExpenses(nextOneTimeExpenses)
     });

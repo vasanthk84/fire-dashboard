@@ -27,6 +27,17 @@ function calculateEPFYearly(startBalance, basicPay, interestRate, vpfRate) {
   return { endBalance: balance };
 }
 
+function projectSimpleForward(startBalance, monthlyContribution, annualRatePct, months) {
+  if (months <= 0) return startBalance;
+  let balance = startBalance;
+  let yearlyInterest = 0;
+  for (let m = 1; m <= months; m++) {
+    balance += monthlyContribution;
+    yearlyInterest += balance * (annualRatePct / 100 / 12);
+  }
+  return balance + yearlyInterest;
+}
+
 function calculate401kYearly(currentBalance, annualSalary, yourContribPct, employerMatchPct, growthRate) {
   const monthlyContrib = (annualSalary * (yourContribPct + employerMatchPct)) / 12;
   const monthlyRate = growthRate / 12;
@@ -62,6 +73,59 @@ module.exports = (req, res) => {
     const basicPay = parseVal(input.basicPay, 0);
     const epfRate = parseVal(input.epfRate, 0.0825);
     const vpfRate = parseVal(input.vpfRate, 0.12);
+
+    // --- 401k Projector: employee/employer contribution rates ---
+    const us401kContribPct = parseVal(input.us401kContribPct, 0.05);
+    const us401kEmployerMatchPct = parseVal(input.us401kEmployerMatchPct, 0.04);
+
+    // --- PF Closure & Reinvestment ---
+    const pfWithdrawalMonth = Math.min(12, Math.max(1, parseInt(input.pfWithdrawalMonth, 10) || 12));
+    const pfWithdrawalYear = parseInt(input.pfWithdrawalYear, 10) || (startYear + 1);
+    const gratuityAmount = parseVal(input.gratuityAmount, 0);
+    const superannuationBalance = parseVal(input.superannuationBalance, 0);
+    const superMonthlyContribution = parseVal(input.superMonthlyContribution, 0);
+    const superInterestRatePct = parseVal(input.superInterestRatePct, 0);
+    const superCommutationPct = parseVal(input.superCommutationPct, 0.5);
+    const annuityRatePct = parseVal(input.annuityRatePct, 0.06);
+    const pfCashAllocPct = parseVal(input.pfCashAllocPct, 68);
+    const pfCashRatePct = parseVal(input.pfCashRatePct, 7);
+    const pfBondAllocPct = parseVal(input.pfBondAllocPct, 0);
+    const pfBondRatePct = parseVal(input.pfBondRatePct, 7.5);
+    const pfWheelYieldPctMonthly = parseVal(input.pfWheelYieldPctMonthly, 1.25);
+    const pfReinvestTaxPct = parseVal(input.pfReinvestTaxPct, 0);
+
+    // Superannuation keeps earning employer contributions + interest (per your
+    // statement) right up to the PF withdrawal date, so grow it forward before
+    // splitting into the commuted lump sum vs the annuitised remainder.
+    const _nowForSuper = new Date();
+    const monthsToPfWithdrawal = (pfWithdrawalYear * 12 + (pfWithdrawalMonth - 1)) - (_nowForSuper.getFullYear() * 12 + _nowForSuper.getMonth());
+    const superannuationAtWithdrawal = projectSimpleForward(superannuationBalance, superMonthlyContribution, superInterestRatePct, Math.max(0, monthsToPfWithdrawal));
+
+    // Commuted portion is a tax-free lump sum, the remainder buys an annuity
+    // (TCS policy: commute 1/3 or 1/2 of the corpus, or annuitise it all).
+    const superLumpINR = superannuationAtWithdrawal * superCommutationPct;
+    const superAnnuityCorpusINR = superannuationAtWithdrawal * (1 - superCommutationPct);
+    const annuityMonthlyIncomeLakhs = (superAnnuityCorpusINR * annuityRatePct / 12) / 100000;
+
+    // Gratuity + the commuted superannuation lump sum are NEW money injected into
+    // the reinvestment bucket at withdrawal (the PF balance itself already lives
+    // in curEPF and simply changes its growth model from that point on).
+    const pfInjectionLakhs = (gratuityAmount + superLumpINR) / 100000;
+
+    // Blended annual return on the reinvested PF corpus — cash/savings + bonds/debt
+    // funds + option wheeling — net of the assumed tax rate on that income. Cash and
+    // bond allocations are clamped to sum to at most 100%; whatever's left goes to wheeling.
+    let pfCashFrac = Math.max(0, Math.min(100, pfCashAllocPct)) / 100;
+    let pfBondFrac = Math.max(0, Math.min(100, pfBondAllocPct)) / 100;
+    if (pfCashFrac + pfBondFrac > 1) {
+      const scale = 1 / (pfCashFrac + pfBondFrac);
+      pfCashFrac *= scale;
+      pfBondFrac *= scale;
+    }
+    const pfWheelFrac = 1 - pfCashFrac - pfBondFrac;
+    const pfWheelAnnualPct = (pfWheelYieldPctMonthly / 100) * 12;
+    const pfBlendedAnnualRate = (pfCashFrac * (pfCashRatePct / 100)) + (pfBondFrac * (pfBondRatePct / 100)) + (pfWheelFrac * pfWheelAnnualPct);
+    const pfBlendedPostTaxRate = pfBlendedAnnualRate * (1 - (pfReinvestTaxPct / 100));
 
     const bondsInitial = parseVal(input.bondsInitial, 0);
     const bondAnnualIncrease = parseVal(input.bondAnnualIncrease, 0.01);
@@ -109,6 +173,7 @@ module.exports = (req, res) => {
       let curEPF = epfCurrent;
       let cur401kUSD = us401kUSD;
       let curOptions = optionsPortfolioValue;
+      let pfInjected = false;
 
       let currentBondAddition = bondsInitial * bondAnnualIncrease;
       let currentSIP = mfSIP;
@@ -122,6 +187,26 @@ module.exports = (req, res) => {
         const yearFraction = growMonths / 12;
 
         const isAbroad = year < returnToIndiaYear;
+
+        // --- PF Closure & Reinvestment: which growth model applies this year ---
+        // Before pfWithdrawalYear/Month: normal EPF accumulation (unchanged).
+        // From that point on: PF balance + gratuity + commuted superannuation
+        // lump sum move into the cash/wheeling reinvestment blend, and the
+        // annuitised superannuation portion starts paying monthly income.
+        const windowStart = year === startYear ? startMonth : 1;
+        let fracEpfOld = 0;
+        let fracReinvestNew = 0;
+        if (year < pfWithdrawalYear) {
+          fracEpfOld = yearFraction;
+        } else if (year > pfWithdrawalYear) {
+          fracReinvestNew = yearFraction;
+        } else {
+          const monthsBeforeWithdrawal = Math.max(0, Math.min(growMonths, pfWithdrawalMonth - windowStart));
+          const monthsAfterWithdrawal = growMonths - monthsBeforeWithdrawal;
+          fracEpfOld = monthsBeforeWithdrawal / 12;
+          fracReinvestNew = monthsAfterWithdrawal / 12;
+        }
+        const annuityActive = year > pfWithdrawalYear || (year === pfWithdrawalYear && fracReinvestNew > 0);
 
         // Retirement corpus deduction — always India (post-return) expenses; never abroad
         const retirementAnnualExpense = (monthlyExpensesStart * 12) * Math.pow(1 + inflationRate, yearsPassed);
@@ -137,7 +222,7 @@ module.exports = (req, res) => {
 
         if (year > startYear) {
           if (year <= returnToIndiaYear) {
-            cur401kUSD = calculate401kYearly(cur401kUSD, annualSalary, 0.05, 0.04, usRate);
+            cur401kUSD = calculate401kYearly(cur401kUSD, annualSalary, us401kContribPct, us401kEmployerMatchPct, usRate);
           } else if (year <= withdraw401kYear) {
             // Coast phase: no contributions, monthly compound growth at usRate
             cur401kUSD = cur401kUSD * Math.pow(1 + usRate / 12, 12);
@@ -168,7 +253,12 @@ module.exports = (req, res) => {
         // already has one (its actual premium yield, below) — including it again
         // here would double-count that income and overstate readiness/coverage.
         const passiveEligibleBase = curMF + curStocks + curUSStocks + curBonds + curEmergency + curEPF;
-        const passiveIncomeGross = passiveEligibleBase > 0 ? (passiveEligibleBase * 0.04) / 12 : 0;
+        let passiveIncomeGross = passiveEligibleBase > 0 ? (passiveEligibleBase * 0.04) / 12 : 0;
+        if (annuityActive) {
+          // Superannuation annuity income — a separate stream from the 4% SWR
+          // estimate above, added once the annuity has commenced.
+          passiveIncomeGross += annuityMonthlyIncomeLakhs;
+        }
         let passiveIncomeNet = passiveIncomeGross;
         let monthlyTax = 0;
 
@@ -229,12 +319,24 @@ module.exports = (req, res) => {
         curUSStocks *= Math.pow(1 + usRate, yearFraction);
         curEmergency *= Math.pow(1.06, yearFraction);
 
-        if (isRetired) {
-          curEPF += curEPF * 0.07 * yearFraction;
-        } else {
-          const epfResult = calculateEPFYearly(curEPF * 100000, basicPay, epfRate, vpfRate);
-          // Scale EPF contribution for partial year
-          curEPF = (curEPF * 100000 + (epfResult.endBalance - curEPF * 100000) * yearFraction) / 100000;
+        if (fracEpfOld > 0) {
+          if (isRetired) {
+            curEPF += curEPF * 0.07 * fracEpfOld;
+          } else {
+            const epfResult = calculateEPFYearly(curEPF * 100000, basicPay, epfRate, vpfRate);
+            // Scale EPF contribution for the portion of the year before withdrawal
+            curEPF = (curEPF * 100000 + (epfResult.endBalance - curEPF * 100000) * fracEpfOld) / 100000;
+          }
+        }
+
+        if (fracReinvestNew > 0) {
+          if (!pfInjected) {
+            // One-time injection at the withdrawal date: gratuity + commuted
+            // superannuation lump sum. The PF balance itself is already curEPF.
+            curEPF += pfInjectionLakhs;
+            pfInjected = true;
+          }
+          curEPF += curEPF * pfBlendedPostTaxRate * fracReinvestNew;
         }
 
         // Underlying options-linked stocks appreciate like any equity holding;
@@ -269,6 +371,10 @@ module.exports = (req, res) => {
 
       if (p.year === withdraw401kYear) {
         milestones.push({ type: 'wealth', text: '401k Injected' });
+      }
+
+      if (p.year === pfWithdrawalYear) {
+        milestones.push({ type: 'wealth', text: 'PF Withdrawn & Reinvested' });
       }
 
       const totalCr = p.total / 100;
@@ -348,7 +454,12 @@ module.exports = (req, res) => {
         net401kINR,
         ageAtWithdrawal401k: ageAtWithdrawal,
         isEarlyWithdrawal401k: isEarlyWithdrawal,
-        taxRate401k
+        taxRate401k,
+        pfWithdrawalYear,
+        pfWithdrawalMonth,
+        pfAnnuityMonthlyIncomeLakhs: parseFloat(annuityMonthlyIncomeLakhs.toFixed(3)),
+        pfBlendedReinvestRate: pfBlendedPostTaxRate,
+        superannuationAtWithdrawalINR: Math.round(superannuationAtWithdrawal)
       },
       fireProjections,
       withdrawalScenarios,

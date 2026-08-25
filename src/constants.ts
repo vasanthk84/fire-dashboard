@@ -15,12 +15,12 @@ export const initialInputs: Inputs = {
   stocksIndia: 0,
   usStocks: 0,
   emergencyFund: 0,
-  us401k: 0,
+  us401k: 61454.64,
   usdExchangeRate: 86,
-  epfCurrent: 0,
-  basicPay: 0,
+  epfCurrent: 68.8505,
+  basicPay: 36700,
   epfRate: 0.0825,
-  vpfRate: 0.12,
+  vpfRate: 0.88,
   bondsInitial: 0,
   bondAnnualIncrease: 0.01,
   bondRate: 0.07,
@@ -42,7 +42,34 @@ export const initialInputs: Inputs = {
   enableRebalancing: false,
   targetEquityPre: 80,
   targetEquityPost: 60,
-  glideYears: 10
+  glideYears: 10,
+
+  // 401k Projector
+  us401kContribPct: 0.05,
+  us401kEmployerMatchPct: 0.04,
+
+  // PF Closure & Reinvestment — pre-filled from your most recent PF passbook /
+  // payslip snapshot. TCS has indicated PF closure within ~6-12 months of
+  // Aug 2026, so the withdrawal date below is a placeholder best-guess —
+  // update it the moment TCS confirms the actual date.
+  pfWithdrawalMonth: 5,
+  pfWithdrawalYear: _now.getFullYear() + 1,
+  gratuityAmount: 574855,
+  // Superannuation statement (FY 2026-2027): opening 5,64,861 + employer
+  // contributions Apr-Jul 2026 (avg ~5,505/mo) + interest = 6,02,082 as of 31-Jul-2026.
+  superannuationBalance: 602082,
+  superMonthlyContribution: 5505,
+  superInterestRatePct: 7.9,
+  superCommutationPct: 0.5,
+  annuityRatePct: 0.06,
+  pfCashAllocPct: 68,
+  pfCashRatePct: 7,
+  // Defaulted to 0% so adding the Bonds bucket doesn't silently change your
+  // existing 68% cash / 32% wheeling plan — dial this in yourself if you want it.
+  pfBondAllocPct: 0,
+  pfBondRatePct: 7.5,
+  pfWheelYieldPctMonthly: 1.25,
+  pfReinvestTaxPct: 0
 };
 
 export const initialExpenses: Expenses = {
@@ -68,6 +95,8 @@ export const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'risk', label: 'Risk' },
   { key: 'expenses', label: 'Expenses' },
   { key: 'withdrawal', label: 'Withdrawal' },
+  { key: 'retirement401k', label: '401k Projector' },
+  { key: 'pfReinvest', label: 'PF Reinvest' },
   { key: 'snapshots', label: 'Snapshots' }
 ];
 

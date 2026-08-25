@@ -320,5 +320,100 @@ export const CHARTS = {
         y: { formatter: (v) => fmtL(Number(v)) }
       }
     });
+  },
+
+  retirement401k(
+    labels: string[],
+    datasets: Array<{ name: string; color: string; activeData: Array<number | null>; coastData: Array<number | null> }>,
+    xMarkers: Array<{ index: number; label: string; color?: string }>
+  ) {
+    const series: Array<{ name: string; data: Array<number | null> }> = [];
+    const colors: string[] = [];
+    const dashArray: number[] = [];
+    const widths: number[] = [];
+    datasets.forEach((d) => {
+      series.push({ name: d.name + ' · active', data: d.activeData });
+      colors.push(d.color); dashArray.push(0); widths.push(2.5);
+      series.push({ name: d.name + ' · coast', data: d.coastData });
+      colors.push(d.color); dashArray.push(5); widths.push(2);
+    });
+    return (): ApexOptions => ({
+      ...baseAxes(labels, (v) => '$' + Math.round(Number(v) / 1000) + 'k'),
+      series,
+      chart: { type: 'line', height: 340, background: 'transparent', toolbar: { show: false } },
+      colors,
+      stroke: { width: widths, curve: 'smooth', dashArray },
+      markers: { size: 0, hover: { size: 4 } },
+      legend: {
+        show: true,
+        position: 'top',
+        fontFamily: SANS,
+        fontSize: '11px',
+        labels: { colors: cssVar('--text-2') }
+      },
+      tooltip: {
+        theme: isDark() ? 'dark' : 'light',
+        style: { fontFamily: SANS },
+        y: { formatter: (v) => (v == null ? '—' : '$' + Math.round(Number(v)).toLocaleString('en-US')) }
+      },
+      annotations: {
+        xaxis: xMarkers.map((m) => ({
+          x: m.index,
+          borderColor: m.color || cssVar('--text-3'),
+          label: {
+            text: m.label,
+            style: {
+              fontSize: '10px',
+              fontFamily: SANS,
+              color: cssVar('--text'),
+              background: cssVar('--surface-3')
+            }
+          }
+        }))
+      }
+    });
+  },
+
+  pfReinvest(labels: string[], reinvestData: number[], pfBenchData: number[], withdrawIndex?: number) {
+    const accent = cssVar('--accent');
+    const pos = cssVar('--pos');
+    return (): ApexOptions => ({
+      ...baseAxes(labels, (v) => '₹' + (Number(v) / 100000).toFixed(1) + 'L'),
+      series: [
+        { name: 'Reinvestment (cash + bonds + wheeling)', data: reinvestData },
+        { name: 'PF benchmark (stayed in EPF)', data: pfBenchData }
+      ],
+      chart: { type: 'line', height: 320, background: 'transparent', toolbar: { show: false } },
+      colors: [accent, pos],
+      stroke: { width: [2.5, 2.5], curve: 'smooth', dashArray: [0, 4] },
+      markers: { size: 0, hover: { size: 4 } },
+      legend: {
+        show: true,
+        position: 'top',
+        fontFamily: SANS,
+        fontSize: '11px',
+        labels: { colors: cssVar('--text-2') }
+      },
+      tooltip: {
+        theme: isDark() ? 'dark' : 'light',
+        style: { fontFamily: SANS },
+        y: { formatter: (v) => '₹' + Math.round(Number(v)).toLocaleString('en-IN') }
+      },
+      annotations: withdrawIndex != null ? {
+        xaxis: [{
+          x: withdrawIndex,
+          borderColor: cssVar('--warn'),
+          label: {
+            text: 'PF withdrawn',
+            style: {
+              fontSize: '10px',
+              fontFamily: SANS,
+              color: '#fff',
+              background: cssVar('--warn')
+            }
+          }
+        }]
+      } : undefined
+    });
   }
 };
