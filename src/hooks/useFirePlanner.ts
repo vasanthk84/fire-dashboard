@@ -23,7 +23,7 @@ export function useFirePlanner() {
   const [oneTimeExpenses, setOneTimeExpenses] = useState<OneTimeExpenses>(() =>
     mergeWithDefaults(initialOneTimeExpenses, loadPersistedPlan()?.oneTimeExpenses)
   );
-  const [showOneTime, setShowOneTime] = useState(() => loadPersistedPlan()?.showOneTime ?? false);
+  const [showOneTime, setShowOneTime] = useState(() => loadPersistedPlan()?.showOneTime ?? true);
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculationError, setCalculationError] = useState<string | null>(null);
 

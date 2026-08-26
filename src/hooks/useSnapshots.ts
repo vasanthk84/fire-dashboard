@@ -159,6 +159,14 @@ export function useSnapshots(props: UseSnapshotsProps) {
         pfBondRatePct: inputs.pfBondRatePct,
         pfWheelYieldPctMonthly: inputs.pfWheelYieldPctMonthly,
         pfReinvestTaxPct: inputs.pfReinvestTaxPct
+      },
+      villa: {
+        villaEnabled: inputs.villaEnabled,
+        villaYear: inputs.villaYear,
+        villaDownPaymentLakhs: inputs.villaDownPaymentLakhs,
+        villaLoanAmountLakhs: inputs.villaLoanAmountLakhs,
+        villaLoanRatePct: inputs.villaLoanRatePct,
+        villaLoanTenureYears: inputs.villaLoanTenureYears
       }
     };
 
@@ -215,7 +223,8 @@ export function useSnapshots(props: UseSnapshotsProps) {
       ...snapshot.bonds,
       ...snapshot.planningParams,
       ...(snapshot.retirement401k ?? {}),
-      ...(snapshot.pfReinvestment ?? {})
+      ...(snapshot.pfReinvestment ?? {}),
+      ...(snapshot.villa ?? {})
     }));
     setExpenses(snapshot.expenses.monthly);
     setOneTimeExpenses(nextOneTimeExpenses);
@@ -229,6 +238,7 @@ export function useSnapshots(props: UseSnapshotsProps) {
       ...snapshot.planningParams,
       ...(snapshot.retirement401k ?? {}),
       ...(snapshot.pfReinvestment ?? {}),
+      ...(snapshot.villa ?? {}),
       monthlyExpenses: sumExpenses(snapshot.expenses.monthly),
       oneTimeExpenseTotal: sumExpenses(nextOneTimeExpenses)
     });

@@ -1,0 +1,217 @@
+import { useMemo } from 'react';
+import type { UseFirePlannerReturn } from '../../hooks/useFirePlanner';
+import type { Expenses, OneTimeExpenses } from '../../types';
+import { fmtL, fmtRupees } from '../../utils/formatters';
+import { MHero, MChipNeutral, MShareBar, MSwitch, MSwitchRow, MStepper, MTile } from '../components/primitives';
+import { M_EXPENSE_COLORS, M_HERO_TINT } from '../mobileColors';
+
+// Mirrors the Expenses category order/labels from design_handoff_fire_mobile's
+// mobile spec exactly. Desktop's own EXPENSE_META (chartBuilders.ts) uses
+// slightly different labels ("Leisure" not "Entertainment") and hex values,
+// so mobile keeps its own copy rather than importing that one — see
+// mobileColors.ts's header comment for why.
+const CATEGORY_META: Array<{ key: keyof Expenses; label: string }> = [
+  { key: 'rent', label: 'Rent' },
+  { key: 'groceries', label: 'Groceries' },
+  { key: 'utilities', label: 'Utilities' },
+  { key: 'transport', label: 'Transport' },
+  { key: 'health', label: 'Health' },
+  { key: 'entertainment', label: 'Entertainment' },
+  { key: 'misc', label: 'Misc' }
+];
+
+// Return-to-India setup card — display-only in the mobile spec (no steppers),
+// relabels desktop's "Home"/"Wedding" to "Home setup"/"Family event".
+// oneTimeExpenses values are stored in raw rupees (same unit as `expenses`),
+// per api/calculate.js dividing by 100000 to get lakhs — not pre-converted.
+const SETUP_META: Array<{ key: keyof OneTimeExpenses; label: string }> = [
+  { key: 'homeBuying', label: 'Home setup' },
+  { key: 'carBuying', label: 'Car' },
+  { key: 'renovation', label: 'Renovation' },
+  { key: 'wedding', label: 'Family event' },
+  { key: 'misc', label: 'Misc' }
+];
+
+interface ExpensesScreenProps {
+  planner: UseFirePlannerReturn;
+  reinvestWheel: boolean;
+  onReinvestWheelChange: (next: boolean) => void;
+}
+
+export function ExpensesScreen({ planner, reinvestWheel, onReinvestWheelChange }: ExpensesScreenProps) {
+  const {
+    expenses,
+    oneTimeExpenses,
+    showOneTime,
+    setShowOneTime,
+    inputs,
+    handleExpense,
+    handleInput,
+    runCalculation,
+    sumExpenses,
+    fireNumberLakhs
+  } = planner;
+
+  const total = CATEGORY_META.reduce((s, c) => s + (expenses[c.key] || 0), 0);
+  const annualLakhs = (total * 12) / 100000;
+  const oneTimeTotal = sumExpenses(oneTimeExpenses);
+
+  const segments = CATEGORY_META.filter((c) => (expenses[c.key] || 0) > 0).map((c) => ({
+    pct: total > 0 ? ((expenses[c.key] || 0) / total) * 100 : 0,
+    color: M_EXPENSE_COLORS[c.key]
+  }));
+
+  const onToggleReturnToIndia = (checked: boolean) => {
+    setShowOneTime(checked);
+    void runCalculation({ oneTimeExpenseTotal: checked ? sumExpenses(oneTimeExpenses) : 0 });
+  };
+
+  const onToggleApplyTax = (checked: boolean) => {
+    handleInput('applyTax', checked);
+    void runCalculation({ applyTax: checked });
+  };
+
+  const onToggleVilla = (checked: boolean) => {
+    handleInput('villaEnabled', checked);
+    void runCalculation({ villaEnabled: checked });
+  };
+
+  // Mirrors desktop's ExpensesTab.tsx villaEmi useMemo (standard amortisation
+  // formula) verbatim, for instant display without waiting on the next
+  // calculate.js round trip.
+  const villaEmi = useMemo(() => {
+    const r = inputs.villaLoanRatePct / 100 / 12;
+    const n = Math.round(inputs.villaLoanTenureYears * 12);
+    const principal = inputs.villaLoanAmountLakhs * 100000;
+    if (principal <= 0 || n <= 0) return { monthlyINR: 0, payoffYear: null as number | null };
+    const emi = r > 0 ? (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1) : principal / n;
+    return { monthlyINR: emi, payoffYear: inputs.villaYear + Math.ceil(n / 12) - 1 };
+  }, [inputs.villaLoanRatePct, inputs.villaLoanTenureYears, inputs.villaLoanAmountLakhs, inputs.villaYear]);
+
+  return (
+    <div className="m-screen">
+      <div className="m-screen-head" style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <h1 className="m-h1">Expenses</h1>
+        <span className="m-caption" style={{ fontSize: 11 }}>India lifestyle · from {inputs.returnYear}</span>
+      </div>
+
+      <div className="m-stack">
+        <MHero tint1={M_HERO_TINT.expenses} tint2="rgba(224,85,107,.03)" lineColor="rgba(224,85,107,.24)">
+          <div className="m-eyebrow">Total per month</div>
+          <div className="m-hero-metric" style={{ marginTop: 8 }}>{fmtRupees(total)}</div>
+          <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <MChipNeutral label={`${fmtL(annualLakhs)}/yr`} />
+            <MChipNeutral label={`FIRE target ${fmtL(fireNumberLakhs)}`} />
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <MShareBar segments={segments} height={10} />
+          </div>
+        </MHero>
+
+        <div className="m-card m-cat-card">
+          {CATEGORY_META.map((c) => {
+            const value = expenses[c.key] || 0;
+            const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+            return (
+              <div className="m-cat-row" key={c.key}>
+                <span className="m-cat-swatch" style={{ background: M_EXPENSE_COLORS[c.key] }} />
+                <div className="m-cat-label-block">
+                  <span className="m-body-label">{c.label}</span>
+                  <span className="m-caption" style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5 }}>{pct}% of spend</span>
+                </div>
+                <div style={{ marginLeft: 'auto' }}>
+                  <MStepper
+                    value={value}
+                    step={1000}
+                    min={0}
+                    format={(n) => fmtRupees(n)}
+                    onChange={(next) => void handleExpense(c.key, String(next))}
+                  />
+                </div>
+              </div>
+            );
+          })}
+          <div className="m-cat-total-row">
+            <span className="m-cat-total-label">Total / month</span>
+            <span className="m-cat-total-value">{fmtRupees(total)}</span>
+          </div>
+        </div>
+
+        <div className="m-card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <MSwitchRow
+            label="Apply 12.5% tax drag"
+            sub="Taxes passive income in retirement"
+            checked={inputs.applyTax}
+            onChange={onToggleApplyTax}
+          />
+          <MSwitchRow
+            label="Return-to-India setup costs"
+            sub="One-time relocation spend"
+            checked={showOneTime}
+            onChange={onToggleReturnToIndia}
+          />
+          <MSwitchRow
+            label="Compound wheeling premiums"
+            sub="Otherwise swept to cash"
+            checked={reinvestWheel}
+            onChange={onReinvestWheelChange}
+          />
+        </div>
+
+        {showOneTime && (
+          <div className="m-card">
+            <div className="m-eyebrow">Return-to-India setup</div>
+            <div className="m-grid-2" style={{ marginTop: 12 }}>
+              {SETUP_META.map((o) => (
+                <MTile key={o.key} top={o.label} value={fmtL(oneTimeExpenses[o.key] / 100000)} />
+              ))}
+            </div>
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center' }}>
+              <span style={{ font: '600 11.5px var(--font-sans)', color: 'var(--text-2)' }}>One-time total</span>
+              <span style={{ marginLeft: 'auto', font: '700 14px var(--font-mono)', color: 'var(--neg)' }}>{fmtL(oneTimeTotal / 100000)}</span>
+            </div>
+          </div>
+        )}
+
+        <div className="m-card">
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+              <span className="m-card-title">Villa purchase</span>
+              <span className="m-caption" style={{ lineHeight: 1.45 }}>
+                Optional goal — down payment hits the corpus, EMI draws only post-retirement
+              </span>
+            </div>
+            <div style={{ marginLeft: 'auto', flexShrink: 0, marginTop: 2 }}>
+              <MSwitch checked={inputs.villaEnabled} onChange={onToggleVilla} />
+            </div>
+          </div>
+
+          {inputs.villaEnabled && (
+            <div className="m-grid-2" style={{ marginTop: 14 }}>
+              <MTile
+                top="Down payment"
+                value={fmtL(inputs.villaDownPaymentLakhs)}
+                foot={`inflated to ${inputs.villaYear}`}
+              />
+              <MTile
+                top="Monthly EMI"
+                value={fmtRupees(villaEmi.monthlyINR)}
+                foot={`${inputs.villaLoanAmountLakhs}L @ ${inputs.villaLoanRatePct}%`}
+              />
+              <MTile
+                top="Loan paid off"
+                value={String(villaEmi.payoffYear ?? '—')}
+                foot={`${inputs.villaLoanTenureYears}y tenure`}
+              />
+              <MTile
+                top="Cash needed"
+                value={fmtL(inputs.villaDownPaymentLakhs + inputs.villaLoanAmountLakhs)}
+                foot="down + principal"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

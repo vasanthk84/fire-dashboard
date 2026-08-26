@@ -376,7 +376,7 @@ export const CHARTS = {
 
   pfReinvest(labels: string[], reinvestData: number[], pfBenchData: number[], withdrawIndex?: number) {
     const accent = cssVar('--accent');
-    const pos = cssVar('--pos');
+    const muted = cssVar('--text-3');
     return (): ApexOptions => ({
       ...baseAxes(labels, (v) => '₹' + (Number(v) / 100000).toFixed(1) + 'L'),
       series: [
@@ -384,8 +384,8 @@ export const CHARTS = {
         { name: 'PF benchmark (stayed in EPF)', data: pfBenchData }
       ],
       chart: { type: 'line', height: 320, background: 'transparent', toolbar: { show: false } },
-      colors: [accent, pos],
-      stroke: { width: [2.5, 2.5], curve: 'smooth', dashArray: [0, 4] },
+      colors: [accent, muted],
+      stroke: { width: [3, 2], curve: 'smooth', dashArray: [0, 5] },
       markers: { size: 0, hover: { size: 4 } },
       legend: {
         show: true,
@@ -414,6 +414,196 @@ export const CHARTS = {
           }
         }]
       } : undefined
+    });
+  },
+
+  // ---------- Mobile shell ----------
+  // Mobile always renders in the fixed green accent (#15a05f), independent of
+  // the desktop [data-hue] picker — never var('--accent') here.
+  mobileTrajectory(labels: string[], values: number[], retirementIndex: number, fireTargetLakhs: number) {
+    return (): ApexOptions => ({
+      ...baseAxes(labels, (v) => fmtL(Number(v))),
+      series: [{ name: 'Corpus', data: values }],
+      chart: { type: 'area', height: 220, background: 'transparent', toolbar: { show: false } },
+      colors: ['#15a05f'],
+      stroke: { width: 2, curve: 'smooth' },
+      fill: {
+        type: 'gradient',
+        gradient: { shadeIntensity: 1, opacityFrom: 0.32, opacityTo: 0, stops: [0, 95] }
+      },
+      markers: { size: 0 },
+      // Native x-axis labels are hidden: TrajectoryView renders its own
+      // start/retire/end row below the chart (per the mobile spec's separate
+      // axis-label row), so showing both duplicated the year ticks.
+      xaxis: { categories: labels, labels: { show: false }, axisTicks: { show: false }, axisBorder: { show: false } },
+      yaxis: {
+        tickAmount: 3,
+        labels: { style: { colors: cssVar('--text-3'), fontSize: '10px', fontFamily: MONO }, formatter: (v) => fmtL(Number(v)) }
+      },
+      grid: { borderColor: cssVar('--grid'), strokeDashArray: 4, padding: { left: 6, right: 12 } },
+      annotations: {
+        xaxis: retirementIndex >= 0 ? [{
+          x: retirementIndex,
+          borderColor: cssVar('--warn'),
+          strokeDashArray: 4
+        }] : [],
+        yaxis: [{
+          y: fireTargetLakhs,
+          borderColor: cssVar('--neg'),
+          strokeDashArray: 4
+        }],
+        points: retirementIndex >= 0 ? [{
+          x: retirementIndex,
+          y: values[retirementIndex],
+          marker: { size: 3.4, fillColor: cssVar('--warn'), strokeWidth: 0 }
+        }] : []
+      }
+    });
+  },
+
+  mobileSustainability(labels: string[], values: number[], depleted: boolean) {
+    const color = depleted ? cssVar('--neg') : '#15a05f';
+    return (): ApexOptions => ({
+      ...baseAxes(labels, (v) => fmtL(Number(v))),
+      series: [{ name: 'Corpus', data: values }],
+      chart: { type: 'area', height: 200, background: 'transparent', toolbar: { show: false } },
+      colors: [color],
+      stroke: { width: 2, curve: 'smooth' },
+      fill: {
+        type: 'gradient',
+        gradient: { shadeIntensity: 1, opacityFrom: 0.28, opacityTo: 0, stops: [0, 95] }
+      },
+      markers: { size: 0 },
+      // Native x-axis labels hidden — WithdrawalView renders its own
+      // retire-year / end-label row below the chart.
+      xaxis: { categories: labels, labels: { show: false }, axisTicks: { show: false }, axisBorder: { show: false } },
+      yaxis: {
+        tickAmount: 2,
+        labels: { style: { colors: cssVar('--text-3'), fontSize: '10px', fontFamily: MONO }, formatter: (v) => fmtL(Number(v)) }
+      },
+      grid: { borderColor: cssVar('--grid'), strokeDashArray: 4, padding: { left: 6, right: 12 } }
+    });
+  },
+
+  mobileSnapshotProgression(labels: string[], values: number[], targetLakhs: number) {
+    return (): ApexOptions => ({
+      ...baseAxes(labels, (v) => fmtL(Number(v))),
+      series: [{ name: 'Wealth', data: values }],
+      chart: { type: 'line', height: 160, background: 'transparent', toolbar: { show: false } },
+      colors: ['#15a05f'],
+      stroke: { width: 2, curve: 'smooth' },
+      markers: { size: 3.2, colors: ['#15a05f'], strokeWidth: 0, hover: { size: 4.5 } },
+      grid: { borderColor: cssVar('--grid'), strokeDashArray: 4, padding: { left: 6, right: 12, top: 20 } },
+      annotations: {
+        yaxis: [{
+          y: targetLakhs,
+          borderColor: cssVar('--neg'),
+          strokeDashArray: 4,
+          label: {
+            text: 'target ' + fmtL(targetLakhs),
+            position: 'top',
+            style: {
+              fontSize: '10px',
+              fontFamily: SANS,
+              color: '#fff',
+              background: cssVar('--neg')
+            }
+          }
+        }]
+      }
+    });
+  },
+
+  /** 401k balance path — accent area/line, optional dashed compare-rate
+   *  overlays (colors from M_CONTRIB_COLORS), dashed warn marker+dot at the
+   *  India-return index, accent dot at the final year. Native x-axis labels
+   *  are hidden — K401Screen renders its own start/India/withdraw row below,
+   *  same convention as mobileTrajectory/mobileSustainability. */
+  mobile401kBalance(
+    labels: string[],
+    values: number[],
+    stopIndex: number,
+    compareLines: Array<{ color: string; data: Array<number | null> }> = []
+  ) {
+    const n = compareLines.length;
+    return (): ApexOptions => ({
+      series: [
+        { name: 'Balance', type: 'area', data: values },
+        ...compareLines.map((cl, i) => ({ name: 'Compare ' + i, type: 'line', data: cl.data }))
+      ],
+      chart: { type: 'line', height: 200, background: 'transparent', toolbar: { show: false } },
+      colors: ['#15a05f', ...compareLines.map((cl) => cl.color)],
+      // Compare-line series use a straight curve, not smooth: cubic
+      // spline interpolation produced a spurious near-flat segment on
+      // these overlay lines (their early values are all clustered close
+      // together relative to the chart's y-scale, which the smoothing
+      // algorithm overshot). Straight segments between the same yearly
+      // points read identically at this size and avoid the artifact.
+      stroke: {
+        width: [2, ...Array(n).fill(1.3)],
+        curve: ['smooth', ...Array(n).fill('straight')] as any,
+        dashArray: [0, ...Array(n).fill(4)]
+      },
+      // fill.type/opacity as per-series ARRAYS (matching the series count) —
+      // a single non-array 'gradient' cascades to every series and made
+      // ApexCharts render the dashed compare lines' stroke as the gradient
+      // fill (invisible against the transparent chart bg) instead of a
+      // solid color. Only series 0 (the primary area) gets the gradient;
+      // the compare lines get a fully transparent fill so only their
+      // (correctly colored, dashed) stroke shows.
+      // ApexCharts applies fill.opacity to a line-type series' own stroke
+      // alpha (there's no area to fill), so 0.85 here is what actually
+      // produces the spec's "dashed, opacity:.85" compare-line look — not
+      // just a fill effect.
+      fill: {
+        type: ['gradient', ...Array(n).fill('solid')],
+        gradient: { shadeIntensity: 1, opacityFrom: 0.34, opacityTo: 0, stops: [0, 100] },
+        opacity: [1, ...Array(n).fill(0.85)]
+      },
+      markers: { size: 0 },
+      xaxis: { categories: labels, labels: { show: false }, axisTicks: { show: false }, axisBorder: { show: false } },
+      yaxis: {
+        tickAmount: 3,
+        labels: {
+          style: { colors: cssVar('--text-3'), fontSize: '10px', fontFamily: MONO },
+          formatter: (v) => '$' + Math.round(Number(v) / 1000) + 'k'
+        }
+      },
+      grid: { borderColor: cssVar('--grid'), strokeDashArray: 4, padding: { left: 6, right: 12 } },
+      legend: { show: false },
+      dataLabels: { enabled: false },
+      tooltip: { enabled: false },
+      annotations: {
+        xaxis: stopIndex >= 0 ? [{ x: stopIndex, borderColor: cssVar('--warn'), strokeDashArray: 3 }] : [],
+        points: [
+          ...(stopIndex >= 0
+            ? [{ x: stopIndex, y: values[stopIndex], marker: { size: 3.4, fillColor: cssVar('--warn'), strokeWidth: 0 } }]
+            : []),
+          { x: values.length - 1, y: values[values.length - 1], marker: { size: 3.4, fillColor: '#15a05f', strokeWidth: 0 } }
+        ]
+      }
+    });
+  },
+
+  /** PF Reinvest verdict sparkline — reinvestment (solid, verdict color) vs
+   *  PF benchmark (dashed, muted), sharing one implicit y-axis so the two
+   *  are directly comparable. No axes/grid — matches the mock's bare SVG. */
+  mobilePfVerdict(labels: string[], reinvestData: number[], benchData: number[], verdictColor: string) {
+    return (): ApexOptions => ({
+      series: [
+        { name: 'Reinvestment', data: reinvestData },
+        { name: 'PF benchmark', data: benchData }
+      ],
+      chart: { type: 'line', height: 96, background: 'transparent', toolbar: { show: false } },
+      colors: [verdictColor, cssVar('--text-3')],
+      stroke: { width: [2, 1.4], curve: 'straight', dashArray: [0, 4] },
+      markers: { size: 0 },
+      xaxis: { categories: labels, labels: { show: false }, axisTicks: { show: false }, axisBorder: { show: false } },
+      yaxis: { show: false },
+      grid: { show: false, padding: { left: 0, right: 0, top: 4, bottom: 0 } },
+      legend: { show: false },
+      dataLabels: { enabled: false },
+      tooltip: { enabled: false }
     });
   }
 };

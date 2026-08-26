@@ -25,6 +25,8 @@ import { StatsDeck } from './components/StatsDeck';
 import { useFirePlanner } from './hooks/useFirePlanner';
 import { useSensitivitySummary } from './hooks/useSensitivitySummary';
 import { useSnapshots } from './hooks/useSnapshots';
+import { useIsMobile } from './mobile/hooks/useIsMobile';
+import { MobileApp } from './mobile/MobileApp';
 import { downloadPlanExcel } from './services/api';
 import type { TabKey } from './types';
 import { fmtL } from './utils/formatters';
@@ -168,6 +170,10 @@ export default function App() {
 
   // Theme Key used to rebuild charts
   const themeKey = theme + '-' + hue;
+  const isMobile = useIsMobile(920);
+  const cycleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : prev === 'light' ? 'paper' : 'dark'));
+  };
 
   // Readiness Calculation
   const retirementProjection = results?.fireProjections.find((p) => p.year === inputs.retirementYear);
@@ -364,6 +370,10 @@ export default function App() {
             }}
             results={results}
             inputs={inputs}
+            onInput={(k, v) => {
+              handleInput(k, v);
+              void runCalculation({ [k]: v });
+            }}
             themeKey={themeKey}
           />
         );
@@ -422,6 +432,19 @@ export default function App() {
       default:
         return null;
     }
+  }
+
+  if (isMobile) {
+    return (
+      <MobileApp
+        planner={planner}
+        snapshotsApi={snapshots}
+        sensitivity={sensitivity}
+        theme={theme}
+        onCycleTheme={cycleTheme}
+        themeKey={themeKey}
+      />
+    );
   }
 
   /* ---------- Console layout shell ---------- */

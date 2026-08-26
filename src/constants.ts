@@ -69,7 +69,17 @@ export const initialInputs: Inputs = {
   pfBondAllocPct: 0,
   pfBondRatePct: 7.5,
   pfWheelYieldPctMonthly: 1.25,
-  pfReinvestTaxPct: 0
+  pfReinvestTaxPct: 0,
+
+  // --- Villa Purchase (India) ---
+  // Disabled by default — this is an optional goal you switch on from the
+  // Expenses tab; leaving it off keeps the rest of the plan exactly as-is.
+  villaEnabled: false,
+  villaYear: _now.getFullYear() + 5,
+  villaDownPaymentLakhs: 150,
+  villaLoanAmountLakhs: 45,
+  villaLoanRatePct: 8.5,
+  villaLoanTenureYears: 15
 };
 
 export const initialExpenses: Expenses = {

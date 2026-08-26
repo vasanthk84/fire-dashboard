@@ -230,6 +230,13 @@ export function Retirement401kTab({ results, inputs, onInput, themeKey }: Retire
         <div className="panel-h">
           <span className="panel-t">Plan assumptions</span>
         </div>
+        {inputs.annualSalary <= 0 && (
+          <div className="banner warn" style={{ marginBottom: 16 }}>
+            Set your US salary below — it's currently $0, so employee/employer contributions compute to $0/month
+            regardless of contribution %. That's why every rate in "Compare all 4" (and the single-rate view) shows
+            identical projections: only your existing fund balance is compounding, nothing is being added to it.
+          </div>
+        )}
         <div className="grid-3" style={{ marginBottom: 16 }}>
           <div className="in-wrap">
             <label>US salary ($/yr)</label>

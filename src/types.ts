@@ -61,6 +61,14 @@ export interface Inputs {
   pfBondRatePct: number;          // annual yield %, bond/debt fund bucket
   pfWheelYieldPctMonthly: number; // monthly option-wheeling premium yield % (remainder after cash + bonds)
   pfReinvestTaxPct: number;       // assumed tax % on reinvestment income
+
+  // --- Villa Purchase (India) ---
+  villaEnabled: boolean;          // include/exclude this goal from the plan entirely
+  villaYear: number;              // year of purchase (down payment year)
+  villaDownPaymentLakhs: number;  // ₹ Lakhs, cash down payment deducted from portfolio at villaYear
+  villaLoanAmountLakhs: number;   // ₹ Lakhs, home loan principal
+  villaLoanRatePct: number;       // annual home loan interest %, e.g. 8.5
+  villaLoanTenureYears: number;   // loan tenure in years, e.g. 15
 }
 
 export interface Expenses {
@@ -104,6 +112,8 @@ export interface FireProjection {
   monthlyTax: number;
   calculatedMonthlyExpense: number | null;
   oneTimeDeduction: number;
+  villaDownPaymentDeduction: number;
+  villaEmiDeduction: number;
   milestones: Milestone[];
 }
 
@@ -135,6 +145,10 @@ export interface CalculationResults {
     pfAnnuityMonthlyIncomeLakhs: number;
     pfBlendedReinvestRate: number;
     superannuationAtWithdrawalINR: number;
+    villaEnabled: boolean;
+    villaYear: number;
+    villaEmiLakhsPerMonth: number;
+    villaLoanPayoffYear: number | null;
   };
   fireProjections: FireProjection[];
   withdrawalScenarios: Record<string, WithdrawalProjection[]>;
@@ -184,5 +198,14 @@ export interface Snapshot {
     | 'pfBondRatePct'
     | 'pfWheelYieldPctMonthly'
     | 'pfReinvestTaxPct'
+  >;
+  villa?: Pick<
+    Inputs,
+    | 'villaEnabled'
+    | 'villaYear'
+    | 'villaDownPaymentLakhs'
+    | 'villaLoanAmountLakhs'
+    | 'villaLoanRatePct'
+    | 'villaLoanTenureYears'
   >;
 }

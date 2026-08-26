@@ -94,6 +94,28 @@ module.exports = (req, res) => {
     const pfWheelYieldPctMonthly = parseVal(input.pfWheelYieldPctMonthly, 1.25);
     const pfReinvestTaxPct = parseVal(input.pfReinvestTaxPct, 0);
 
+    // --- Villa Purchase (India) — optional goal, off by default ---
+    const villaEnabled = input.villaEnabled === true;
+    const villaYear = parseInt(input.villaYear, 10) || (startYear + 5);
+    const villaDownPaymentLakhs = parseVal(input.villaDownPaymentLakhs, 0);
+    const villaLoanAmountLakhs = parseVal(input.villaLoanAmountLakhs, 0);
+    const villaLoanRatePct = parseVal(input.villaLoanRatePct, 8.5);
+    const villaLoanTenureYears = parseVal(input.villaLoanTenureYears, 15);
+
+    // Standard reducing-balance EMI formula.
+    const villaMonthlyRate = villaLoanRatePct / 100 / 12;
+    const villaTenureMonths = Math.round(villaLoanTenureYears * 12);
+    const villaLoanAmountINR = villaLoanAmountLakhs * 100000;
+    let villaEmiINR = 0;
+    if (villaEnabled && villaLoanAmountINR > 0 && villaTenureMonths > 0) {
+      villaEmiINR = villaMonthlyRate > 0
+        ? (villaLoanAmountINR * villaMonthlyRate * Math.pow(1 + villaMonthlyRate, villaTenureMonths)) /
+          (Math.pow(1 + villaMonthlyRate, villaTenureMonths) - 1)
+        : villaLoanAmountINR / villaTenureMonths;
+    }
+    const villaEmiLakhsPerMonth = villaEmiINR / 100000;
+    const villaLoanPayoffYear = villaEnabled ? villaYear + Math.ceil(villaTenureMonths / 12) - 1 : null;
+
     // Superannuation keeps earning employer contributions + interest (per your
     // statement) right up to the PF withdrawal date, so grow it forward before
     // splitting into the commuted lump sum vs the annuitised remainder.
@@ -246,6 +268,28 @@ module.exports = (req, res) => {
           oneTimeDeductionDisplay = costInLakhs;
         }
 
+        // Villa down payment — a one-time capital outflow from the portfolio the
+        // year of purchase, inflated to that year like the other one-time costs.
+        // Only fires if the goal is switched on.
+        let villaDownPaymentDeductionDisplay = 0;
+        if (villaEnabled && year === villaYear && villaDownPaymentLakhs > 0) {
+          const inflatedDownPayment = villaDownPaymentLakhs * Math.pow(1 + inflationRate, yearsPassed);
+          curMF -= inflatedDownPayment;
+          villaDownPaymentDeductionDisplay = inflatedDownPayment;
+        }
+
+        // Villa loan EMI — a fixed nominal monthly payment for the loan tenure.
+        // Pre-retirement, we assume it's covered by salary like any other
+        // household bill (consistent with how regular monthlyExpenses is only
+        // deducted from the corpus post-retirement). Post-retirement, if the
+        // loan is still active, it's a real drag on the corpus and is deducted.
+        const villaLoanActiveThisYear = villaEnabled && villaLoanPayoffYear != null &&
+          year >= villaYear && year <= villaLoanPayoffYear;
+        // Shown from the purchase year onward regardless of retirement status
+        // (mirrors how calculatedMonthlyExpense previews post-return spend before
+        // retirement even though it isn't drawn from the corpus until then).
+        const villaEmiDeductionDisplay = villaLoanActiveThisYear ? (villaEmiLakhsPerMonth * 12) * yearFraction : 0;
+
         const total = curMF + curStocks + curUSStocks + curBonds + curEmergency + curEPF + curOptions;
 
         // The 4% SWR estimate is a generic passive-income yardstick for assets
@@ -291,6 +335,8 @@ module.exports = (req, res) => {
           monthlyTax: parseFloat(monthlyTax.toFixed(2)),
           calculatedMonthlyExpense: displayMonthlyExpenseLakhs,
           oneTimeDeduction: parseFloat(oneTimeDeductionDisplay.toFixed(2)),
+          villaDownPaymentDeduction: parseFloat(villaDownPaymentDeductionDisplay.toFixed(2)),
+          villaEmiDeduction: parseFloat(villaEmiDeductionDisplay.toFixed(2)),
           milestones: []
         });
 
@@ -302,6 +348,9 @@ module.exports = (req, res) => {
           bondInterestToMF = curBonds * bondRate * yearFraction;
           if (monthlyExpensesStart > 0) {
             curMF -= (retirementAnnualExpense * yearFraction) / 100000;
+          }
+          if (villaLoanActiveThisYear) {
+            curMF -= villaEmiDeductionDisplay;
           }
         } else {
           const bondInterest = curBonds * bondRate * yearFraction;
@@ -375,6 +424,14 @@ module.exports = (req, res) => {
 
       if (p.year === pfWithdrawalYear) {
         milestones.push({ type: 'wealth', text: 'PF Withdrawn & Reinvested' });
+      }
+
+      if (villaEnabled && p.year === villaYear) {
+        milestones.push({ type: 'expense', text: 'Villa Purchased' });
+      }
+
+      if (villaEnabled && villaLoanPayoffYear != null && p.year === villaLoanPayoffYear) {
+        milestones.push({ type: 'wealth', text: 'Home Loan Paid Off' });
       }
 
       const totalCr = p.total / 100;
@@ -459,7 +516,11 @@ module.exports = (req, res) => {
         pfWithdrawalMonth,
         pfAnnuityMonthlyIncomeLakhs: parseFloat(annuityMonthlyIncomeLakhs.toFixed(3)),
         pfBlendedReinvestRate: pfBlendedPostTaxRate,
-        superannuationAtWithdrawalINR: Math.round(superannuationAtWithdrawal)
+        superannuationAtWithdrawalINR: Math.round(superannuationAtWithdrawal),
+        villaEnabled,
+        villaYear,
+        villaEmiLakhsPerMonth: parseFloat(villaEmiLakhsPerMonth.toFixed(4)),
+        villaLoanPayoffYear
       },
       fireProjections,
       withdrawalScenarios,
