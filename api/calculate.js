@@ -74,6 +74,11 @@ module.exports = (req, res) => {
     const epfRate = parseVal(input.epfRate, 0.0825);
     const vpfRate = parseVal(input.vpfRate, 0.12);
 
+    // --- PPF (Public Provident Fund) ---
+    const ppfCurrent = parseVal(input.ppfCurrent, 0);
+    const ppfMonthlyContribution = parseVal(input.ppfMonthlyContribution, 0);
+    const ppfRatePct = parseVal(input.ppfRatePct, 7.1);
+
     // --- 401k Projector: employee/employer contribution rates ---
     const us401kContribPct = parseVal(input.us401kContribPct, 0.05);
     const us401kEmployerMatchPct = parseVal(input.us401kEmployerMatchPct, 0.04);
@@ -193,6 +198,7 @@ module.exports = (req, res) => {
       let curBonds = bondsInitial;
       let curEmergency = emergencyFund;
       let curEPF = epfCurrent;
+      let curPPF = ppfCurrent;
       let cur401kUSD = us401kUSD;
       let curOptions = optionsPortfolioValue;
       let pfInjected = false;
@@ -290,13 +296,13 @@ module.exports = (req, res) => {
         // retirement even though it isn't drawn from the corpus until then).
         const villaEmiDeductionDisplay = villaLoanActiveThisYear ? (villaEmiLakhsPerMonth * 12) * yearFraction : 0;
 
-        const total = curMF + curStocks + curUSStocks + curBonds + curEmergency + curEPF + curOptions;
+        const total = curMF + curStocks + curUSStocks + curBonds + curEmergency + curEPF + curPPF + curOptions;
 
         // The 4% SWR estimate is a generic passive-income yardstick for assets
         // that don't have their own explicit income model. The options portfolio
         // already has one (its actual premium yield, below) — including it again
         // here would double-count that income and overstate readiness/coverage.
-        const passiveEligibleBase = curMF + curStocks + curUSStocks + curBonds + curEmergency + curEPF;
+        const passiveEligibleBase = curMF + curStocks + curUSStocks + curBonds + curEmergency + curEPF + curPPF;
         let passiveIncomeGross = passiveEligibleBase > 0 ? (passiveEligibleBase * 0.04) / 12 : 0;
         if (annuityActive) {
           // Superannuation annuity income — a separate stream from the 4% SWR
@@ -324,6 +330,7 @@ module.exports = (req, res) => {
           usStocks: parseFloat(curUSStocks.toFixed(2)),
           bonds: parseFloat(curBonds.toFixed(2)),
           epf: parseFloat(curEPF.toFixed(2)),
+          ppf: parseFloat(curPPF.toFixed(2)),
           us401k: parseFloat(display401kINR.toFixed(2)),
           emergencyFund: parseFloat(curEmergency.toFixed(2)),
           optionsPortfolio: parseFloat(curOptions.toFixed(2)),
@@ -377,6 +384,12 @@ module.exports = (req, res) => {
             curEPF = (curEPF * 100000 + (epfResult.endBalance - curEPF * 100000) * fracEpfOld) / 100000;
           }
         }
+
+        // PPF: simple monthly-compounding growth (govt-set rate), independent of
+        // the EPF closure/reinvestment timeline above. Contributions stop once
+        // retired (no more salary to fund them); interest keeps accruing.
+        const ppfMonthlyThisYear = isRetired ? 0 : ppfMonthlyContribution;
+        curPPF = projectSimpleForward(curPPF * 100000, ppfMonthlyThisYear, ppfRatePct, growMonths) / 100000;
 
         if (fracReinvestNew > 0) {
           if (!pfInjected) {

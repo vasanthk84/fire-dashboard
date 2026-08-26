@@ -57,6 +57,14 @@ export const INPUT_GROUPS: GroupMeta[] = [
     ]
   },
   {
+    title: 'PPF',
+    fields: [
+      { key: 'ppfCurrent', label: 'Balance · ₹L', step: 0.1, title: 'Current PPF balance in Lakhs' },
+      { key: 'ppfMonthlyContribution', label: 'Monthly · ₹', step: 500, title: 'Monthly PPF contribution in ₹ (stops post-retirement)' },
+      { key: 'ppfRatePct', label: 'Rate %', step: 0.1, title: 'Annual PPF interest rate — govt-set, revised quarterly' }
+    ]
+  },
+  {
     title: 'Flows · ₹L/mo',
     fields: [
       { key: 'mfSIP', label: 'MF SIP', step: 0.1, title: 'Monthly Mutual Fund SIP in Lakhs' },

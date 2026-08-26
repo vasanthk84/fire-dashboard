@@ -216,6 +216,37 @@ export function MStepper({
   );
 }
 
+/** Editable version of MTile — same label/value/foot layout as the read-only
+ *  MTile, but the value row is a compact ± stepper instead of static text.
+ *  Used by Assumptions once every group became live-editable. */
+export function MEditTile({
+  top,
+  value,
+  onChange,
+  step,
+  min = 0,
+  format,
+  foot
+}: {
+  top: string;
+  value: number;
+  onChange: (next: number) => void;
+  step: number;
+  min?: number;
+  format: (n: number) => string;
+  foot?: string;
+}) {
+  return (
+    <div className="m-tile">
+      <div className="m-tile-top">{top}</div>
+      <div style={{ marginTop: 4 }}>
+        <MStepper value={value} onChange={onChange} step={step} min={min} format={format} size="sm" />
+      </div>
+      {foot && <div className="m-tile-foot">{foot}</div>}
+    </div>
+  );
+}
+
 /** Thin proportional-width bar — share bars, allocation bars, drift columns.
  *  Plain CSS, not ApexCharts: these are single-value proportional widths, not
  *  multi-point series (see plan discussion — ApexCharts is reserved for the

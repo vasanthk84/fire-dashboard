@@ -19,6 +19,12 @@ export interface Inputs {
   basicPay: number;
   epfRate: number;
   vpfRate: number;
+
+  // --- PPF (Public Provident Fund) ---
+  ppfCurrent: number;             // ₹L, current PPF balance
+  ppfMonthlyContribution: number; // ₹, monthly contribution (stops post-retirement)
+  ppfRatePct: number;             // annual %, govt-set rate (revised quarterly)
+
   bondsInitial: number;
   bondAnnualIncrease: number;
   bondRate: number;
@@ -101,6 +107,7 @@ export interface FireProjection {
   usStocks: number;
   bonds: number;
   epf: number;
+  ppf: number;
   us401k: number;
   emergencyFund: number;
   optionsPortfolio: number;

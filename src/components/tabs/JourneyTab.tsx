@@ -75,6 +75,7 @@ export function JourneyTab({ projections, retirementYear, startYear, withdraw401
                     <th>Bonds</th>
                     <th>Options</th>
                     <th>EPF</th>
+                    <th>PPF</th>
                     <th title="Locked until your 401k withdrawal year — not counted in Total until then">401k (locked)</th>
                   </>
                 )}
@@ -104,6 +105,7 @@ export function JourneyTab({ projections, retirementYear, startYear, withdraw401
                           <td>{fmtL(p.bonds)}</td>
                           <td>{fmtL(p.optionsPortfolio)}</td>
                           <td>{fmtL(p.epf)}</td>
+                          <td>{fmtL(p.ppf)}</td>
                           <td
                             style={p.year < withdraw401kYear ? { color: 'var(--text-3)', fontStyle: 'italic' } : undefined}
                             title={p.year < withdraw401kYear ? 'Locked · not yet counted in Total' : 'Injected into MF this year'}

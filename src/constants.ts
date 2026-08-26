@@ -21,6 +21,13 @@ export const initialInputs: Inputs = {
   basicPay: 36700,
   epfRate: 0.0825,
   vpfRate: 0.88,
+
+  // PPF — no balance assumed by default; the rate is the real Q2 FY 2026-27
+  // govt-set rate (retained at 7.1% since Apr 2020, revised quarterly).
+  ppfCurrent: 0,
+  ppfMonthlyContribution: 0,
+  ppfRatePct: 7.1,
+
   bondsInitial: 0,
   bondAnnualIncrease: 0.01,
   bondRate: 0.07,
