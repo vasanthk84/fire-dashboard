@@ -98,6 +98,13 @@ export const INPUT_GROUPS: GroupMeta[] = [
     ]
   },
   {
+    title: 'Apartment (India)',
+    fields: [
+      { key: 'apartmentCurrent', label: 'Value · ₹L', step: 0.5, title: 'Current market value of your existing apartment in Lakhs' },
+      { key: 'apartmentAppreciationPct', label: 'Appreciation %', step: 0.5, title: 'Assumed annual apartment appreciation rate' }
+    ]
+  },
+  {
     title: 'Rates · %',
     fields: [
       { key: 'mfRate', label: 'MF CAGR', step: 0.1, pct: true, title: 'Assumed Mutual Fund annual return rate' },

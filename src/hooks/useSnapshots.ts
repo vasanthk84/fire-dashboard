@@ -96,6 +96,8 @@ export function useSnapshots(props: UseSnapshotsProps) {
         ppfCurrent: inputs.ppfCurrent,
         fdCurrent: inputs.fdCurrent,
         npsCurrent: inputs.npsCurrent,
+        apartmentCurrent: inputs.apartmentCurrent,
+        apartmentAppreciationPct: inputs.apartmentAppreciationPct,
         epfCurrent: inputs.epfCurrent,
         bondsInitial: inputs.bondsInitial,
         us401k: inputs.us401k,
@@ -168,7 +170,8 @@ export function useSnapshots(props: UseSnapshotsProps) {
         villaDownPaymentLakhs: inputs.villaDownPaymentLakhs,
         villaLoanAmountLakhs: inputs.villaLoanAmountLakhs,
         villaLoanRatePct: inputs.villaLoanRatePct,
-        villaLoanTenureYears: inputs.villaLoanTenureYears
+        villaLoanTenureYears: inputs.villaLoanTenureYears,
+        apartmentSellAtVilla: inputs.apartmentSellAtVilla
       }
     };
 

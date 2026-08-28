@@ -56,6 +56,18 @@ export function ExpensesTab(props: ExpensesTabProps) {
     return { monthlyINR: emi, payoffYear: inputs.villaYear + Math.ceil(n / 12) - 1 };
   }, [inputs.villaLoanRatePct, inputs.villaLoanTenureYears, inputs.villaLoanAmountLakhs, inputs.villaYear]);
 
+  // Rough client-side mirror of api/calculate.js's apartment appreciation
+  // (annual compounding, ignoring the sub-year fraction on the start year —
+  // fine for an instant display estimate before the next calc round-trip).
+  const apartmentAtVillaYear = useMemo(() => {
+    const yearsToVilla = Math.max(0, inputs.villaYear - inputs.startYear);
+    return inputs.apartmentCurrent * Math.pow(1 + inputs.apartmentAppreciationPct / 100, yearsToVilla);
+  }, [inputs.apartmentCurrent, inputs.apartmentAppreciationPct, inputs.villaYear, inputs.startYear]);
+
+  const netFromPortfolio = inputs.apartmentSellAtVilla
+    ? inputs.villaDownPaymentLakhs - apartmentAtVillaYear
+    : inputs.villaDownPaymentLakhs;
+
   return (
     <div className="stack">
     <div className="grid-2" style={{ alignItems: 'start' }}>
@@ -258,6 +270,46 @@ export function ExpensesTab(props: ExpensesTabProps) {
               <div className="stat-top">Total cash needed</div>
               <div className="stat-val" style={{ fontSize: 18 }}>{fmtL(inputs.villaDownPaymentLakhs + inputs.villaLoanAmountLakhs)}</div>
               <div className="stat-foot">Down payment + loan principal</div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+              <div>
+                <div className="panel-t" style={{ fontSize: 13 }}>Existing apartment</div>
+                <div className="panel-cap" style={{ marginLeft: 0 }}>
+                  Current value {fmtL(inputs.apartmentCurrent)} at {inputs.apartmentAppreciationPct}%/yr — edit in Assumptions
+                </div>
+              </div>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={inputs.apartmentSellAtVilla}
+                  onChange={(e) => onInput('apartmentSellAtVilla', e.target.checked)}
+                />
+                <span className="track"></span>Sell for down payment
+              </label>
+            </div>
+
+            <div className="stat-grid">
+              <div className="stat">
+                <div className="stat-top">Est. value in {inputs.villaYear}</div>
+                <div className="stat-val" style={{ fontSize: 18 }}>{fmtL(apartmentAtVillaYear)}</div>
+                <div className="stat-foot">
+                  {inputs.apartmentSellAtVilla ? 'Liquidated the year you buy' : 'Kept as a 2nd property, still appreciating'}
+                </div>
+              </div>
+              <div className="stat">
+                <div className="stat-top">{inputs.apartmentSellAtVilla ? 'Net from portfolio' : 'From portfolio'}</div>
+                <div className="stat-val" style={{ fontSize: 18, color: netFromPortfolio < 0 ? 'var(--pos)' : undefined }}>
+                  {netFromPortfolio < 0 ? '+' : ''}{fmtL(Math.abs(netFromPortfolio))}
+                </div>
+                <div className="stat-foot">
+                  {inputs.apartmentSellAtVilla
+                    ? (netFromPortfolio < 0 ? 'Sale proceeds exceed down payment — surplus added back' : 'Down payment − sale proceeds')
+                    : 'Full down payment, apartment untouched'}
+                </div>
+              </div>
             </div>
           </div>
         </>

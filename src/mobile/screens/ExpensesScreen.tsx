@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import type { UseFirePlannerReturn } from '../../hooks/useFirePlanner';
-import type { Expenses, OneTimeExpenses } from '../../types';
+import type { Expenses, Inputs, OneTimeExpenses } from '../../types';
 import { fmtL, fmtRupees } from '../../utils/formatters';
-import { MHero, MChipNeutral, MShareBar, MSwitch, MSwitchRow, MStepper, MTile } from '../components/primitives';
+import { MHero, MChipNeutral, MShareBar, MSwitch, MSwitchRow, MStepper, MTile, MEditTile } from '../components/primitives';
 import { M_EXPENSE_COLORS, M_HERO_TINT } from '../mobileColors';
 
 // Mirrors the Expenses category order/labels from design_handoff_fire_mobile's
@@ -20,10 +20,11 @@ const CATEGORY_META: Array<{ key: keyof Expenses; label: string }> = [
   { key: 'misc', label: 'Misc' }
 ];
 
-// Return-to-India setup card — display-only in the mobile spec (no steppers),
-// relabels desktop's "Home"/"Wedding" to "Home setup"/"Family event".
-// oneTimeExpenses values are stored in raw rupees (same unit as `expenses`),
-// per api/calculate.js dividing by 100000 to get lakhs — not pre-converted.
+// Return-to-India setup card — editable steppers (parity with desktop's
+// NumberInput fields), relabels desktop's "Home"/"Wedding" to "Home
+// setup"/"Family event". oneTimeExpenses values are stored in raw rupees
+// (same unit as `expenses`), per api/calculate.js dividing by 100000 to get
+// lakhs — the steppers below convert Lakhs <-> raw rupees at the edges.
 const SETUP_META: Array<{ key: keyof OneTimeExpenses; label: string }> = [
   { key: 'homeBuying', label: 'Home setup' },
   { key: 'carBuying', label: 'Car' },
@@ -46,6 +47,7 @@ export function ExpensesScreen({ planner, reinvestWheel, onReinvestWheelChange }
     setShowOneTime,
     inputs,
     handleExpense,
+    handleOneTime,
     handleInput,
     runCalculation,
     sumExpenses,
@@ -76,6 +78,19 @@ export function ExpensesScreen({ planner, reinvestWheel, onReinvestWheelChange }
     void runCalculation({ villaEnabled: checked });
   };
 
+  const onToggleApartmentSell = (checked: boolean) => {
+    handleInput('apartmentSellAtVilla', checked);
+    void runCalculation({ apartmentSellAtVilla: checked });
+  };
+
+  // Every villa/apartment field below is a real, shared Inputs key, so
+  // edits here also update desktop (same hook instance) — mirrors
+  // AssumptionsScreen's commitDirect helper.
+  const commitInput = (key: keyof Inputs) => (n: number) => {
+    handleInput(key, n);
+    void runCalculation({ [key]: n } as Partial<Inputs>);
+  };
+
   // Mirrors desktop's ExpensesTab.tsx villaEmi useMemo (standard amortisation
   // formula) verbatim, for instant display without waiting on the next
   // calculate.js round trip.
@@ -87,6 +102,16 @@ export function ExpensesScreen({ planner, reinvestWheel, onReinvestWheelChange }
     const emi = r > 0 ? (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1) : principal / n;
     return { monthlyINR: emi, payoffYear: inputs.villaYear + Math.ceil(n / 12) - 1 };
   }, [inputs.villaLoanRatePct, inputs.villaLoanTenureYears, inputs.villaLoanAmountLakhs, inputs.villaYear]);
+
+  // Mirrors desktop's ExpensesTab.tsx apartmentAtVillaYear useMemo verbatim.
+  const apartmentAtVillaYear = useMemo(() => {
+    const yearsToVilla = Math.max(0, inputs.villaYear - inputs.startYear);
+    return inputs.apartmentCurrent * Math.pow(1 + inputs.apartmentAppreciationPct / 100, yearsToVilla);
+  }, [inputs.apartmentCurrent, inputs.apartmentAppreciationPct, inputs.villaYear, inputs.startYear]);
+
+  const netFromPortfolio = inputs.apartmentSellAtVilla
+    ? inputs.villaDownPaymentLakhs - apartmentAtVillaYear
+    : inputs.villaDownPaymentLakhs;
 
   return (
     <div className="m-screen">
@@ -163,7 +188,14 @@ export function ExpensesScreen({ planner, reinvestWheel, onReinvestWheelChange }
             <div className="m-eyebrow">Return-to-India setup</div>
             <div className="m-grid-2" style={{ marginTop: 12 }}>
               {SETUP_META.map((o) => (
-                <MTile key={o.key} top={o.label} value={fmtL(oneTimeExpenses[o.key] / 100000)} />
+                <MEditTile
+                  key={o.key}
+                  top={o.label}
+                  value={oneTimeExpenses[o.key] / 100000}
+                  step={0.5}
+                  format={(n) => fmtL(n)}
+                  onChange={(n) => void handleOneTime(o.key, String(Math.round(n * 100000)))}
+                />
               ))}
             </div>
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center' }}>
@@ -187,28 +219,86 @@ export function ExpensesScreen({ planner, reinvestWheel, onReinvestWheelChange }
           </div>
 
           {inputs.villaEnabled && (
-            <div className="m-grid-2" style={{ marginTop: 14 }}>
-              <MTile
-                top="Down payment"
-                value={fmtL(inputs.villaDownPaymentLakhs)}
-                foot={`inflated to ${inputs.villaYear}`}
-              />
-              <MTile
-                top="Monthly EMI"
-                value={fmtRupees(villaEmi.monthlyINR)}
-                foot={`${inputs.villaLoanAmountLakhs}L @ ${inputs.villaLoanRatePct}%`}
-              />
-              <MTile
-                top="Loan paid off"
-                value={String(villaEmi.payoffYear ?? '—')}
-                foot={`${inputs.villaLoanTenureYears}y tenure`}
-              />
-              <MTile
-                top="Cash needed"
-                value={fmtL(inputs.villaDownPaymentLakhs + inputs.villaLoanAmountLakhs)}
-                foot="down + principal"
-              />
-            </div>
+            <>
+              <div className="m-grid-2" style={{ marginTop: 14 }}>
+                <MEditTile
+                  top="Purchase year"
+                  value={inputs.villaYear}
+                  step={1}
+                  format={(n) => String(n)}
+                  onChange={commitInput('villaYear')}
+                />
+                <MEditTile
+                  top="Down payment · ₹L"
+                  value={inputs.villaDownPaymentLakhs}
+                  step={5}
+                  format={(n) => fmtL(n)}
+                  onChange={commitInput('villaDownPaymentLakhs')}
+                  foot={`inflated to ${inputs.villaYear}`}
+                />
+                <MEditTile
+                  top="Loan amount · ₹L"
+                  value={inputs.villaLoanAmountLakhs}
+                  step={1}
+                  format={(n) => fmtL(n)}
+                  onChange={commitInput('villaLoanAmountLakhs')}
+                />
+                <MEditTile
+                  top="Loan rate %"
+                  value={inputs.villaLoanRatePct}
+                  step={0.1}
+                  format={(n) => `${n.toFixed(1)}%`}
+                  onChange={commitInput('villaLoanRatePct')}
+                />
+                <MEditTile
+                  top="Loan tenure (yrs)"
+                  value={inputs.villaLoanTenureYears}
+                  step={1}
+                  format={(n) => String(n)}
+                  onChange={commitInput('villaLoanTenureYears')}
+                />
+              </div>
+
+              <div className="m-grid-2" style={{ marginTop: 10 }}>
+                <MTile
+                  top="Monthly EMI"
+                  value={fmtRupees(villaEmi.monthlyINR)}
+                  foot={`${inputs.villaLoanAmountLakhs}L @ ${inputs.villaLoanRatePct}%`}
+                />
+                <MTile
+                  top="Loan paid off"
+                  value={String(villaEmi.payoffYear ?? '—')}
+                  foot={`${inputs.villaLoanTenureYears}y tenure`}
+                />
+                <MTile
+                  top="Cash needed"
+                  value={fmtL(inputs.villaDownPaymentLakhs + inputs.villaLoanAmountLakhs)}
+                  foot="down + principal"
+                />
+              </div>
+
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+                <MSwitchRow
+                  label="Sell existing apartment"
+                  sub={`Est. ${fmtL(apartmentAtVillaYear)} in ${inputs.villaYear} toward down payment`}
+                  checked={inputs.apartmentSellAtVilla}
+                  onChange={onToggleApartmentSell}
+                />
+                <div className="m-grid-2" style={{ marginTop: 10 }}>
+                  <MTile
+                    top="Apartment today"
+                    value={fmtL(inputs.apartmentCurrent)}
+                    foot={`${inputs.apartmentAppreciationPct}%/yr · edit in Assumptions`}
+                  />
+                  <MTile
+                    top={inputs.apartmentSellAtVilla ? 'Net from portfolio' : 'From portfolio'}
+                    value={(netFromPortfolio < 0 ? '+' : '') + fmtL(Math.abs(netFromPortfolio))}
+                    valueColor={netFromPortfolio < 0 ? 'var(--pos)' : undefined}
+                    foot={inputs.apartmentSellAtVilla ? 'down payment − sale proceeds' : 'apartment kept as 2nd property'}
+                  />
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>

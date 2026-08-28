@@ -61,7 +61,8 @@ export function useFirePlanner() {
   const currentWealthLakhs = results
     ? results.summary.startWealth
     : inputs.mfCurrent + inputs.stocksIndia + inputs.usStocks + inputs.epfCurrent + inputs.ppfCurrent +
-      inputs.fdCurrent + inputs.npsCurrent + inputs.bondsInitial + inputs.optionsPortfolioValue;
+      inputs.fdCurrent + inputs.npsCurrent + inputs.bondsInitial + inputs.optionsPortfolioValue +
+      inputs.apartmentCurrent;
 
   const progressToFire = fireNumberLakhs > 0 ? Math.min((currentWealthLakhs / fireNumberLakhs) * 100, 100) : 0;
 

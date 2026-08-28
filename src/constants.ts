@@ -95,7 +95,14 @@ export const initialInputs: Inputs = {
   villaDownPaymentLakhs: 150,
   villaLoanAmountLakhs: 45,
   villaLoanRatePct: 8.5,
-  villaLoanTenureYears: 15
+  villaLoanTenureYears: 15,
+
+  // --- Apartment (India) — existing owned property, real net worth ~₹45L.
+  // Kept as a second property alongside the villa by default; flip
+  // apartmentSellAtVilla to model selling it to help fund the down payment.
+  apartmentCurrent: 45,
+  apartmentAppreciationPct: 6,
+  apartmentSellAtVilla: false
 };
 
 export const initialExpenses: Expenses = {
@@ -110,8 +117,8 @@ export const initialExpenses: Expenses = {
 
 export const initialOneTimeExpenses: OneTimeExpenses = {
   homeBuying: 0,
-  carBuying: 0,
-  renovation: 0,
+  carBuying: 1500000,  // ₹15L — 7-seater car
+  renovation: 300000,  // ₹3L — appliances, painting, plumbing, maintenance
   wedding: 0,
   misc: 0
 };

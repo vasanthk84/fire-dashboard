@@ -82,6 +82,11 @@ export interface Inputs {
   villaLoanAmountLakhs: number;   // ₹ Lakhs, home loan principal
   villaLoanRatePct: number;       // annual home loan interest %, e.g. 8.5
   villaLoanTenureYears: number;   // loan tenure in years, e.g. 15
+
+  // --- Apartment (India) — existing owned property ---
+  apartmentCurrent: number;         // ₹L, current apartment market value
+  apartmentAppreciationPct: number; // annual % appreciation
+  apartmentSellAtVilla: boolean;    // true: sell it in villaYear, proceeds go toward the down payment; false: keep it as a second property alongside the villa
 }
 
 export interface Expenses {
@@ -118,6 +123,7 @@ export interface FireProjection {
   us401k: number;
   fd: number;
   nps: number;
+  apartment: number;
   optionsPortfolio: number;
   optionsIncomeMonthly: number;
   sipAmount: number;
@@ -128,6 +134,7 @@ export interface FireProjection {
   calculatedMonthlyExpense: number | null;
   oneTimeDeduction: number;
   villaDownPaymentDeduction: number;
+  apartmentSaleProceeds: number;
   villaEmiDeduction: number;
   milestones: Milestone[];
 }
@@ -177,7 +184,7 @@ export interface Snapshot {
   label: string;
   tags: string[];
   notes: string;
-  assets: Pick<Inputs, 'mfCurrent' | 'stocksIndia' | 'usStocks' | 'ppfCurrent' | 'fdCurrent' | 'npsCurrent' | 'epfCurrent' | 'bondsInitial' | 'us401k' | 'usdExchangeRate'>;
+  assets: Pick<Inputs, 'mfCurrent' | 'stocksIndia' | 'usStocks' | 'ppfCurrent' | 'fdCurrent' | 'npsCurrent' | 'apartmentCurrent' | 'apartmentAppreciationPct' | 'epfCurrent' | 'bondsInitial' | 'us401k' | 'usdExchangeRate'>;
   flows: Pick<Inputs, 'mfSIP' | 'sipStepUpRate' | 'optionsPortfolioValue' | 'optionsYieldPct' | 'annualSalary' | 'basicPay'>;
   growthRates: Pick<Inputs, 'mfRate' | 'stocksRate' | 'usRate' | 'inflationRate'>;
   bonds: Pick<Inputs, 'bondsInitial' | 'bondAnnualIncrease' | 'bondRate'>;
@@ -222,5 +229,6 @@ export interface Snapshot {
     | 'villaLoanAmountLakhs'
     | 'villaLoanRatePct'
     | 'villaLoanTenureYears'
+    | 'apartmentSellAtVilla'
   >;
 }

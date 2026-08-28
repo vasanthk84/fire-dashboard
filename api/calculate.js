@@ -113,6 +113,11 @@ module.exports = (req, res) => {
     const villaLoanRatePct = parseVal(input.villaLoanRatePct, 8.5);
     const villaLoanTenureYears = parseVal(input.villaLoanTenureYears, 15);
 
+    // --- Apartment (India) — existing owned property ---
+    const apartmentCurrent = parseVal(input.apartmentCurrent, 0);
+    const apartmentAppreciationPct = parseVal(input.apartmentAppreciationPct, 6);
+    const apartmentSellAtVilla = input.apartmentSellAtVilla === true;
+
     // Standard reducing-balance EMI formula.
     const villaMonthlyRate = villaLoanRatePct / 100 / 12;
     const villaTenureMonths = Math.round(villaLoanTenureYears * 12);
@@ -206,6 +211,7 @@ module.exports = (req, res) => {
       let curPPF = ppfCurrent;
       let curFD = fdCurrent;
       let curNPS = npsCurrent;
+      let curApartment = apartmentCurrent;
       let cur401kUSD = us401kUSD;
       let curOptions = optionsPortfolioValue;
       let pfInjected = false;
@@ -291,6 +297,18 @@ module.exports = (req, res) => {
           villaDownPaymentDeductionDisplay = inflatedDownPayment;
         }
 
+        // Apartment: if keeping it as a second property alongside the villa,
+        // it's left untouched here and simply keeps appreciating on its own
+        // (see the growth section below). If selling it to help fund the
+        // villa, its current (already-appreciated) value is liquidated into
+        // cash the same year the down payment is paid.
+        let apartmentSaleProceedsDisplay = 0;
+        if (villaEnabled && apartmentSellAtVilla && year === villaYear && curApartment > 0) {
+          apartmentSaleProceedsDisplay = curApartment;
+          curMF += curApartment;
+          curApartment = 0;
+        }
+
         // Villa loan EMI — a fixed nominal monthly payment for the loan tenure.
         // Pre-retirement, we assume it's covered by salary like any other
         // household bill (consistent with how regular monthlyExpenses is only
@@ -303,12 +321,14 @@ module.exports = (req, res) => {
         // retirement even though it isn't drawn from the corpus until then).
         const villaEmiDeductionDisplay = villaLoanActiveThisYear ? (villaEmiLakhsPerMonth * 12) * yearFraction : 0;
 
-        const total = curMF + curStocks + curUSStocks + curBonds + curEPF + curPPF + curFD + curNPS + curOptions;
+        const total = curMF + curStocks + curUSStocks + curBonds + curEPF + curPPF + curFD + curNPS + curApartment + curOptions;
 
         // The 4% SWR estimate is a generic passive-income yardstick for assets
         // that don't have their own explicit income model. The options portfolio
         // already has one (its actual premium yield, below) — including it again
         // here would double-count that income and overstate readiness/coverage.
+        // Real estate (the apartment) is excluded too — it's illiquid and isn't
+        // assumed to generate rental/SWR income unless actually sold above.
         const passiveEligibleBase = curMF + curStocks + curUSStocks + curBonds + curEPF + curPPF + curFD + curNPS;
         let passiveIncomeGross = passiveEligibleBase > 0 ? (passiveEligibleBase * 0.04) / 12 : 0;
         if (annuityActive) {
@@ -341,6 +361,7 @@ module.exports = (req, res) => {
           us401k: parseFloat(display401kINR.toFixed(2)),
           fd: parseFloat(curFD.toFixed(2)),
           nps: parseFloat(curNPS.toFixed(2)),
+          apartment: parseFloat(curApartment.toFixed(2)),
           optionsPortfolio: parseFloat(curOptions.toFixed(2)),
           optionsIncomeMonthly: parseFloat(optionsIncomeMonthly.toFixed(3)),
           sipAmount: isRetired ? 0 : parseFloat(currentSIP.toFixed(2)),
@@ -351,6 +372,7 @@ module.exports = (req, res) => {
           calculatedMonthlyExpense: displayMonthlyExpenseLakhs,
           oneTimeDeduction: parseFloat(oneTimeDeductionDisplay.toFixed(2)),
           villaDownPaymentDeduction: parseFloat(villaDownPaymentDeductionDisplay.toFixed(2)),
+          apartmentSaleProceeds: parseFloat(apartmentSaleProceedsDisplay.toFixed(2)),
           villaEmiDeduction: parseFloat(villaEmiDeductionDisplay.toFixed(2)),
           milestones: []
         });
@@ -400,6 +422,10 @@ module.exports = (req, res) => {
         // modeled (lump-sum balances carried forward at their stated rates).
         curFD = projectSimpleForward(curFD * 100000, 0, fdRatePct, growMonths) / 100000;
         curNPS = projectSimpleForward(curNPS * 100000, 0, npsRatePct, growMonths) / 100000;
+
+        // Apartment: appreciates like any real-asset holding (a no-op once
+        // sold above — curApartment is already 0 from that point on).
+        curApartment *= Math.pow(1 + apartmentAppreciationPct / 100, yearFraction);
 
         if (fracReinvestNew > 0) {
           if (!pfInjected) {
@@ -451,6 +477,9 @@ module.exports = (req, res) => {
 
       if (villaEnabled && p.year === villaYear) {
         milestones.push({ type: 'expense', text: 'Villa Purchased' });
+        if (apartmentSellAtVilla) {
+          milestones.push({ type: 'wealth', text: 'Apartment Sold' });
+        }
       }
 
       if (villaEnabled && villaLoanPayoffYear != null && p.year === villaLoanPayoffYear) {

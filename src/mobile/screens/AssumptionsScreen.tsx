@@ -270,6 +270,25 @@ export function AssumptionsScreen({ planner }: AssumptionsScreenProps) {
       ]
     },
     {
+      title: 'Apartment (India)',
+      fields: [
+        {
+          label: 'Value',
+          value: inputs.apartmentCurrent,
+          step: 0.5,
+          format: (n) => fmtL(n),
+          onChange: commitDirect('apartmentCurrent')
+        },
+        {
+          label: 'Appreciation',
+          value: inputs.apartmentAppreciationPct,
+          step: 0.5,
+          format: (n) => `${n.toFixed(1)}%`,
+          onChange: commitDirect('apartmentAppreciationPct')
+        }
+      ]
+    },
+    {
       title: 'Options / CSP capital',
       fields: [
         {

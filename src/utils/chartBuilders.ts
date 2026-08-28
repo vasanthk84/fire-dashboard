@@ -21,7 +21,8 @@ export const ASSET_SERIES = [
   { key: 'epf' as const, label: 'EPF', color: '#f25f9c' },
   { key: 'ppf' as const, label: 'PPF', color: '#22b8cf' },
   { key: 'fd' as const, label: 'FD', color: '#84cc16' },
-  { key: 'nps' as const, label: 'NPS', color: '#ef4444' }
+  { key: 'nps' as const, label: 'NPS', color: '#ef4444' },
+  { key: 'apartment' as const, label: 'Apartment', color: '#a78bfa' }
 ];
 
 export const EXPENSE_META = [
