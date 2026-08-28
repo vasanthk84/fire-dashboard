@@ -3,7 +3,8 @@ import { fmtL, fmtRupees } from '../../utils/formatters';
 import { ApexChartComponent } from '../ApexChartComponent';
 import { CHARTS, EXPENSE_META, ONETIME_META } from '../../utils/chartBuilders';
 import { NumberInput } from '../NumberInput';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { Wand2 } from 'lucide-react';
 
 interface ExpensesTabProps {
   expenses: Expenses;
@@ -19,6 +20,7 @@ interface ExpensesTabProps {
   results: CalculationResults | null;
   inputs: Inputs;
   onInput: (key: keyof Inputs, value: number | boolean) => void;
+  compareApartmentScenarios: () => Promise<{ keep: number; sell: number } | null>;
   themeKey: string;
 }
 
@@ -37,8 +39,22 @@ export function ExpensesTab(props: ExpensesTabProps) {
     results,
     inputs,
     onInput,
+    compareApartmentScenarios,
     themeKey
   } = props;
+
+  const [comparison, setComparison] = useState<{ keep: number; sell: number } | null>(null);
+  const [comparing, setComparing] = useState(false);
+
+  const runCompare = async () => {
+    setComparing(true);
+    try {
+      const result = await compareApartmentScenarios();
+      setComparison(result);
+    } finally {
+      setComparing(false);
+    }
+  };
 
   const total = EXPENSE_META.reduce((s, e) => s + (expenses[e.key] || 0), 0);
   const hasExp = total > 0;
@@ -310,6 +326,42 @@ export function ExpensesTab(props: ExpensesTabProps) {
                     : 'Full down payment, apartment untouched'}
                 </div>
               </div>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <button className="btn btn-sm" onClick={() => void runCompare()} disabled={comparing}>
+                <Wand2 size={12} /> {comparing ? 'Comparing…' : 'Compare Keep vs Sell'}
+              </button>
+
+              {comparison && (
+                <div className="card card-pad" style={{ marginTop: 12, background: 'var(--surface-2)' }}>
+                  <div className="eyebrow" style={{ marginBottom: 10 }}>Corpus at retirement ({inputs.retirementYear})</div>
+                  <div className="stress-row">
+                    <span>Keep apartment (2nd property)</span>
+                    <strong>{fmtL(comparison.keep)}</strong>
+                  </div>
+                  <div className="stress-row">
+                    <span>Sell at villa purchase</span>
+                    <strong>{fmtL(comparison.sell)}</strong>
+                  </div>
+                  <div className="stress-row" style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 8 }}>
+                    <span>Verdict</span>
+                    <strong className={comparison.sell >= comparison.keep ? 'text-pos' : 'text-neg'}>
+                      {comparison.sell === comparison.keep
+                        ? 'No difference'
+                        : comparison.sell > comparison.keep
+                          ? `Selling nets +${fmtL(comparison.sell - comparison.keep)} more`
+                          : `Keeping nets +${fmtL(comparison.keep - comparison.sell)} more`}
+                    </strong>
+                  </div>
+                  <div className="panel-cap" style={{ marginLeft: 0, marginTop: 10 }}>
+                    Assumes {inputs.apartmentAppreciationPct}%/yr apartment growth vs your portfolio's blended return —
+                    selling usually wins when the portfolio return outpaces real-estate appreciation by enough to
+                    offset the one-time transaction hassle; this doesn't account for brokerage, capital-gains tax on
+                    the sale, or how much you'd actually want two properties.
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </>

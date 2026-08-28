@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { Wand2 } from 'lucide-react';
 import type { UseFirePlannerReturn } from '../../hooks/useFirePlanner';
 import type { Expenses, Inputs, OneTimeExpenses } from '../../types';
 import { fmtL, fmtRupees } from '../../utils/formatters';
@@ -50,9 +51,23 @@ export function ExpensesScreen({ planner, reinvestWheel, onReinvestWheelChange }
     handleOneTime,
     handleInput,
     runCalculation,
+    compareApartmentScenarios,
     sumExpenses,
     fireNumberLakhs
   } = planner;
+
+  const [comparison, setComparison] = useState<{ keep: number; sell: number } | null>(null);
+  const [comparing, setComparing] = useState(false);
+
+  const runCompare = async () => {
+    setComparing(true);
+    try {
+      const result = await compareApartmentScenarios();
+      setComparison(result);
+    } finally {
+      setComparing(false);
+    }
+  };
 
   const total = CATEGORY_META.reduce((s, c) => s + (expenses[c.key] || 0), 0);
   const annualLakhs = (total * 12) / 100000;
@@ -297,6 +312,43 @@ export function ExpensesScreen({ planner, reinvestWheel, onReinvestWheelChange }
                     foot={inputs.apartmentSellAtVilla ? 'down payment − sale proceeds' : 'apartment kept as 2nd property'}
                   />
                 </div>
+
+                <button
+                  type="button"
+                  className="m-btn-secondary"
+                  style={{ marginTop: 12, width: '100%', justifyContent: 'center' }}
+                  onClick={() => void runCompare()}
+                  disabled={comparing}
+                >
+                  <Wand2 size={14} strokeWidth={1.8} />
+                  {comparing ? 'Comparing…' : 'Compare Keep vs Sell'}
+                </button>
+
+                {comparison && (
+                  <div className="m-card" style={{ marginTop: 10, background: 'var(--surface-3)' }}>
+                    <div className="m-eyebrow">Corpus at retirement ({inputs.retirementYear})</div>
+                    <div className="m-grid-2" style={{ marginTop: 10 }}>
+                      <MTile top="Keep (2nd property)" value={fmtL(comparison.keep)} />
+                      <MTile top="Sell at purchase" value={fmtL(comparison.sell)} />
+                    </div>
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                      <span
+                        className="m-body-label"
+                        style={{ color: comparison.sell >= comparison.keep ? 'var(--pos)' : 'var(--neg)' }}
+                      >
+                        {comparison.sell === comparison.keep
+                          ? 'No difference'
+                          : comparison.sell > comparison.keep
+                            ? `Selling nets +${fmtL(comparison.sell - comparison.keep)} more`
+                            : `Keeping nets +${fmtL(comparison.keep - comparison.sell)} more`}
+                      </span>
+                    </div>
+                    <div className="m-caption" style={{ marginTop: 8, lineHeight: 1.45 }}>
+                      Assumes {inputs.apartmentAppreciationPct}%/yr apartment growth vs your portfolio's blended
+                      return. Doesn't account for brokerage, capital-gains tax on the sale, or wanting two properties.
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}

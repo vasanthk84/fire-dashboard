@@ -101,6 +101,7 @@ export default function App() {
     handleExpense,
     handleOneTime,
     runCalculation,
+    compareApartmentScenarios,
     resetToDefaults,
     setExpenses,
     setOneTimeExpenses,
@@ -374,6 +375,7 @@ export default function App() {
               handleInput(k, v);
               void runCalculation({ [k]: v });
             }}
+            compareApartmentScenarios={compareApartmentScenarios}
             themeKey={themeKey}
           />
         );

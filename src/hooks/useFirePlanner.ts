@@ -230,6 +230,31 @@ export function useFirePlanner() {
     }
   };
 
+  // Runs the villa-year projection twice — once keeping the existing
+  // apartment as a second property, once selling it to fund the down
+  // payment — without touching the live `results`/`inputs.apartmentSellAtVilla`
+  // state, so the user can see the corpus-at-retirement delta between the two
+  // paths without committing to either one first.
+  const compareApartmentScenarios = async (): Promise<{ keep: number; sell: number } | null> => {
+    if (validation.hasBlocking) {
+      return null;
+    }
+
+    const basePayload: Partial<Inputs> = {
+      ...inputs,
+      monthlyExpenses: sumValues(expenses),
+      oneTimeExpenseTotal: showOneTime ? sumValues(oneTimeExpenses) : 0,
+      villaEnabled: true
+    };
+
+    const [keepData, sellData] = await Promise.all([
+      calculatePlan({ ...basePayload, apartmentSellAtVilla: false }),
+      calculatePlan({ ...basePayload, apartmentSellAtVilla: true })
+    ]);
+
+    return { keep: keepData.summary.finalWealth, sell: sellData.summary.finalWealth };
+  };
+
   return {
     inputs,
     setInputs,
@@ -254,6 +279,7 @@ export function useFirePlanner() {
     handleExpense,
     handleOneTime,
     runCalculation,
+    compareApartmentScenarios,
     resetToDefaults,
     sumExpenses: sumValues,
     initialOneTimeExpenses
