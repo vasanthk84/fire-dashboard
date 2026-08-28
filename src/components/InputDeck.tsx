@@ -113,6 +113,12 @@ export const INPUT_GROUPS: GroupMeta[] = [
       { key: 'inflationRate', label: 'Inflation', step: 0.1, pct: true, title: 'Assumed annual inflation rate' },
       { key: 'postFireRate', label: 'Post-FI return', step: 0.1, pct: true, title: 'Assumed portfolio return AFTER retirement (typically lower than pre-FI equity CAGR, since retirees de-risk). Governs whether the corpus depletes, holds flat, or grows under your chosen withdrawal rate.' }
     ]
+  },
+  {
+    title: 'Tax (India)',
+    fields: [
+      { key: 'indiaSlabRatePct', label: 'Slab rate %', step: 1, title: 'Your expected India income-tax slab rate in retirement. Applied to FD/bonds/NPS/US-stock income, which get no LTCG or indexation benefit. Equity MF/stocks are taxed separately at 12.5% LTCG above the ₹1.25L/yr exemption; EPF/PPF stay tax-free.' }
+    ]
   }
 ];
 

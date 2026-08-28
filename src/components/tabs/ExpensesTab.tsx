@@ -127,7 +127,7 @@ export function ExpensesTab(props: ExpensesTabProps) {
               checked={applyTax}
               onChange={(e) => onApplyTaxChange(e.target.checked)}
             />
-            <span className="track"></span>Apply 12.5% tax drag
+            <span className="track"></span>Apply tax on withdrawals
           </label>
           <label className="switch">
             <input
@@ -156,18 +156,25 @@ export function ExpensesTab(props: ExpensesTabProps) {
 
         {applyTax && sampleTaxYear && (
           <div className="card card-pad" style={{ marginTop: 14, background: 'var(--surface-2)' }}>
-            <div className="eyebrow" style={{ marginBottom: 10 }}>Tax at retirement</div>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>Tax at retirement · per bucket</div>
             <div className="stress-row">
               <span>Gross passive</span>
               <strong>{fmtL(sampleTaxYear.passiveIncomeGross)}</strong>
             </div>
             <div className="stress-row">
-              <span>Tax (12.5%)</span>
-              <strong className="text-neg">−{fmtL(sampleTaxYear.monthlyTax)}</strong>
+              <span>Equity LTCG (12.5% above ₹1.25L/yr)</span>
+              <strong className="text-neg">−{fmtL(sampleTaxYear.equityTaxMonthly)}</strong>
+            </div>
+            <div className="stress-row">
+              <span>Debt/FD/NPS/US stocks (slab rate)</span>
+              <strong className="text-neg">−{fmtL(sampleTaxYear.slabTaxMonthly)}</strong>
             </div>
             <div className="stress-row" style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 8 }}>
               <span>Net / mo</span>
               <strong className="text-pos">{fmtL(sampleTaxYear.passiveIncomeMonthly)}</strong>
+            </div>
+            <div className="panel-cap" style={{ marginLeft: 0, marginTop: 10 }}>
+              EPF/PPF stay tax-free. Equity gain fraction estimated from your MF principal — no per-unit lot tracking.
             </div>
           </div>
         )}

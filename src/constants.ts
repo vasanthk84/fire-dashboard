@@ -54,6 +54,10 @@ export const initialInputs: Inputs = {
   monthlyExpenses: 0,
   oneTimeExpenseTotal: 0,
   applyTax: false,
+  // Default India income-tax slab rate assumption for FD/bonds/NPS/US-stock
+  // income in retirement — edit this under "Tax (India)" to match your actual
+  // expected bracket.
+  indiaSlabRatePct: 20,
   fireMultiplier: 25,
   enableRebalancing: false,
   targetEquityPre: 80,

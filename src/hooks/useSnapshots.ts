@@ -142,6 +142,7 @@ export function useSnapshots(props: UseSnapshotsProps) {
         withdraw401kYear: inputs.withdraw401kYear,
         retirementIncomeTaxRate: inputs.retirementIncomeTaxRate,
         applyTax: inputs.applyTax,
+        indiaSlabRatePct: inputs.indiaSlabRatePct,
         fireMultiplier: inputs.fireMultiplier
       },
       retirement401k: {

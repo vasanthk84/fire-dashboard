@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { calculatePlan } from '../services/api';
+import { estimateTaxDragApprox } from '../utils/taxModel';
 import type { CalculationResults, Inputs } from '../types';
 
 type SensitivityTone = 'success' | 'warning' | 'danger';
@@ -39,7 +40,7 @@ function computeFireYear(result: CalculationResults, currentMonthlyExp: number, 
     return null;
   }
 
-  const taxDrag = inputs.applyTax ? 0.125 : 0;
+  const taxDrag = estimateTaxDragApprox(inputs);
   const fireTargetLakhs = ((currentMonthlyExp * 12) * inputs.fireMultiplier) / (1 - taxDrag) / 100000;
   const match = result.fireProjections.find((projection) => projection.total >= fireTargetLakhs);
   return match?.year ?? null;

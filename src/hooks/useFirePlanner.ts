@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { initialExpenses, initialInputs, initialOneTimeExpenses } from '../constants';
 import { calculatePlan } from '../services/api';
 import { clearPersistedPlan, loadPersistedPlan, mergeWithDefaults, savePersistedPlan } from '../utils/persistence';
+import { estimateTaxDragApprox } from '../utils/taxModel';
 import type { CalculationResults, Expenses, Inputs, OneTimeExpenses } from '../types';
 
 function sumValues<T extends object>(values: T): number {
@@ -47,7 +48,7 @@ export function useFirePlanner() {
 
   const currentMonthlyExp = useMemo(() => sumValues(expenses), [expenses]);
   const currentAnnualExp = currentMonthlyExp * 12;
-  const taxDrag = inputs.applyTax ? 0.125 : 0;
+  const taxDrag = estimateTaxDragApprox(inputs);
   const totalOneTime = useMemo(() => (showOneTime ? sumValues(oneTimeExpenses) : 0), [oneTimeExpenses, showOneTime]);
 
   const fireNumberLakhs = useMemo(() => {

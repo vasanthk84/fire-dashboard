@@ -110,6 +110,13 @@ export function AssumptionsScreen({ planner }: AssumptionsScreenProps) {
           onChange: commitDirect('mfCurrent')
         },
         {
+          label: 'MF principal',
+          value: inputs.mfPrincipal,
+          step: 0.1,
+          format: (n) => fmtL(n),
+          onChange: commitDirect('mfPrincipal')
+        },
+        {
           label: 'MF SIP',
           value: inputs.mfSIP,
           step: 0.1,
@@ -351,6 +358,19 @@ export function AssumptionsScreen({ planner }: AssumptionsScreenProps) {
           step: 1,
           format: (n) => `${n.toFixed(0)}%`,
           onChange: commitDirect('pfReinvestTaxPct')
+        }
+      ]
+    },
+    {
+      title: 'Tax (India)',
+      fields: [
+        {
+          label: 'Slab rate',
+          value: inputs.indiaSlabRatePct,
+          step: 1,
+          format: (n) => `${n.toFixed(0)}%`,
+          onChange: commitDirect('indiaSlabRatePct'),
+          foot: 'FD/bonds/NPS/US stocks — equity gets 12.5% LTCG instead'
         }
       ]
     }

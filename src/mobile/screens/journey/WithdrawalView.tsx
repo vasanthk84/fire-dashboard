@@ -3,6 +3,7 @@ import type { CalculationResults, Inputs } from '../../../types';
 import { fmtL, fmtRupees } from '../../../utils/formatters';
 import { ApexChartComponent } from '../../../components/ApexChartComponent';
 import { CHARTS } from '../../../utils/chartBuilders';
+import { buildTaxChecklist } from '../../../utils/taxModel';
 import { MHero } from '../../components/primitives';
 
 interface WithdrawalViewProps {
@@ -19,18 +20,18 @@ export function WithdrawalView({ results, inputs, themeKey }: WithdrawalViewProp
   const scenario = results.withdrawalScenarios[rate] ?? [];
   const sustainability = results.withdrawalSustainability?.[rate];
 
-  // Same LTCG model as the desktop Withdrawal tab — reused verbatim, just
-  // re-skinned to the mobile card layout.
+  // Same per-bucket tax model as the desktop Withdrawal tab, read straight off
+  // the backend result (EPF/PPF free, equity LTCG above the Rs 1.25L
+  // exemption, debt-taxed buckets at your slab rate) instead of re-derived
+  // client-side — avoids double-taxing when "Apply tax" is also on.
   const corpus = results.summary.finalWealth;
-  const yrs = inputs.retirementYear - inputs.startYear;
-  const principal = (inputs.mfPrincipal || inputs.mfCurrent * 0.7) + inputs.mfSIP * 12 * yrs;
-  const gainRatio = corpus > 0 ? Math.max(0, (corpus - principal) / corpus) : 0;
-
-  const annual = scenario.length ? scenario[0].withdrawalMonthly * 12 : 0;
-  const taxable = annual * gainRatio;
-  const netGain = Math.max(0, taxable - 1.25);
-  const ltcg = netGain * 0.125;
-  const netMonthly = ((annual - ltcg) / 12) * 100000;
+  const first = scenario.length ? scenario[0] : null;
+  const annual = first ? first.grossWithdrawalMonthly * 12 : 0;
+  const tax = first ? first.taxMonthly * 12 : 0;
+  const equityTax = first ? first.equityTaxMonthly * 12 : 0;
+  const netMonthly = first ? first.withdrawalMonthly * 100000 : 0;
+  const effectiveTaxPct = annual > 0 ? (tax / annual) * 100 : 0;
+  const checklist = useMemo(() => buildTaxChecklist(results, inputs, rate), [results, inputs, rate]);
 
   const depletionRows = useMemo(() => scenario.slice(0, DEPLETION_HORIZON_YEARS + 1), [scenario]);
   const depletionLabels = depletionRows.map((r) => String(r.year));
@@ -68,14 +69,14 @@ export function WithdrawalView({ results, inputs, themeKey }: WithdrawalViewProp
           <div className="m-tile-foot">Sell {rate} of units</div>
         </div>
         <div className="m-card">
-          <div className="m-tile-top">Taxable component</div>
-          <div className="m-tile-value" style={{ marginTop: 4 }}>{fmtL(taxable)}</div>
-          <div className="m-tile-foot">{((1 - gainRatio) * 100).toFixed(0)}% is principal</div>
+          <div className="m-tile-top">Est. tax (all buckets)</div>
+          <div className="m-tile-value" style={{ marginTop: 4, color: 'var(--neg)' }}>{fmtL(tax)}</div>
+          <div className="m-tile-foot">{effectiveTaxPct.toFixed(1)}% effective rate</div>
         </div>
         <div className="m-card">
-          <div className="m-tile-top">Est. LTCG tax</div>
-          <div className="m-tile-value" style={{ marginTop: 4, color: 'var(--neg)' }}>{fmtL(ltcg)}</div>
-          <div className="m-tile-foot">12.5% on gains</div>
+          <div className="m-tile-top">Of which equity LTCG</div>
+          <div className="m-tile-value" style={{ marginTop: 4, color: 'var(--neg)' }}>{fmtL(equityTax)}</div>
+          <div className="m-tile-foot">12.5% above ₹1.25L/yr</div>
         </div>
         <div className="m-card">
           <div className="m-tile-top">Corpus at {inputs.retirementYear}</div>
@@ -102,21 +103,36 @@ export function WithdrawalView({ results, inputs, themeKey }: WithdrawalViewProp
       <div className="m-card" style={{ padding: '6px 16px 10px' }}>
         <div className="m-card-title" style={{ padding: '10px 0' }}>Post-tax income</div>
         {listRows.map((r) => {
-          const gs = r.corpusStart > 0 ? Math.max(0, (r.corpusStart - principal) / r.corpusStart) : 0;
-          const aw = r.withdrawalMonthly * 12;
-          const tax = r.depleted ? 0 : Math.max(0, aw * gs - 1.25) * 0.125;
+          const rowTax = r.depleted ? 0 : r.taxMonthly * 12;
           return (
             <div key={r.year} className="m-list-row" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span className="m-row-value" style={{ color: 'var(--text-2)', minWidth: 34 }}>{r.year}</span>
               <span className="m-caption">{r.depleted ? '—' : fmtL(r.corpusStart)}</span>
-              <span className="m-caption" style={{ color: 'var(--neg)' }}>{r.depleted ? '—' : `−${fmtL(tax)}`}</span>
+              <span className="m-caption" style={{ color: 'var(--neg)' }}>{r.depleted ? '—' : `−${fmtL(rowTax)}`}</span>
               <span className="m-row-value" style={{ marginLeft: 'auto', color: 'var(--pos)' }}>
-                {r.depleted ? 'Depleted' : fmtRupees(((aw - tax) / 12) * 100000) + '/mo'}
+                {r.depleted ? 'Depleted' : fmtRupees(r.withdrawalMonthly * 100000) + '/mo'}
               </span>
             </div>
           );
         })}
       </div>
+
+      {checklist.length > 0 && (
+        <div className="m-card">
+          <div className="m-card-title">Legal ways to reduce SWP tax</div>
+          <div className="m-caption" style={{ marginTop: 4, marginBottom: 10 }}>
+            With your numbers at {rate} SWR · general guidance, not personalized tax advice
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {checklist.map((item) => (
+              <div key={item.title} style={{ borderLeft: '3px solid var(--m-accent)', paddingLeft: 10 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 3 }}>{item.title}</div>
+                <div className="m-caption" style={{ lineHeight: 1.45 }}>{item.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }

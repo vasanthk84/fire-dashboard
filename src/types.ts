@@ -49,6 +49,11 @@ export interface Inputs {
   monthlyExpenses: number;
   oneTimeExpenseTotal: number;
   applyTax: boolean;
+  // Your expected India income-tax slab rate in retirement (%). Applied to the
+  // "slab-taxed" bucket (US stocks, bonds, FD, NPS) — these get no LTCG or
+  // indexation benefit. Equity MF/stocks are taxed separately at 12.5% LTCG
+  // above the Rs 1.25L/yr exemption; EPF/PPF stay tax-free.
+  indiaSlabRatePct: number;
   fireMultiplier: number;
   enableRebalancing: boolean;
   targetEquityPre: number;
@@ -131,6 +136,8 @@ export interface FireProjection {
   passiveIncomeMonthly: number;
   passiveIncomeGross: number;
   monthlyTax: number;
+  equityTaxMonthly: number;
+  slabTaxMonthly: number;
   calculatedMonthlyExpense: number | null;
   oneTimeDeduction: number;
   villaDownPaymentDeduction: number;
@@ -143,9 +150,23 @@ export interface WithdrawalProjection {
   year: number;
   corpusStart: number;
   withdrawalMonthly: number;
+  grossWithdrawalMonthly: number;
+  taxMonthly: number;
+  equityTaxMonthly: number;
+  slabTaxMonthly: number;
   realWithdrawalMonthly: number;
   corpusEnd: number;
   depleted: boolean;
+}
+
+export interface TaxModelSummary {
+  indiaSlabRatePct: number;
+  ltcgExemptionLakhs: number;
+  ltcgRate: number;
+  equityShareAtRetirement: number;
+  slabShareAtRetirement: number;
+  taxFreeShareAtRetirement: number;
+  equityGainFractionAtRetirement: number;
 }
 
 export interface WithdrawalSustainability {
@@ -171,6 +192,7 @@ export interface CalculationResults {
     villaYear: number;
     villaEmiLakhsPerMonth: number;
     villaLoanPayoffYear: number | null;
+    taxModel: TaxModelSummary;
   };
   fireProjections: FireProjection[];
   withdrawalScenarios: Record<string, WithdrawalProjection[]>;
@@ -199,7 +221,7 @@ export interface Snapshot {
     yearsToFI: number | null;
     progressToFire: number;
   };
-  planningParams: Pick<Inputs, 'startYear' | 'startMonth' | 'currentAge' | 'retirementYear' | 'returnYear' | 'withdraw401kYear' | 'retirementIncomeTaxRate' | 'applyTax' | 'fireMultiplier'>;
+  planningParams: Pick<Inputs, 'startYear' | 'startMonth' | 'currentAge' | 'retirementYear' | 'returnYear' | 'withdraw401kYear' | 'retirementIncomeTaxRate' | 'applyTax' | 'indiaSlabRatePct' | 'fireMultiplier'>;
   // Optional: absent on snapshots saved before these tools existed. loadSnapshot
   // leaves the current values untouched when a snapshot doesn't have these —
   // it never has to be re-created just because it predates a schema addition.

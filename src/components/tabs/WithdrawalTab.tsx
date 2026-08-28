@@ -2,6 +2,7 @@ import type { CalculationResults, Inputs } from '../../types';
 import { fmtL, fmtRupees } from '../../utils/formatters';
 import { ApexChartComponent } from '../ApexChartComponent';
 import { CHARTS } from '../../utils/chartBuilders';
+import { buildTaxChecklist } from '../../utils/taxModel';
 
 interface WithdrawalTabProps {
   results: CalculationResults;
@@ -17,22 +18,26 @@ export function WithdrawalTab({ results, inputs, selectedWithdrawalRate, onSelec
 
   const sustainability = results.withdrawalSustainability?.[selectedWithdrawalRate];
   const postFireRatePct = ((inputs.postFireRate ?? 0.065) * 100).toFixed(1);
+  const taxModel = results.summary.taxModel;
 
-  const annual = scenario[0].withdrawalMonthly * 12;
-  const corpus = results.summary.finalWealth;
-  const yrs = inputs.retirementYear - inputs.startYear;
-  const principal = (inputs.mfPrincipal || inputs.mfCurrent * 0.7) + inputs.mfSIP * 12 * yrs;
-  const gainRatio = Math.max(0, (corpus - principal) / corpus);
-  const taxable = annual * gainRatio;
-  const netGain = Math.max(0, taxable - 1.25);
-  const ltcg = netGain * 0.125;
-  const oldTax = annual > 15 ? (annual - 15) * 0.3 + 1.5 + 1.5 * 0.04 : 0;
+  // Backend now computes the actual per-bucket tax (equity LTCG above the
+  // Rs 1.25L exemption + slab-rate tax on debt-taxed buckets, EPF/PPF free) —
+  // these numbers are read directly rather than re-derived here, avoiding the
+  // double-taxation that used to happen when "Apply tax" was also on.
+  const first = scenario[0];
+  const annualGross = first.grossWithdrawalMonthly * 12;
+  const annualTax = first.taxMonthly * 12;
+  const annualEquityTax = first.equityTaxMonthly * 12;
+  const annualSlabTax = first.slabTaxMonthly * 12;
+  const effectiveTaxPct = annualGross > 0 ? (annualTax / annualGross) * 100 : 0;
 
   const cards = [
-    { l: 'Annual withdrawal', v: fmtL(annual), f: `Sell ${selectedWithdrawalRate} of units`, cls: '' },
-    { l: 'Taxable component', v: fmtL(taxable), f: `${((1 - gainRatio) * 100).toFixed(0)}% is principal`, cls: '' },
-    { l: 'Est. LTCG tax', v: fmtRupees((ltcg * 100000) / 12) + '/mo', f: `vs old ${fmtL(oldTax)}/yr`, cls: 'hl' }
+    { l: 'Annual withdrawal', v: fmtL(annualGross), f: `Sell ${selectedWithdrawalRate} of corpus`, cls: '' },
+    { l: 'Est. tax', v: fmtL(annualTax), f: `Equity ${fmtL(annualEquityTax)} · Debt/US ${fmtL(annualSlabTax)}`, cls: '' },
+    { l: 'Net / mo', v: fmtRupees(((annualGross - annualTax) / 12) * 100000), f: `${effectiveTaxPct.toFixed(1)}% effective rate`, cls: 'hl' }
   ];
+
+  const checklist = buildTaxChecklist(results, inputs, selectedWithdrawalRate);
 
   return (
     <div className="stack">
@@ -109,9 +114,8 @@ export function WithdrawalTab({ results, inputs, selectedWithdrawalRate, onSelec
             </thead>
             <tbody>
               {scenario.map((r) => {
-                const gs = r.corpusStart > 0 ? Math.max(0, (r.corpusStart - principal) / r.corpusStart) : 0;
-                const aw = r.withdrawalMonthly * 12;
-                const tax = r.depleted ? 0 : Math.max(0, aw * gs - 1.25) * 0.125;
+                const aw = r.grossWithdrawalMonthly * 12;
+                const tax = r.depleted ? 0 : r.taxMonthly * 12;
                 return (
                   <tr key={r.year} className={r.depleted ? 'text-neg' : ''}>
                     <td className="k">{r.year}</td>
@@ -119,7 +123,7 @@ export function WithdrawalTab({ results, inputs, selectedWithdrawalRate, onSelec
                     <td>{r.depleted ? '—' : fmtL(aw)}</td>
                     <td className="text-neg">{r.depleted ? '—' : `−${fmtL(tax)}`}</td>
                     <td className={r.depleted ? '' : 'text-pos'}>
-                      {r.depleted ? 'Depleted' : fmtRupees(((aw - tax) / 12) * 100000)}
+                      {r.depleted ? 'Depleted' : fmtRupees(r.withdrawalMonthly * 100000)}
                     </td>
                   </tr>
                 );
@@ -128,6 +132,25 @@ export function WithdrawalTab({ results, inputs, selectedWithdrawalRate, onSelec
           </table>
         </div>
       </div>
+
+      {checklist.length > 0 && (
+        <div className="card card-pad">
+          <div className="panel-h">
+            <span className="panel-t">Legal ways to reduce SWP tax</span>
+          </div>
+          <div className="panel-cap" style={{ marginLeft: 0, marginBottom: 14 }}>
+            Plugged in with your numbers at {selectedWithdrawalRate} SWR · general guidance, not personalized tax advice
+          </div>
+          <div className="stack" style={{ gap: 12 }}>
+            {checklist.map((item) => (
+              <div key={item.title} style={{ borderLeft: '3px solid var(--accent)', paddingLeft: 12 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{item.title}</div>
+                <div className="panel-cap" style={{ marginLeft: 0, lineHeight: 1.5 }}>{item.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -63,6 +63,7 @@ module.exports = (req, res) => {
     const targetYear = retirementYear;
 
     const mfCurrent = parseVal(input.mfCurrent, 0);
+    const mfPrincipal = parseVal(input.mfPrincipal, 0);
     const stocksIndia = parseVal(input.stocksIndia, 0);
     const usStocksINR = parseVal(input.usStocks, 0);
 
@@ -192,7 +193,27 @@ module.exports = (req, res) => {
     const abroadMonthlyExpenses = parseVal(input.abroadMonthlyExpenses, 0);
     const oneTimeExpenseTotalRaw = parseVal(input.oneTimeExpenseTotal, 0);
     const applyTax = input.applyTax === true;
-    const taxDragRate = 0.125;
+
+    // --- Tax model (India, FY2025-26/26-27 rules) — per-bucket, not a flat
+    // drag, but without per-unit/lot-level cost-basis tracking:
+    //   EPF / PPF                        -> 0% (EEE, tax-free withdrawal)
+    //   Equity MF + direct Indian stocks -> 12.5% LTCG on the GAIN portion
+    //                                       only, above a Rs 1.25L/yr exemption
+    //                                       (Sec 112A). The gain fraction is
+    //                                       approximated from mfPrincipal (your
+    //                                       entered MF cost basis) vs current MF
+    //                                       value, and that same ratio is applied
+    //                                       to direct stocks too since no separate
+    //                                       principal is tracked for them.
+    //   US stocks / Bonds / FD / NPS      -> your India income-tax slab rate —
+    //                                       debt-taxed assets get no LTCG or
+    //                                       indexation benefit (Section 50AA,
+    //                                       effective for units bought on/after
+    //                                       1 Apr 2023, and unchanged for plain
+    //                                       interest income like FD/bonds).
+    const indiaSlabRatePct = parseVal(input.indiaSlabRatePct, 20);
+    const LTCG_EXEMPTION_LAKHS = 1.25;
+    const LTCG_RATE = 0.125;
 
     const mfRate = parseVal(input.mfRate, 0.12);
     const stocksRate = parseVal(input.stocksRate, 0.15);
@@ -329,7 +350,14 @@ module.exports = (req, res) => {
         // here would double-count that income and overstate readiness/coverage.
         // Real estate (the apartment) is excluded too — it's illiquid and isn't
         // assumed to generate rental/SWR income unless actually sold above.
-        const passiveEligibleBase = curMF + curStocks + curUSStocks + curBonds + curEPF + curPPF + curFD + curNPS;
+        //
+        // The base is split into three tax buckets (see the tax-model note above
+        // this loop) so each slice of the notional income is taxed the way that
+        // asset class actually is, instead of one flat rate over everything.
+        const taxFreeBase = curEPF + curPPF;
+        const equityBase = curMF + curStocks;
+        const slabBase = curUSStocks + curBonds + curFD + curNPS;
+        const passiveEligibleBase = taxFreeBase + equityBase + slabBase;
         let passiveIncomeGross = passiveEligibleBase > 0 ? (passiveEligibleBase * 0.04) / 12 : 0;
         if (annuityActive) {
           // Superannuation annuity income — a separate stream from the 4% SWR
@@ -338,9 +366,26 @@ module.exports = (req, res) => {
         }
         let passiveIncomeNet = passiveIncomeGross;
         let monthlyTax = 0;
+        let equityTaxMonthly = 0;
+        let slabTaxMonthly = 0;
 
-        if (applyTax) {
-          monthlyTax = passiveIncomeGross * taxDragRate;
+        if (applyTax && passiveEligibleBase > 0) {
+          const annualSwrIncome = passiveEligibleBase * 0.04;
+          const equityShare = equityBase / passiveEligibleBase;
+          const slabShare = slabBase / passiveEligibleBase;
+
+          const equityGainFraction = curMF > 0 ? Math.max(0, Math.min(1, (curMF - mfPrincipal) / curMF)) : 0.5;
+          const equityIncomeAnnual = annualSwrIncome * equityShare;
+          const equityGainAnnual = equityIncomeAnnual * equityGainFraction;
+          const taxableEquityGainAnnual = Math.max(0, equityGainAnnual - LTCG_EXEMPTION_LAKHS);
+          const equityTaxAnnual = taxableEquityGainAnnual * LTCG_RATE;
+
+          const slabIncomeAnnual = annualSwrIncome * slabShare;
+          const slabTaxAnnual = slabIncomeAnnual * (indiaSlabRatePct / 100);
+
+          equityTaxMonthly = equityTaxAnnual / 12;
+          slabTaxMonthly = slabTaxAnnual / 12;
+          monthlyTax = equityTaxMonthly + slabTaxMonthly;
           passiveIncomeNet = passiveIncomeGross - monthlyTax;
         }
 
@@ -369,6 +414,8 @@ module.exports = (req, res) => {
           passiveIncomeMonthly: parseFloat(passiveIncomeNet.toFixed(2)),
           passiveIncomeGross: parseFloat(passiveIncomeGross.toFixed(2)),
           monthlyTax: parseFloat(monthlyTax.toFixed(2)),
+          equityTaxMonthly: parseFloat(equityTaxMonthly.toFixed(3)),
+          slabTaxMonthly: parseFloat(slabTaxMonthly.toFixed(3)),
           calculatedMonthlyExpense: displayMonthlyExpenseLakhs,
           oneTimeDeduction: parseFloat(oneTimeDeductionDisplay.toFixed(2)),
           villaDownPaymentDeduction: parseFloat(villaDownPaymentDeductionDisplay.toFixed(2)),
@@ -506,6 +553,23 @@ module.exports = (req, res) => {
     // amount is set ONCE at retirement (rate × corpus at retirement), then only
     // inflation-adjusted every year after — it does not fluctuate with the
     // portfolio balance. This is what "corpus lasts N years at X% SWR" means.
+    // --- Retirement-time bucket composition, used to blend the SWP tax rate ---
+    // Simplifying assumption (no per-unit lot tracking / no explicit drawdown
+    // sequencing): each year's withdrawal is assumed to draw down every bucket
+    // in the same proportion it held at retirement, so these shares stay fixed
+    // across the whole withdrawal horizon rather than being recomputed yearly.
+    const retirementRow = fireProjections.find((p) => p.year === targetYear) || fireProjections[fireProjections.length - 1];
+    const rTaxFreeBase = (retirementRow?.epf || 0) + (retirementRow?.ppf || 0);
+    const rEquityBase = (retirementRow?.mf || 0) + (retirementRow?.stocksIndia || 0);
+    const rSlabBase = (retirementRow?.usStocks || 0) + (retirementRow?.bonds || 0) + (retirementRow?.fd || 0) + (retirementRow?.nps || 0);
+    const rLiquidTotal = rTaxFreeBase + rEquityBase + rSlabBase;
+    const equityShareAtRetirement = rLiquidTotal > 0 ? rEquityBase / rLiquidTotal : 0;
+    const slabShareAtRetirement = rLiquidTotal > 0 ? rSlabBase / rLiquidTotal : 0;
+    const taxFreeShareAtRetirement = rLiquidTotal > 0 ? rTaxFreeBase / rLiquidTotal : 0;
+    const equityGainFractionAtRetirement = (retirementRow?.mf || 0) > 0
+      ? Math.max(0, Math.min(1, (retirementRow.mf - mfPrincipal) / retirementRow.mf))
+      : 0.5;
+
     const withdrawalRates = [0.02, 0.03, 0.04];
     const withdrawalScenarios = {};
     const withdrawalSustainability = {};
@@ -524,7 +588,26 @@ module.exports = (req, res) => {
           ? firstYearWithdrawal * Math.pow(1 + inflationRate, yearsIntoRetirement)
           : 0;
         const actualWithdrawal = Math.min(nominalAnnualWithdrawal, corpus);
-        const netMonthlyIncome = (actualWithdrawal / 12) * (applyTax ? (1 - taxDragRate) : 1);
+
+        // Per-bucket SWP tax (see the tax-model note above): equity gains taxed
+        // at 12.5% above the Rs 1.25L/yr exemption, debt-taxed buckets (US
+        // stocks/bonds/FD/NPS) at your slab rate, EPF/PPF share untaxed.
+        let annualTax = 0;
+        let equityTaxAnnual = 0;
+        let slabTaxAnnual = 0;
+        if (applyTax && actualWithdrawal > 0) {
+          const equityWithdrawal = actualWithdrawal * equityShareAtRetirement;
+          const equityGainWithdrawal = equityWithdrawal * equityGainFractionAtRetirement;
+          const taxableEquityGain = Math.max(0, equityGainWithdrawal - LTCG_EXEMPTION_LAKHS);
+          equityTaxAnnual = taxableEquityGain * LTCG_RATE;
+
+          const slabWithdrawal = actualWithdrawal * slabShareAtRetirement;
+          slabTaxAnnual = slabWithdrawal * (indiaSlabRatePct / 100);
+
+          annualTax = equityTaxAnnual + slabTaxAnnual;
+        }
+        const grossMonthlyIncome = actualWithdrawal / 12;
+        const netMonthlyIncome = grossMonthlyIncome - (annualTax / 12);
 
         const corpusStart = corpus;
         const afterWithdrawal = corpus - actualWithdrawal;
@@ -539,6 +622,10 @@ module.exports = (req, res) => {
           year: y,
           corpusStart,
           withdrawalMonthly: netMonthlyIncome,
+          grossWithdrawalMonthly: grossMonthlyIncome,
+          taxMonthly: annualTax / 12,
+          equityTaxMonthly: equityTaxAnnual / 12,
+          slabTaxMonthly: slabTaxAnnual / 12,
           realWithdrawalMonthly: netMonthlyIncome / Math.pow(1 + inflationRate, yearsIntoRetirement),
           corpusEnd: end,
           depleted: corpusStart <= 0
@@ -572,7 +659,16 @@ module.exports = (req, res) => {
         villaEnabled,
         villaYear,
         villaEmiLakhsPerMonth: parseFloat(villaEmiLakhsPerMonth.toFixed(4)),
-        villaLoanPayoffYear
+        villaLoanPayoffYear,
+        taxModel: {
+          indiaSlabRatePct,
+          ltcgExemptionLakhs: LTCG_EXEMPTION_LAKHS,
+          ltcgRate: LTCG_RATE,
+          equityShareAtRetirement: parseFloat(equityShareAtRetirement.toFixed(4)),
+          slabShareAtRetirement: parseFloat(slabShareAtRetirement.toFixed(4)),
+          taxFreeShareAtRetirement: parseFloat(taxFreeShareAtRetirement.toFixed(4)),
+          equityGainFractionAtRetirement: parseFloat(equityGainFractionAtRetirement.toFixed(4))
+        }
       },
       fireProjections,
       withdrawalScenarios,

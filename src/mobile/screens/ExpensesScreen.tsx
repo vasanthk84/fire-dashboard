@@ -179,8 +179,8 @@ export function ExpensesScreen({ planner, reinvestWheel, onReinvestWheelChange }
 
         <div className="m-card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <MSwitchRow
-            label="Apply 12.5% tax drag"
-            sub="Taxes passive income in retirement"
+            label="Apply tax on withdrawals"
+            sub="Per-bucket: equity LTCG, debt at slab rate, EPF/PPF free"
             checked={inputs.applyTax}
             onChange={onToggleApplyTax}
           />
