@@ -21,11 +21,9 @@ export const initialInputs: Inputs = {
   epfRate: 0.0825,
   vpfRate: 0.88,
 
-  // PPF — real balance from the user's portfolio; the rate is the real Q2 FY
-  // 2026-27 govt-set rate (retained at 7.1% since Apr 2020, revised quarterly).
+  // PPF — matured and idle: real balance from the user's portfolio, held flat
+  // (no further interest, no further contributions).
   ppfCurrent: 12.83504,
-  ppfMonthlyContribution: 0,
-  ppfRatePct: 7.1,
 
   // Fixed Deposits — real balance from the user's portfolio; 7% default rate.
   fdCurrent: 30.42956,

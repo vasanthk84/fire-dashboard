@@ -220,7 +220,7 @@ export function AssumptionsScreen({ planner }: AssumptionsScreenProps) {
       ]
     },
     {
-      title: 'PPF',
+      title: 'PPF · Matured (Idle)',
       fields: [
         {
           label: 'PPF balance',
@@ -228,20 +228,6 @@ export function AssumptionsScreen({ planner }: AssumptionsScreenProps) {
           step: 0.1,
           format: (n) => fmtL(n),
           onChange: commitDirect('ppfCurrent')
-        },
-        {
-          label: 'PPF monthly',
-          value: inputs.ppfMonthlyContribution,
-          step: 500,
-          format: (n) => fmtRupees(n),
-          onChange: commitDirect('ppfMonthlyContribution')
-        },
-        {
-          label: 'PPF rate',
-          value: inputs.ppfRatePct,
-          step: 0.1,
-          format: (n) => `${n.toFixed(1)}%`,
-          onChange: commitDirect('ppfRatePct')
         }
       ]
     },

@@ -20,9 +20,9 @@ export interface Inputs {
   vpfRate: number;
 
   // --- PPF (Public Provident Fund) ---
-  ppfCurrent: number;             // ₹L, current PPF balance
-  ppfMonthlyContribution: number; // ₹, monthly contribution (stops post-retirement)
-  ppfRatePct: number;             // annual %, govt-set rate (revised quarterly)
+  // Matured account: no further interest accrues and no further contributions
+  // are made, so the balance is carried forward idle (flat) in the projection.
+  ppfCurrent: number; // ₹L, current (matured/idle) PPF balance
 
   // --- Fixed Deposits ---
   fdCurrent: number;   // ₹L, current FD balance

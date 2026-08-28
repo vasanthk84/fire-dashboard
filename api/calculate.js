@@ -73,10 +73,9 @@ module.exports = (req, res) => {
     const epfRate = parseVal(input.epfRate, 0.0825);
     const vpfRate = parseVal(input.vpfRate, 0.12);
 
-    // --- PPF (Public Provident Fund) ---
+    // --- PPF (Public Provident Fund) — matured, held idle: carried forward
+    // flat with no further interest or contributions.
     const ppfCurrent = parseVal(input.ppfCurrent, 0);
-    const ppfMonthlyContribution = parseVal(input.ppfMonthlyContribution, 0);
-    const ppfRatePct = parseVal(input.ppfRatePct, 7.1);
 
     // --- Fixed Deposits ---
     const fdCurrent = parseVal(input.fdCurrent, 0);
@@ -393,11 +392,9 @@ module.exports = (req, res) => {
           }
         }
 
-        // PPF: simple monthly-compounding growth (govt-set rate), independent of
-        // the EPF closure/reinvestment timeline above. Contributions stop once
-        // retired (no more salary to fund them); interest keeps accruing.
-        const ppfMonthlyThisYear = isRetired ? 0 : ppfMonthlyContribution;
-        curPPF = projectSimpleForward(curPPF * 100000, ppfMonthlyThisYear, ppfRatePct, growMonths) / 100000;
+        // PPF: matured and idle — no further interest accrues and no further
+        // contributions are made, so the balance is carried forward flat.
+        // (curPPF intentionally left unchanged here.)
 
         // FD & NPS: simple monthly-compounding growth, no ongoing contribution
         // modeled (lump-sum balances carried forward at their stated rates).
