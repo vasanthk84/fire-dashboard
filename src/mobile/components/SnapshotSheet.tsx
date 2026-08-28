@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Download, X } from 'lucide-react';
+import type { ChangeEvent } from 'react';
+import { Download, Upload, Play, Trash2, X } from 'lucide-react';
 import type { Snapshot } from '../../types';
 import { fmtL } from '../../utils/formatters';
 import { ApexChartComponent } from '../../components/ApexChartComponent';
@@ -13,6 +14,9 @@ interface SnapshotSheetProps {
   toggleSnapshotSelection: (modelId: string) => void;
   saveSnapshot: () => void;
   exportSnapshots: () => void;
+  importSnapshots: (event: ChangeEvent<HTMLInputElement>) => void;
+  loadSnapshot: (modelId: string) => void;
+  deleteSnapshot: (modelId: string) => void;
   fireNumberLakhs: number;
   themeKey: string;
 }
@@ -31,6 +35,9 @@ export function SnapshotSheet({
   toggleSnapshotSelection,
   saveSnapshot,
   exportSnapshots,
+  importSnapshots,
+  loadSnapshot,
+  deleteSnapshot,
   fireNumberLakhs,
   themeKey
 }: SnapshotSheetProps) {
@@ -65,10 +72,15 @@ export function SnapshotSheet({
 
         <div className="m-sheet-actions">
           <button type="button" className="m-btn-primary" onClick={saveSnapshot}>+ Save current</button>
-          <button type="button" className="m-btn-secondary" onClick={exportSnapshots}>
+          <button type="button" className="m-btn-secondary" onClick={exportSnapshots} disabled={snapshots.length === 0}>
             <Download size={14} strokeWidth={1.8} />
             Export
           </button>
+          <label className="m-btn-secondary" style={{ margin: 0 }}>
+            <Upload size={14} strokeWidth={1.8} />
+            Import
+            <input type="file" accept=".json" onChange={importSnapshots} hidden />
+          </label>
         </div>
 
         {snapshots.length === 0 ? (
@@ -101,7 +113,27 @@ export function SnapshotSheet({
                         {deltaPct >= 0 ? '↑' : '↓'} {Math.abs(deltaPct).toFixed(1)}%
                       </span>
                     )}
-                    <span className="m-caption">{fmtMonYear(s.snapshotDate)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} onClick={(e) => e.stopPropagation()}>
+                      <span className="m-caption">{fmtMonYear(s.snapshotDate)}</span>
+                      <button
+                        type="button"
+                        className="m-icon-btn"
+                        style={{ width: 26, height: 26 }}
+                        title="Load this snapshot"
+                        onClick={() => loadSnapshot(s.modelId)}
+                      >
+                        <Play size={12} strokeWidth={1.8} />
+                      </button>
+                      <button
+                        type="button"
+                        className="m-icon-btn"
+                        style={{ width: 26, height: 26, color: 'var(--neg)' }}
+                        title="Delete snapshot"
+                        onClick={() => deleteSnapshot(s.modelId)}
+                      >
+                        <Trash2 size={12} strokeWidth={1.8} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

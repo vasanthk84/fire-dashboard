@@ -34,7 +34,16 @@ export function MobileApp({ planner, snapshotsApi, sensitivity, theme, onCycleTh
   const [reinvestWheel, setReinvestWheel] = useState(false);
 
   const { currentWealthLakhs, fireNumberLakhs, progressToFire, results } = planner;
-  const { snapshots, selectedSnapshots, toggleSnapshotSelection, saveSnapshot, exportSnapshots } = snapshotsApi;
+  const {
+    snapshots,
+    selectedSnapshots,
+    toggleSnapshotSelection,
+    saveSnapshot,
+    exportSnapshots,
+    importSnapshots,
+    loadSnapshot,
+    deleteSnapshot
+  } = snapshotsApi;
 
   return (
     <div className="mobile-shell">
@@ -95,6 +104,9 @@ export function MobileApp({ planner, snapshotsApi, sensitivity, theme, onCycleTh
         toggleSnapshotSelection={toggleSnapshotSelection}
         saveSnapshot={saveSnapshot}
         exportSnapshots={exportSnapshots}
+        importSnapshots={importSnapshots}
+        loadSnapshot={loadSnapshot}
+        deleteSnapshot={deleteSnapshot}
         fireNumberLakhs={fireNumberLakhs}
         themeKey={themeKey}
       />
