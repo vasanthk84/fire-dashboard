@@ -42,8 +42,7 @@ export const INPUT_GROUPS: GroupMeta[] = [
       { key: 'mfCurrent', label: 'Mutual Funds', step: 0.1, title: 'Current Mutual Fund value in Lakhs' },
       { key: 'mfPrincipal', label: 'MF Principal', step: 0.1, accent: true, title: 'Total invested amount (Cost Basis) in Lakhs' },
       { key: 'stocksIndia', label: 'Stocks IN', step: 0.1, title: 'Current Indian Stocks value in Lakhs' },
-      { key: 'usStocks', label: 'US Stocks', step: 0.1, title: 'Current US Stocks value in Lakhs' },
-      { key: 'emergencyFund', label: 'Emergency', step: 0.1, title: 'Emergency Fund size in Lakhs' }
+      { key: 'usStocks', label: 'US Stocks', step: 0.1, title: 'Current US Stocks value in Lakhs' }
     ]
   },
   {
@@ -62,6 +61,20 @@ export const INPUT_GROUPS: GroupMeta[] = [
       { key: 'ppfCurrent', label: 'Balance · ₹L', step: 0.1, title: 'Current PPF balance in Lakhs' },
       { key: 'ppfMonthlyContribution', label: 'Monthly · ₹', step: 500, title: 'Monthly PPF contribution in ₹ (stops post-retirement)' },
       { key: 'ppfRatePct', label: 'Rate %', step: 0.1, title: 'Annual PPF interest rate — govt-set, revised quarterly' }
+    ]
+  },
+  {
+    title: 'Fixed Deposits',
+    fields: [
+      { key: 'fdCurrent', label: 'Balance · ₹L', step: 0.1, title: 'Current Fixed Deposit balance in Lakhs' },
+      { key: 'fdRatePct', label: 'Rate %', step: 0.1, title: 'Annual Fixed Deposit interest rate' }
+    ]
+  },
+  {
+    title: 'NPS',
+    fields: [
+      { key: 'npsCurrent', label: 'Balance · ₹L', step: 0.1, title: 'Current NPS (National Pension System) balance in Lakhs' },
+      { key: 'npsRatePct', label: 'Rate %', step: 0.1, title: 'Assumed annual NPS return rate' }
     ]
   },
   {

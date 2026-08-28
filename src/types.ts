@@ -12,7 +12,6 @@ export interface Inputs {
   mfPrincipal: number;
   stocksIndia: number;
   usStocks: number;
-  emergencyFund: number;
   us401k: number;
   usdExchangeRate: number;
   epfCurrent: number;
@@ -24,6 +23,14 @@ export interface Inputs {
   ppfCurrent: number;             // ₹L, current PPF balance
   ppfMonthlyContribution: number; // ₹, monthly contribution (stops post-retirement)
   ppfRatePct: number;             // annual %, govt-set rate (revised quarterly)
+
+  // --- Fixed Deposits ---
+  fdCurrent: number;   // ₹L, current FD balance
+  fdRatePct: number;   // annual %, simple compounding
+
+  // --- NPS (National Pension System) ---
+  npsCurrent: number;  // ₹L, current NPS balance
+  npsRatePct: number;  // annual %, simple compounding
 
   bondsInitial: number;
   bondAnnualIncrease: number;
@@ -109,7 +116,8 @@ export interface FireProjection {
   epf: number;
   ppf: number;
   us401k: number;
-  emergencyFund: number;
+  fd: number;
+  nps: number;
   optionsPortfolio: number;
   optionsIncomeMonthly: number;
   sipAmount: number;
@@ -169,7 +177,7 @@ export interface Snapshot {
   label: string;
   tags: string[];
   notes: string;
-  assets: Pick<Inputs, 'mfCurrent' | 'stocksIndia' | 'usStocks' | 'emergencyFund' | 'epfCurrent' | 'bondsInitial' | 'us401k' | 'usdExchangeRate'>;
+  assets: Pick<Inputs, 'mfCurrent' | 'stocksIndia' | 'usStocks' | 'ppfCurrent' | 'fdCurrent' | 'npsCurrent' | 'epfCurrent' | 'bondsInitial' | 'us401k' | 'usdExchangeRate'>;
   flows: Pick<Inputs, 'mfSIP' | 'sipStepUpRate' | 'optionsPortfolioValue' | 'optionsYieldPct' | 'annualSalary' | 'basicPay'>;
   growthRates: Pick<Inputs, 'mfRate' | 'stocksRate' | 'usRate' | 'inflationRate'>;
   bonds: Pick<Inputs, 'bondsInitial' | 'bondAnnualIncrease' | 'bondRate'>;

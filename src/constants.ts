@@ -10,11 +10,10 @@ export const initialInputs: Inputs = {
   returnYear: _now.getFullYear() + 5,
   withdraw401kYear: _now.getFullYear() + (60 - 42),
   retirementIncomeTaxRate: 0.22,
-  mfCurrent: 0,
+  mfCurrent: 145.65045,
   mfPrincipal: 0,
-  stocksIndia: 0,
-  usStocks: 0,
-  emergencyFund: 0,
+  stocksIndia: 15.83694,
+  usStocks: 3.67090,
   us401k: 61454.64,
   usdExchangeRate: 86,
   epfCurrent: 68.8505,
@@ -22,18 +21,30 @@ export const initialInputs: Inputs = {
   epfRate: 0.0825,
   vpfRate: 0.88,
 
-  // PPF — no balance assumed by default; the rate is the real Q2 FY 2026-27
-  // govt-set rate (retained at 7.1% since Apr 2020, revised quarterly).
-  ppfCurrent: 0,
+  // PPF — real balance from the user's portfolio; the rate is the real Q2 FY
+  // 2026-27 govt-set rate (retained at 7.1% since Apr 2020, revised quarterly).
+  ppfCurrent: 12.83504,
   ppfMonthlyContribution: 0,
   ppfRatePct: 7.1,
 
-  bondsInitial: 0,
+  // Fixed Deposits — real balance from the user's portfolio; 7% default rate.
+  fdCurrent: 30.42956,
+  fdRatePct: 7,
+
+  // NPS (National Pension System) — real balance from the user's portfolio;
+  // 10% default rate (typical equity-heavy NPS allocation long-run return).
+  npsCurrent: 1.05527,
+  npsRatePct: 10,
+
+  bondsInitial: 7.55768,
   bondAnnualIncrease: 0.01,
   bondRate: 0.07,
   mfSIP: 0,
   sipStepUpRate: 0.1,
-  optionsPortfolioValue: 0,
+  // Options/CSP-CC trading capital — the user's demat "excess cash" used as
+  // margin/capital for cash-secured-put & covered-call positions (withdrawable
+  // whenever a CSP isn't currently assigned), i.e. their real Cash Investments.
+  optionsPortfolioValue: 15.00000,
   optionsYieldPct: 0.20,
   annualSalary: 0,
   mfRate: 0.12,

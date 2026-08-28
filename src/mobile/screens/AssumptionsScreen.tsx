@@ -124,11 +124,25 @@ export function AssumptionsScreen({ planner }: AssumptionsScreenProps) {
           onChange: commitPct('mfRate')
         },
         {
-          label: 'Emergency fund',
-          value: inputs.emergencyFund,
+          label: 'Indian Stocks',
+          value: inputs.stocksIndia,
           step: 0.1,
           format: (n) => fmtL(n),
-          onChange: commitDirect('emergencyFund')
+          onChange: commitDirect('stocksIndia')
+        },
+        {
+          label: 'US Stocks',
+          value: inputs.usStocks,
+          step: 0.1,
+          format: (n) => fmtL(n),
+          onChange: commitDirect('usStocks')
+        },
+        {
+          label: 'Bonds',
+          value: inputs.bondsInitial,
+          step: 0.1,
+          format: (n) => fmtL(n),
+          onChange: commitDirect('bondsInitial')
         }
       ]
     },
@@ -228,6 +242,63 @@ export function AssumptionsScreen({ planner }: AssumptionsScreenProps) {
           step: 0.1,
           format: (n) => `${n.toFixed(1)}%`,
           onChange: commitDirect('ppfRatePct')
+        }
+      ]
+    },
+    {
+      title: 'Fixed Deposits',
+      fields: [
+        {
+          label: 'FD balance',
+          value: inputs.fdCurrent,
+          step: 0.1,
+          format: (n) => fmtL(n),
+          onChange: commitDirect('fdCurrent')
+        },
+        {
+          label: 'FD rate',
+          value: inputs.fdRatePct,
+          step: 0.1,
+          format: (n) => `${n.toFixed(1)}%`,
+          onChange: commitDirect('fdRatePct')
+        }
+      ]
+    },
+    {
+      title: 'NPS',
+      fields: [
+        {
+          label: 'NPS balance',
+          value: inputs.npsCurrent,
+          step: 0.1,
+          format: (n) => fmtL(n),
+          onChange: commitDirect('npsCurrent')
+        },
+        {
+          label: 'NPS rate',
+          value: inputs.npsRatePct,
+          step: 0.1,
+          format: (n) => `${n.toFixed(1)}%`,
+          onChange: commitDirect('npsRatePct')
+        }
+      ]
+    },
+    {
+      title: 'Options / CSP capital',
+      fields: [
+        {
+          label: 'Portfolio',
+          value: inputs.optionsPortfolioValue,
+          step: 0.1,
+          format: (n) => fmtL(n),
+          onChange: commitDirect('optionsPortfolioValue')
+        },
+        {
+          label: 'Premium yield',
+          value: inputs.optionsYieldPct * 100,
+          step: 0.5,
+          format: (n) => `${n.toFixed(1)}%/yr`,
+          onChange: commitPct('optionsYieldPct')
         }
       ]
     },

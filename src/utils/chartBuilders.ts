@@ -18,8 +18,10 @@ export const ASSET_SERIES = [
   { key: 'stocksIndia' as const, label: 'Stocks IN', color: '#f5a524' },
   { key: 'usStocks' as const, label: 'US Stocks', color: '#9b8cff' },
   { key: 'bonds' as const, label: 'Bonds', color: '#2dd4a7' },
-  { key: 'emergencyFund' as const, label: 'Emergency', color: '#64748b' },
-  { key: 'epf' as const, label: 'EPF', color: '#f25f9c' }
+  { key: 'epf' as const, label: 'EPF', color: '#f25f9c' },
+  { key: 'ppf' as const, label: 'PPF', color: '#22b8cf' },
+  { key: 'fd' as const, label: 'FD', color: '#84cc16' },
+  { key: 'nps' as const, label: 'NPS', color: '#ef4444' }
 ];
 
 export const EXPENSE_META = [

@@ -65,7 +65,6 @@ module.exports = (req, res) => {
     const mfCurrent = parseVal(input.mfCurrent, 0);
     const stocksIndia = parseVal(input.stocksIndia, 0);
     const usStocksINR = parseVal(input.usStocks, 0);
-    const emergencyFund = parseVal(input.emergencyFund, 0);
 
     const us401kUSD = parseVal(input.us401k, 0);
     const usdToInr401k = parseVal(input.usdExchangeRate, 86);
@@ -78,6 +77,14 @@ module.exports = (req, res) => {
     const ppfCurrent = parseVal(input.ppfCurrent, 0);
     const ppfMonthlyContribution = parseVal(input.ppfMonthlyContribution, 0);
     const ppfRatePct = parseVal(input.ppfRatePct, 7.1);
+
+    // --- Fixed Deposits ---
+    const fdCurrent = parseVal(input.fdCurrent, 0);
+    const fdRatePct = parseVal(input.fdRatePct, 7);
+
+    // --- NPS (National Pension System) ---
+    const npsCurrent = parseVal(input.npsCurrent, 0);
+    const npsRatePct = parseVal(input.npsRatePct, 10);
 
     // --- 401k Projector: employee/employer contribution rates ---
     const us401kContribPct = parseVal(input.us401kContribPct, 0.05);
@@ -196,9 +203,10 @@ module.exports = (req, res) => {
       let curStocks = stocksIndia;
       let curUSStocks = usStocksINR;
       let curBonds = bondsInitial;
-      let curEmergency = emergencyFund;
       let curEPF = epfCurrent;
       let curPPF = ppfCurrent;
+      let curFD = fdCurrent;
+      let curNPS = npsCurrent;
       let cur401kUSD = us401kUSD;
       let curOptions = optionsPortfolioValue;
       let pfInjected = false;
@@ -296,13 +304,13 @@ module.exports = (req, res) => {
         // retirement even though it isn't drawn from the corpus until then).
         const villaEmiDeductionDisplay = villaLoanActiveThisYear ? (villaEmiLakhsPerMonth * 12) * yearFraction : 0;
 
-        const total = curMF + curStocks + curUSStocks + curBonds + curEmergency + curEPF + curPPF + curOptions;
+        const total = curMF + curStocks + curUSStocks + curBonds + curEPF + curPPF + curFD + curNPS + curOptions;
 
         // The 4% SWR estimate is a generic passive-income yardstick for assets
         // that don't have their own explicit income model. The options portfolio
         // already has one (its actual premium yield, below) — including it again
         // here would double-count that income and overstate readiness/coverage.
-        const passiveEligibleBase = curMF + curStocks + curUSStocks + curBonds + curEmergency + curEPF + curPPF;
+        const passiveEligibleBase = curMF + curStocks + curUSStocks + curBonds + curEPF + curPPF + curFD + curNPS;
         let passiveIncomeGross = passiveEligibleBase > 0 ? (passiveEligibleBase * 0.04) / 12 : 0;
         if (annuityActive) {
           // Superannuation annuity income — a separate stream from the 4% SWR
@@ -332,7 +340,8 @@ module.exports = (req, res) => {
           epf: parseFloat(curEPF.toFixed(2)),
           ppf: parseFloat(curPPF.toFixed(2)),
           us401k: parseFloat(display401kINR.toFixed(2)),
-          emergencyFund: parseFloat(curEmergency.toFixed(2)),
+          fd: parseFloat(curFD.toFixed(2)),
+          nps: parseFloat(curNPS.toFixed(2)),
           optionsPortfolio: parseFloat(curOptions.toFixed(2)),
           optionsIncomeMonthly: parseFloat(optionsIncomeMonthly.toFixed(3)),
           sipAmount: isRetired ? 0 : parseFloat(currentSIP.toFixed(2)),
@@ -373,7 +382,6 @@ module.exports = (req, res) => {
 
         curStocks *= Math.pow(1 + stocksRate, yearFraction);
         curUSStocks *= Math.pow(1 + usRate, yearFraction);
-        curEmergency *= Math.pow(1.06, yearFraction);
 
         if (fracEpfOld > 0) {
           if (isRetired) {
@@ -390,6 +398,11 @@ module.exports = (req, res) => {
         // retired (no more salary to fund them); interest keeps accruing.
         const ppfMonthlyThisYear = isRetired ? 0 : ppfMonthlyContribution;
         curPPF = projectSimpleForward(curPPF * 100000, ppfMonthlyThisYear, ppfRatePct, growMonths) / 100000;
+
+        // FD & NPS: simple monthly-compounding growth, no ongoing contribution
+        // modeled (lump-sum balances carried forward at their stated rates).
+        curFD = projectSimpleForward(curFD * 100000, 0, fdRatePct, growMonths) / 100000;
+        curNPS = projectSimpleForward(curNPS * 100000, 0, npsRatePct, growMonths) / 100000;
 
         if (fracReinvestNew > 0) {
           if (!pfInjected) {
