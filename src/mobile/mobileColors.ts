@@ -69,5 +69,6 @@ export const M_HERO_TINT = {
   k401: 'rgba(21,160,95,.16)',
   withdrawal: 'rgba(21,160,95,.16)',
   pf: 'rgba(47,109,240,.16)',
-  expenses: 'rgba(224,85,107,.14)'
+  expenses: 'rgba(224,85,107,.14)',
+  mf: 'rgba(79,140,255,.16)'
 };

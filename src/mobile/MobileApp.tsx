@@ -7,12 +7,12 @@ import { BottomNav } from './components/BottomNav';
 import { SnapshotSheet } from './components/SnapshotSheet';
 import { JourneyScreen } from './screens/JourneyScreen';
 import { ExpensesScreen } from './screens/ExpensesScreen';
-import { K401Screen } from './screens/K401Screen';
-import { PFScreen } from './screens/PFScreen';
+import { RetirementScreen } from './screens/RetirementScreen';
+import { MutualFundsScreen } from './screens/MutualFundsScreen';
 import { AssumptionsScreen } from './screens/AssumptionsScreen';
 import './mobile.css';
 
-export type MobileTab = 'journey' | 'expenses' | 'k401' | 'pf' | 'setup';
+export type MobileTab = 'journey' | 'expenses' | 'retirement' | 'mutualFunds' | 'setup';
 export type JourneySub = 'path' | 'risk' | 'withdrawal';
 
 interface MobileAppProps {
@@ -78,19 +78,11 @@ export function MobileApp({ planner, snapshotsApi, sensitivity, theme, onCycleTh
         <ExpensesScreen planner={planner} reinvestWheel={reinvestWheel} onReinvestWheelChange={setReinvestWheel} />
       )}
 
-      {activeTab === 'k401' &&
-        (results ? (
-          <K401Screen planner={planner} results={results} />
-        ) : (
-          <div className="m-screen">
-            <div className="m-screen-head"><h1 className="m-h1">401k Projector</h1></div>
-            <div className="m-card"><div className="m-loading">Calculating your plan…</div></div>
-          </div>
-        ))}
-
-      {activeTab === 'pf' && (
-        <PFScreen planner={planner} reinvestWheel={reinvestWheel} onReinvestWheelChange={setReinvestWheel} />
+      {activeTab === 'retirement' && (
+        <RetirementScreen planner={planner} results={results} reinvestWheel={reinvestWheel} onReinvestWheelChange={setReinvestWheel} />
       )}
+
+      {activeTab === 'mutualFunds' && <MutualFundsScreen planner={planner} />}
 
       {activeTab === 'setup' && <AssumptionsScreen planner={planner} />}
 

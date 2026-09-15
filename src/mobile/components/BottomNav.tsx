@@ -4,8 +4,8 @@ import type { MobileTab } from '../MobileApp';
 const NAV_ITEMS: Array<{ key: MobileTab; label: string; icon: typeof TrendingUp }> = [
   { key: 'journey', label: 'Journey', icon: TrendingUp },
   { key: 'expenses', label: 'Expenses', icon: Wallet },
-  { key: 'k401', label: '401k', icon: PiggyBank },
-  { key: 'pf', label: 'PF', icon: Landmark },
+  { key: 'retirement', label: 'Retirement', icon: Landmark },
+  { key: 'mutualFunds', label: 'Mutual Funds', icon: PiggyBank },
   { key: 'setup', label: 'Assumptions', icon: SlidersHorizontal }
 ];
 

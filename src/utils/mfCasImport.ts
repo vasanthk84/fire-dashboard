@@ -31,6 +31,15 @@ const CAS_TYPE_MAP: Record<string, MFTxnType> = {
 
 const CHARGE_TYPES = new Set(['STT_TAX', 'STAMP_DUTY_TAX']);
 
+/** Below this, floating-point drift in casparser's own running unit balance
+ *  (or in a switch that leaves a dust fraction behind) still counts as fully
+ *  exited — a real remaining position is never this small a fraction of a unit. */
+const CLOSED_UNITS_EPSILON = 0.001;
+
+export function isClosedScheme(scheme: CASSchemeRaw): boolean {
+  return Math.abs(scheme.close) < CLOSED_UNITS_EPSILON;
+}
+
 /** casparser doesn't format a folio number 100% consistently across exports —
  *  confirmed on the user's real files, all for the same physical folio+ISIN:
  *  a combined CAMS+KFintech export ("Report.pdf") consistently appends a
@@ -138,6 +147,7 @@ export interface CASReviewRow {
   asOfDate: string;
   include: boolean;
   isUpdate: boolean; // true when a fund with this key already exists in the tracker
+  closed: boolean; // true when casparser reports ~0 closing units — fully redeemed/switched out
 }
 
 /** Flattens every folio/scheme in a parsed CAS into review rows, without
@@ -162,7 +172,8 @@ export function buildCASReviewRows(parsed: CASParseResult, existingKeys: Set<str
         cost: Number(scheme.valuation?.cost ?? 0),
         asOfDate: scheme.valuation?.date ?? new Date().toISOString().slice(0, 10),
         include: true,
-        isUpdate: existingKeys.has(key)
+        isUpdate: existingKeys.has(key),
+        closed: isClosedScheme(scheme)
       });
     }
   }
@@ -310,8 +321,10 @@ export function buildFundsFromCAS(
         asOfDate: scheme.valuation?.date ?? new Date().toISOString().slice(0, 10),
         transactions,
         casKey: key,
+        folio: folio.folio,
         charges,
-        importedCost: parseCost(scheme.valuation?.cost)
+        importedCost: parseCost(scheme.valuation?.cost),
+        closingUnits: scheme.close
       });
     }
   }

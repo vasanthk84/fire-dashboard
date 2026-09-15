@@ -46,6 +46,13 @@ export interface MutualFund {
   // detect the same holding on a later re-import (updates in place instead of
   // creating a duplicate fund).
   casKey?: string;
+  // The raw folio number this holding is under, as CAS reports it. The same
+  // scheme can legitimately be held under more than one folio (e.g. two SIPs
+  // registered separately) — each folio is its own holding with its own units
+  // and transaction history, so they stay separate MutualFund records, but
+  // the UI groups same-scheme rows together and shows this to explain why
+  // more than one row exists for what looks like "the same fund".
+  folio?: string;
   // Cumulative stamp duty + STT seen for this fund in an imported CAS, ₹.
   // Informational only — deliberately excluded from the transaction ledger and
   // from XIRR, since it's a tax on the purchase, not part of the fund's return.
@@ -57,6 +64,15 @@ export interface MutualFund {
   // "purchases minus redemption proceeds" isn't the same as "cost of units still
   // held". Manually-added funds have no such figure and fall back to the sum.
   importedCost?: number;
+  // Closing unit balance as CAS itself reports it (casparser's per-scheme
+  // `close`), set on import. This is the authoritative signal for "is this
+  // holding still open" — far more reliable than inferring it from
+  // currentValue (which can legitimately be stale/zero before a revaluation)
+  // or from summing signed transaction amounts (which drifts from real unit
+  // balances due to NAV rounding). ~0 means fully redeemed/switched out.
+  // Manually-added funds have no such figure and are treated as open unless
+  // currentValue is 0.
+  closingUnits?: number;
 }
 
 export type MFBenchmarks = Record<MFCategory, number>; // annual % used as the category benchmark for tiering
@@ -68,6 +84,12 @@ export interface MFFundMetrics {
   invested: number; // net amount put in (purchases + switchIns - redemptions - switchOuts), i.e. cost basis still in the fund
   gain: number; // currentValue - invested
   gainPct: number | null;
+  // True when this holding has been fully exited — either CAS reports ~0
+  // closing units (a full redemption, or a full switch-out to another
+  // scheme/plan), or (for manually-added funds with no unit data) currentValue
+  // is 0. A closed fund's historical transactions still count in XIRR/gain,
+  // but it's shown in a separate "Redeemed" bucket instead of the active table.
+  closed: boolean;
   xirr: number | null; // decimal, e.g. 0.132 = 13.2%
   usesAbsoluteReturn: boolean; // true when the holding is too new for XIRR and we fell back to absolute return
   benchmark: number; // decimal

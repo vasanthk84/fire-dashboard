@@ -638,32 +638,5 @@ export const CHARTS = {
         y: { formatter: (v) => fmtL(Number(v)) }
       }
     });
-  },
-
-  /** Per-fund XIRR vs its category benchmark, grouped bars. */
-  mfFundComparison(fundNames: string[], fundXirrPct: number[], benchmarkPct: number[]) {
-    return (): ApexOptions => ({
-      ...baseAxes(fundNames, (v) => Number(v).toFixed(0) + '%'),
-      series: [
-        { name: 'Fund XIRR', data: fundXirrPct.map((v) => Number(v.toFixed(1))) },
-        { name: 'Category benchmark', data: benchmarkPct.map((v) => Number(v.toFixed(1))) }
-      ],
-      chart: { type: 'bar', height: 300, background: 'transparent', toolbar: { show: false } },
-      colors: [cssVar('--accent'), cssVar('--text-3')],
-      plotOptions: { bar: { borderRadius: 4, columnWidth: '58%', dataLabels: { position: 'top' } } },
-      stroke: { width: 0 },
-      legend: {
-        show: true,
-        position: 'top',
-        fontFamily: SANS,
-        fontSize: '11px',
-        labels: { colors: cssVar('--text-2') }
-      },
-      tooltip: {
-        theme: isDark() ? 'dark' : 'light',
-        style: { fontFamily: SANS },
-        y: { formatter: (v) => Number(v).toFixed(1) + '%' }
-      }
-    });
   }
 };

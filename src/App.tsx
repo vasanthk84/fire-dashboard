@@ -23,6 +23,7 @@ import {
 import { InputDeck, INPUT_GROUPS, InputField } from './components/InputDeck';
 import { SaveSnapshotModal } from './components/SaveSnapshotModal';
 import { StatsDeck } from './components/StatsDeck';
+import { CloudSyncChip } from './components/CloudSyncChip';
 import { useFirePlanner } from './hooks/useFirePlanner';
 import { useSensitivitySummary } from './hooks/useSensitivitySummary';
 import { useSnapshots } from './hooks/useSnapshots';
@@ -265,6 +266,8 @@ export default function App() {
           ></button>
         ))}
       </div>
+      <span className="chrome-sep"></span>
+      <CloudSyncChip onOpenSnapshots={() => setActiveTab('snapshots')} />
     </div>
   );
 

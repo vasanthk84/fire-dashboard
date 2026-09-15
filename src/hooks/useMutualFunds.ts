@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import type { MFBenchmarks, MFCategory, MFTransaction, MutualFund } from '../types';
 import { computeFundMetrics, portfolioXIRR } from '../utils/mfAnalysis';
+import type { CASImportSelection } from '../utils/mfCasImport';
+import { buildFundsFromCAS } from '../utils/mfCasImport';
 
 const STORAGE_KEY = 'fire-mf-portfolio-v1';
 
@@ -94,6 +96,33 @@ export function useMutualFunds() {
 
   const resetBenchmarks = () => setBenchmarks(DEFAULT_MF_BENCHMARKS);
 
+  const existingCasKeys = useMemo(
+    () => new Set(funds.filter((f) => f.casKey).map((f) => f.casKey as string)),
+    [funds]
+  );
+
+  /** Upserts by casKey: a fund already tracked from an earlier CAS import is
+   *  replaced in place (its id is kept) rather than duplicated, since the same
+   *  folio/scheme re-imported later should just refresh, not double-count. */
+  const importFromCAS = (parsed: Parameters<typeof buildFundsFromCAS>[0], selections: Record<string, CASImportSelection>) => {
+    const incoming = buildFundsFromCAS(parsed, selections);
+    setFunds((prev) => {
+      const byCasKey = new Map(prev.filter((f) => f.casKey).map((f) => [f.casKey as string, f]));
+      const next = prev.filter((f) => !f.casKey || !incoming.some((inc) => inc.casKey === f.casKey));
+      for (const fund of incoming) {
+        const existing = fund.casKey ? byCasKey.get(fund.casKey) : undefined;
+        next.push(existing ? { ...fund, id: existing.id } : fund);
+      }
+      return next;
+    });
+    return incoming.length;
+  };
+
+  /** Wipes all tracked funds/transactions (used by "Reset & re-import").
+   *  Benchmarks and the tier threshold are deliberately left untouched — those
+   *  are user-tuned settings, not portfolio data. */
+  const resetPortfolio = () => setFunds([]);
+
   const metrics = useMemo(
     () => funds.map((f) => computeFundMetrics(f, benchmarks, tierThresholdPct)),
     [funds, benchmarks, tierThresholdPct]
@@ -165,7 +194,10 @@ export function useMutualFunds() {
     updateBenchmark,
     resetBenchmarks,
     exportPortfolio,
-    importPortfolio
+    importPortfolio,
+    importFromCAS,
+    resetPortfolio,
+    existingCasKeys
   };
 }
 
