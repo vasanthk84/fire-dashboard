@@ -273,6 +273,12 @@ table.grid th {
 table.grid th:first-child, table.grid td:first-child { text-align: left; position: sticky; left: 0; background: var(--surface); }
 table.grid th:first-child { background: var(--surface-2); z-index: 2; }
 table.grid td { text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--border); font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text-2); }
+/* Proper-noun cells (fund/scheme names) read worse in the table's default
+   monospace — that's meant for aligned digits, not names. Opt a cell into
+   this instead of overriding table.grid td's font wholesale, since several
+   tables here share that class with genuinely tabular first columns (e.g.
+   the transaction log's date column). */
+table.grid td.fund-name { font-family: var(--font-sans); font-variant-numeric: normal; }
 table.grid td.k { color: var(--text); font-weight: 600; }
 table.grid tr:hover td { background: var(--surface-2); }
 table.grid tr:hover td:first-child { background: var(--surface-2); }

@@ -22,7 +22,7 @@ import { NumberInput } from '../NumberInput';
 import { fmtL, fmtRupees } from '../../utils/formatters';
 import { MF_CATEGORIES, MF_CATEGORY_COLOR, MF_CATEGORY_LABEL, MF_TXN_TYPE_LABEL } from '../../utils/mfCategories';
 import { projectScenarios, yearlyPoints } from '../../utils/mfProjections';
-import { buildCASReviewRows, mergeCasResults, type CASImportSelection, type CASReviewRow, type CASSourceFile } from '../../utils/mfCasImport';
+import { buildCASReviewRows, cleanFundDisplayName, mergeCasResults, type CASImportSelection, type CASReviewRow, type CASSourceFile } from '../../utils/mfCasImport';
 import { groupFundsByScheme, type FundGroup } from '../../utils/mfAnalysis';
 import { computeHealthScore } from '../../utils/mfHealthScore';
 import { LTCG_EXEMPTION_LAKHS, LTCG_RATE } from '../../utils/taxModel';
@@ -431,10 +431,10 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
     return (
       <Fragment key={f.id}>
         <tr className={expanded ? 'mark' : ''} style={{ cursor: 'pointer' }} onClick={() => setExpandedId(expanded ? null : f.id)}>
-          <td style={{ textAlign: 'left', maxWidth: 260 }}>
+          <td className="fund-name" style={{ textAlign: 'left', maxWidth: 260 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text)' }}>
               {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={f.name}>{f.name}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }} title={f.name}>{cleanFundDisplayName(f.name)}</span>
               {m.closed && <span className="tag" style={{ flex: '0 0 auto' }} title="Fully redeemed / switched out — no units currently held">Redeemed</span>}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 19, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -587,10 +587,10 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
     return (
       <Fragment key={g.key}>
         <tr className={groupExpanded ? 'mark' : ''} style={{ cursor: 'pointer' }} onClick={() => setExpandedGroupKey(groupExpanded ? null : g.key)}>
-          <td style={{ textAlign: 'left', maxWidth: 260 }}>
+          <td className="fund-name" style={{ textAlign: 'left', maxWidth: 260 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text)' }}>
               {groupExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={first.name}>{first.name}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }} title={first.name}>{cleanFundDisplayName(first.name)}</span>
               <span className="tag" style={{ flex: '0 0 auto' }} title="Held under more than one folio — expand to see each folio separately">
                 {g.members.length} folios
               </span>
@@ -811,7 +811,7 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
               return (
                 <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ flex: '0 0 auto', width: 200, maxWidth: '32%', fontSize: 12.5, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.name}>
-                    {c.name}
+                    {cleanFundDisplayName(c.name)}
                   </div>
                   <div style={{ flex: '1 1 auto', position: 'relative', height: 20, display: 'flex', alignItems: 'center' }}>
                     <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: 'var(--border)' }} />
@@ -1028,8 +1028,8 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                         const deltaPct = g.combined.deltaVsBenchmark !== null ? g.combined.deltaVsBenchmark * 100 : null;
                         return (
                           <tr key={g.key}>
-                            <td style={{ textAlign: 'left', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={g.members[0].fund.name}>
-                              {g.members[0].fund.name}
+                            <td className="fund-name" style={{ textAlign: 'left', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={g.members[0].fund.name}>
+                              {cleanFundDisplayName(g.members[0].fund.name)}
                             </td>
                             <td className="k">{fmtRupees(g.currentValue)}</td>
                             <td className={g.gain >= 0 ? 'text-pos' : 'text-neg'}>{fmtRupees(g.gain)}</td>

@@ -133,6 +133,49 @@ export function guessMFPlan(schemeName: string): MFPlan {
   return /regular/i.test(schemeName) ? 'regular' : 'direct';
 }
 
+// Every "filler" phrase seen across real CAMS/KFintech scheme names for
+// plan/option boilerplate — confirmed against the user's actual 40+ fund
+// names, which spell this wildly inconsistently across AMCs: "Direct Growth",
+// "Direct Plan Growth", "Growth-Direct Plan", "Direct Plan - Growth Option",
+// even "DIRECT GROWTH PLAN GROWTH OPTION" (all-caps, "Growth" doubled). Order
+// matters: longer/more-specific phrases are listed first so a shorter pattern
+// later in the list doesn't leave a stray "Growth" or "Plan" behind.
+const NAME_FILLER_PATTERNS: RegExp[] = [
+  /\bdirect\s+growth\s+plan\s+growth\s+option\b/gi,
+  /\bgrowth[\s-]*direct\s+plan\b/gi,
+  /\bdirect\s+plan\s*-?\s*growth\s+option\b/gi,
+  /\bdirect\s+plan\s*-?\s*growth\b/gi,
+  /\bregular\s+plan\s*-?\s*growth\b/gi,
+  /\bdirect\s+growth\b/gi,
+  /\bregular\s+growth\b/gi,
+  /\bdirect\s+plan\b/gi,
+  /\bregular\s+plan\b/gi,
+  /\bgrowth\s+option\b/gi,
+  /\bgrowth\b/gi,
+  /\(non\s*demat\)/gi,
+  /\(formerly\s+(known\s+as\s+)?[^)]*\)/gi,
+  /\(erstwhile\s+[^)]*\)/gi
+];
+
+/** Short display name for the fund table/report — strips plan/growth/option
+ *  boilerplate that's redundant with the Plan column, so "Axis Small Cap Fund
+ *  Direct Growth (Non Demat)" reads as just "Axis Small Cap Fund". Never
+ *  mutates the underlying MutualFund.name (the exact CAS scheme name), which
+ *  stays intact everywhere else — CAS review rows, delete confirmations,
+ *  tooltips — since that's the real identity used for casKey matching and
+ *  should never silently drift from what the statement actually said. */
+export function cleanFundDisplayName(name: string): string {
+  let cleaned = name;
+  for (const pattern of NAME_FILLER_PATTERNS) {
+    cleaned = cleaned.replace(pattern, ' ');
+  }
+  return cleaned
+    .replace(/[-–—]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .replace(/^[-\s]+|[-\s]+$/g, '') || name; // never return an empty string
+}
+
 export interface CASReviewRow {
   key: string; // folio|isin
   amc: string;
