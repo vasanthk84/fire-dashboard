@@ -1,0 +1,198 @@
+/* ============================================================
+   FIRE Planner — Mobile shell (<920px)
+   Design tokens are aliased from the desktop theme system in
+   styles.css ([data-theme]) wherever the values are identical —
+   see design_handoff_fire_mobile/README.md for the source spec.
+   Fixed accent (#15a05f) is hardcoded here, independent of the
+   desktop [data-hue] picker: mobile's accent never changes hue.
+   ============================================================ */
+
+.mobile-shell {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+  position: relative;
+  overflow-x: hidden;
+
+  --m-accent: #15a05f;
+  --m-accent-ink: #0c7a47;
+  --m-accent-text: #4fd493;
+  --m-accent-tint: rgba(21, 160, 95, 0.16);
+  --m-accent-tint2: rgba(21, 160, 95, 0.1);
+  --m-accent-line: rgba(21, 160, 95, 0.3);
+
+  --m-r-hero: 18px;
+  --m-r-card: 16px;
+  --m-r-tile: 12px;
+  --m-r-ctrl: 10px;
+  --m-r-sheet: 22px 22px 0 0;
+  --m-r-pill: 999px;
+  --m-r-logo: 8px;
+}
+
+[data-theme="dark"] .mobile-shell {
+  --m-hd: linear-gradient(#11161e, #0d1219);
+  --m-nav: rgba(13, 18, 25, 0.96);
+  --m-tile: rgba(10, 13, 18, 0.55);
+}
+[data-theme="light"] .mobile-shell {
+  --m-hd: linear-gradient(#ffffff, #f6f8fb);
+  --m-nav: rgba(255, 255, 255, 0.96);
+  --m-tile: rgba(255, 255, 255, 0.72);
+}
+[data-theme="paper"] .mobile-shell {
+  --m-hd: linear-gradient(#faf6ec, #f3ecdd);
+  --m-nav: rgba(250, 246, 236, 0.96);
+  --m-tile: rgba(255, 255, 255, 0.6);
+}
+
+.mobile-shell * { box-sizing: border-box; }
+
+/* ---------- Typography scale ---------- */
+.m-hero-metric { font: 700 34px/1 var(--font-mono); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; color: var(--text); }
+.m-h1 { font: 700 19px/1.2 var(--font-sans); letter-spacing: -0.02em; color: var(--text); margin: 0; }
+.m-sheet-title { font: 700 15px/1.2 var(--font-sans); letter-spacing: -0.01em; color: var(--text); margin: 0; }
+.m-card-title { font: 700 13px/1.3 var(--font-sans); color: var(--text); }
+.m-tile-value { font: 700 20px/1.15 var(--font-mono); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--text); }
+.m-row-value { font: 700 13px/1.2 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text); }
+.m-kpi-value { font: 700 14px/1.2 var(--font-mono); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--text); }
+.m-body-label { font: 650 12.5px/1.3 var(--font-sans); color: var(--text); }
+.m-caption { font: 500 11px/1.3 var(--font-sans); color: var(--text-3); }
+.m-eyebrow { font: 700 10px var(--font-sans); text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-3); }
+.m-kpi-eyebrow { font: 600 10px var(--font-sans); text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); }
+.m-chip { font: 600 10.5px var(--font-mono); }
+.m-chip-word { font: 650 10.5px var(--font-sans); }
+.m-milestone-chip { font: 650 9.5px var(--font-sans); }
+.m-nav-label { font: 650 9.5px var(--font-sans); }
+.m-axis-label { font: 500 10px var(--font-mono); }
+
+/* ---------- Screen scaffold ---------- */
+.m-screen { padding: 16px 14px 108px; min-height: 100vh; }
+.m-screen-head { margin-bottom: 14px; }
+.m-screen-sub { margin-top: 2px; }
+
+/* ---------- Header (fixed, non-scrolling) ---------- */
+.m-header { padding: 52px 16px 12px; background: var(--m-hd); border-bottom: 1px solid var(--border); }
+.m-header-row1 { display: flex; align-items: center; gap: 10px; }
+.m-logo { width: 26px; height: 26px; border-radius: var(--m-r-logo); background: #15a05f; display: flex; align-items: center; justify-content: center; color: #fff; font: 800 13px var(--font-sans); flex-shrink: 0; }
+.m-title-block { display: flex; flex-direction: column; min-width: 0; }
+.m-title { font: 700 13.5px var(--font-sans); letter-spacing: -0.01em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-subtitle { font: 500 10.5px var(--font-sans); color: var(--text-3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-header-actions { margin-left: auto; display: flex; gap: 7px; flex-shrink: 0; }
+.m-icon-btn { width: 32px; height: 32px; border-radius: var(--m-r-ctrl); background: var(--surface-2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; color: var(--text-2); padding: 0; }
+.m-icon-btn:hover { filter: brightness(1.06); }
+.m-badge { position: absolute; top: -3px; right: -3px; min-width: 15px; height: 15px; border-radius: 999px; background: #15a05f; color: #fff; font: 700 9px var(--font-mono); display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1; }
+
+.m-kpi-strip { margin-top: 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; display: flex; overflow: hidden; }
+.m-kpi-cell { flex: 1; padding: 9px 10px; min-width: 0; }
+.m-kpi-cell + .m-kpi-cell { border-left: 1px solid var(--border); }
+.m-kpi-cell .m-kpi-value { margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Bottom tab bar (fixed) ---------- */
+.m-bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; max-width: 480px; margin: 0 auto; padding: 8px 4px 26px; background: var(--m-nav); border-top: 1px solid var(--border); backdrop-filter: blur(12px); display: flex; z-index: 20; }
+.m-nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; background: none; border: none; cursor: pointer; color: var(--text-3); padding: 0; transition: color 0.12s ease; }
+.m-nav-btn.active { color: #15a05f; }
+
+/* ---------- Snapshots sheet ---------- */
+.m-scrim { position: fixed; inset: 0; background: rgba(2, 6, 12, 0.5); z-index: 30; }
+.m-sheet { position: fixed; left: 0; right: 0; bottom: 0; max-width: 480px; margin: 0 auto; background: var(--surface); border-radius: var(--m-r-sheet); padding: 16px 16px 34px; max-height: 76%; overflow-y: auto; z-index: 31; animation: m-sheetUp 0.2s ease; }
+@keyframes m-sheetUp { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.m-sheet-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.m-sheet-close { width: 30px; height: 30px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-2); flex-shrink: 0; }
+.m-sheet-actions { margin-top: 14px; display: flex; gap: 8px; }
+.m-btn-primary { flex: 1; padding: 11px 0; border-radius: 11px; background: #15a05f; color: #fff; font: 700 12.5px var(--font-sans); border: none; cursor: pointer; }
+.m-btn-primary:hover { filter: brightness(1.06); }
+.m-btn-secondary { padding: 11px 16px; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text); font: 700 12.5px var(--font-sans); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.m-btn-secondary:hover { background: var(--surface-3); }
+.m-snap-list { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.m-snap-row { padding: 13px 15px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); cursor: pointer; }
+.m-snap-row.selected { background: rgba(21, 160, 95, 0.1); border-color: #15a05f; }
+.m-snap-line1 { display: flex; align-items: baseline; gap: 6px; }
+.m-snap-line2 { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.m-snap-note { font: 500 10.5px var(--font-sans); color: var(--text-3); }
+.m-empty { padding: 24px 0; text-align: center; color: var(--text-3); font: 500 12px var(--font-sans); }
+.m-progression-card { margin-top: 14px; background: var(--surface-2); border-radius: 14px; padding: 14px; }
+
+/* ---------- Shared cards / tiles ---------- */
+.m-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--m-r-card); padding: 16px; }
+.m-card + .m-card, .m-card + .m-hero, .m-hero + .m-card { margin-top: 12px; }
+.m-stack > * + * { margin-top: 12px; }
+.m-hero { border-radius: var(--m-r-hero); padding: 18px; border: 1px solid var(--m-hero-line, var(--m-accent-line)); background: linear-gradient(160deg, var(--m-hero-tint1, var(--m-accent-tint)), var(--m-hero-tint2, rgba(21, 160, 95, 0.03)) 55%, var(--surface)); }
+.m-tile { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--m-r-tile); padding: 10px 12px; }
+.m-tile-onhero { background: var(--m-tile); border-radius: var(--m-r-tile); padding: 14px; }
+.m-tile-top { font: 600 9.5px var(--font-sans); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); }
+.m-tile-foot { font: 500 10.5px var(--font-sans); color: var(--text-3); margin-top: 3px; }
+
+.m-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.m-grid-2-card { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.m-chip-pill { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 4px 9px; font: 650 10.5px var(--font-sans); }
+.m-progress-track { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.m-progress-fill { height: 100%; border-radius: 999px; background: #15a05f; }
+
+/* ---------- Segmented control ---------- */
+.m-seg { display: flex; padding: 3px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); gap: 3px; }
+.m-seg button { flex: 1; padding: 9px 0; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--text-2); font: 700 12.5px var(--font-sans); cursor: pointer; }
+.m-seg button.active { background: var(--m-accent-tint); border-color: #15a05f; color: var(--m-accent-text); }
+
+/* ---------- Rate / pill buttons (equal-width row) ---------- */
+.m-rate-row { display: flex; gap: 8px; }
+.m-rate-btn { flex: 1; padding: 11px 0; border-radius: 11px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); font: 700 13px var(--font-mono); cursor: pointer; }
+.m-rate-btn.active { background: var(--m-accent-tint); border-color: #15a05f; color: var(--m-accent-text); }
+
+/* ---------- Scrollable pill row ---------- */
+.m-pill-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; -ms-overflow-style: none; scrollbar-width: none; }
+.m-pill-row::-webkit-scrollbar { display: none; }
+.m-pill { flex-shrink: 0; border-radius: 999px; padding: 9px 12px; font: 650 11.5px var(--font-sans); border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); cursor: pointer; white-space: nowrap; }
+.m-pill.active { background: var(--m-accent-tint); border-color: #15a05f; color: var(--m-accent-text); }
+
+/* ---------- Switch ---------- */
+.m-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.m-switch-label { display: flex; flex-direction: column; gap: 2px; }
+.m-switch { position: relative; width: 44px; height: 26px; border-radius: 999px; background: var(--surface-3); border: 1px solid var(--border-strong); cursor: pointer; flex-shrink: 0; padding: 0; }
+.m-switch.on { background: #15a05f; border-color: #15a05f; }
+.m-switch-knob { position: absolute; top: 3px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--text-2); transition: left 0.16s ease, background 0.16s ease; }
+.m-switch.on .m-switch-knob { left: 20px; background: #fff; }
+
+/* ---------- Stepper ---------- */
+.m-stepper { display: flex; align-items: center; gap: 8px; }
+.m-stepper-btn { width: 30px; height: 30px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text-2); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; flex-shrink: 0; }
+.m-stepper-btn:hover { background: var(--surface-3); }
+.m-stepper-val { font: 700 13px var(--font-mono); font-variant-numeric: tabular-nums; min-width: 64px; text-align: right; color: var(--text); }
+.m-stepper-btn-lg { width: 34px; height: 34px; border-radius: 10px; }
+.m-stepper-val-lg { flex: 1; font: 700 22px var(--font-mono); font-variant-numeric: tabular-nums; min-width: 0; text-align: center; color: var(--text); }
+
+/* ---------- Range slider ---------- */
+.mobile-shell input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; cursor: pointer; margin: 0; accent-color: #15a05f; }
+/* -webkit-appearance:none on the input alone doesn't touch its track/thumb
+   sub-parts in Chrome/Safari — without these, the native track and thumb
+   render at their default (near-invisible track, oddly placed thumb) size.
+   PF Reinvest's allocation sliders are the first real <input type="range">
+   in the mobile shell, which is what surfaced this. */
+.mobile-shell input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 999px; background: var(--surface-3); }
+.mobile-shell input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #15a05f; margin-top: -6px; border: none; cursor: pointer; }
+.mobile-shell input[type="range"]::-moz-range-track { height: 4px; border-radius: 999px; background: var(--surface-3); border: none; }
+.mobile-shell input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #15a05f; border: none; cursor: pointer; }
+.mobile-shell input[type="range"]:disabled { opacity: 0.45; cursor: default; }
+.mobile-shell input[type="range"]:disabled::-webkit-slider-thumb { background: var(--text-3); }
+.mobile-shell input[type="range"]:disabled::-moz-range-thumb { background: var(--text-3); }
+
+/* ---------- List rows ---------- */
+.m-list-row { padding: 11px 16px; }
+.m-list-row + .m-list-row { border-top: 1px solid var(--border); }
+
+/* ---------- Category list (Expenses) ---------- */
+.m-cat-card { padding: 6px 16px 10px; }
+.m-cat-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.m-cat-swatch { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.m-cat-label-block { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.m-cat-total-row { display: flex; align-items: center; padding: 14px 0 6px; }
+.m-cat-total-label { font: 700 12px var(--font-sans); color: var(--text-2); }
+.m-cat-total-value { font: 700 17px var(--font-mono); font-variant-numeric: tabular-nums; margin-left: auto; }
+
+/* ---------- Loading ---------- */
+.m-loading { padding: 24px; text-align: center; color: var(--text-3); font: 500 12px var(--font-sans); }

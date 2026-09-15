@@ -1,8 +1,10 @@
-import { ShoppingCart, TrendingUp } from 'lucide-react';
-import type { ApexAxisChartSeries, ApexOptions } from 'apexcharts';
-import type { Expenses, FireProjection, Inputs, OneTimeExpenses } from '../../types';
+import type { Expenses, FireProjection, Inputs, OneTimeExpenses, CalculationResults } from '../../types';
+import { fmtL, fmtRupees } from '../../utils/formatters';
 import { ApexChartComponent } from '../ApexChartComponent';
-import { fmtL } from '../../utils/formatters';
+import { CHARTS, EXPENSE_META, ONETIME_META } from '../../utils/chartBuilders';
+import { NumberInput } from '../NumberInput';
+import { useMemo, useState } from 'react';
+import { Wand2 } from 'lucide-react';
 
 interface ExpensesTabProps {
   expenses: Expenses;
@@ -11,12 +13,15 @@ interface ExpensesTabProps {
   currentMonthlyExp: number;
   applyTax: boolean;
   sampleTaxYear?: FireProjection;
-  incomeExpenseSeries: ApexAxisChartSeries;
-  incomeExpenseOptions: ApexOptions;
   onExpenseChange: (key: keyof Expenses, value: string) => void;
   onOneTimeChange: (key: keyof OneTimeExpenses, value: string) => void;
   onShowOneTimeChange: (checked: boolean) => void;
   onApplyTaxChange: (checked: boolean) => void;
+  results: CalculationResults | null;
+  inputs: Inputs;
+  onInput: (key: keyof Inputs, value: number | boolean) => void;
+  compareApartmentScenarios: () => Promise<{ keep: number; sell: number } | null>;
+  themeKey: string;
 }
 
 export function ExpensesTab(props: ExpensesTabProps) {
@@ -27,78 +32,348 @@ export function ExpensesTab(props: ExpensesTabProps) {
     currentMonthlyExp,
     applyTax,
     sampleTaxYear,
-    incomeExpenseSeries,
-    incomeExpenseOptions,
     onExpenseChange,
     onOneTimeChange,
     onShowOneTimeChange,
-    onApplyTaxChange
+    onApplyTaxChange,
+    results,
+    inputs,
+    onInput,
+    compareApartmentScenarios,
+    themeKey
   } = props;
 
+  const [comparison, setComparison] = useState<{ keep: number; sell: number } | null>(null);
+  const [comparing, setComparing] = useState(false);
+
+  const runCompare = async () => {
+    setComparing(true);
+    try {
+      const result = await compareApartmentScenarios();
+      setComparison(result);
+    } finally {
+      setComparing(false);
+    }
+  };
+
+  const total = EXPENSE_META.reduce((s, e) => s + (expenses[e.key] || 0), 0);
+  const hasExp = total > 0;
+
+  // Mirrors api/calculate.js's EMI formula for instant display before the next
+  // calc round-trip returns results.summary.villaEmiLakhsPerMonth.
+  const villaEmi = useMemo(() => {
+    const r = inputs.villaLoanRatePct / 100 / 12;
+    const n = Math.round(inputs.villaLoanTenureYears * 12);
+    const principal = inputs.villaLoanAmountLakhs * 100000;
+    if (principal <= 0 || n <= 0) return { monthlyINR: 0, payoffYear: null as number | null };
+    const emi = r > 0
+      ? (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+      : principal / n;
+    return { monthlyINR: emi, payoffYear: inputs.villaYear + Math.ceil(n / 12) - 1 };
+  }, [inputs.villaLoanRatePct, inputs.villaLoanTenureYears, inputs.villaLoanAmountLakhs, inputs.villaYear]);
+
+  // Rough client-side mirror of api/calculate.js's apartment appreciation
+  // (annual compounding, ignoring the sub-year fraction on the start year —
+  // fine for an instant display estimate before the next calc round-trip).
+  const apartmentAtVillaYear = useMemo(() => {
+    const yearsToVilla = Math.max(0, inputs.villaYear - inputs.startYear);
+    return inputs.apartmentCurrent * Math.pow(1 + inputs.apartmentAppreciationPct / 100, yearsToVilla);
+  }, [inputs.apartmentCurrent, inputs.apartmentAppreciationPct, inputs.villaYear, inputs.startYear]);
+
+  const netFromPortfolio = inputs.apartmentSellAtVilla
+    ? inputs.villaDownPaymentLakhs - apartmentAtVillaYear
+    : inputs.villaDownPaymentLakhs;
+
   return (
-    <div className="analysis-grid">
-      <div className="expense-panel">
-        <div className="card-header" style={{ marginBottom: '16px', color: 'var(--accent-pink)' }}>
-          <ShoppingCart size={14} /> Monthly Expenses
+    <div className="stack">
+    <div className="grid-2" style={{ alignItems: 'start' }}>
+      <div className="card card-pad">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+          <div>
+            <div className="panel-h">
+              <span className="panel-t">Monthly expenses</span>
+            </div>
+            <div className="panel-cap" style={{ marginLeft: 0 }}>Drives FIRE target & coverage</div>
+          </div>
         </div>
 
-        {Object.keys(expenses).map((key) => (
-          <div className="expense-row" key={key}>
-            <label style={{ textTransform: 'capitalize' }}>{key.replace(/([A-Z])/g, ' $1').trim()}</label>
-            <input type="number" value={expenses[key as keyof Expenses]} onChange={(event) => onExpenseChange(key as keyof Expenses, event.target.value)} />
+        <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 12 }}>
+          India lifestyle · active from <strong>{inputs.returnYear}</strong> · drives FIRE target
+        </div>
+
+        {EXPENSE_META.map((e) => (
+          <div className="exp-row" key={e.key}>
+            <label>
+              <i style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: e.color, marginRight: 8, verticalAlign: 'middle' }}></i>
+              {e.label}
+            </label>
+            <NumberInput
+              className="in num"
+              value={expenses[e.key]}
+              onCommit={(n) => onExpenseChange(e.key, String(n))}
+            />
           </div>
         ))}
 
-        <div className="total-expense">
-          <span>Total Monthly:</span>
-          <span>₹{currentMonthlyExp.toLocaleString()}</span>
+        <div className="exp-total">
+          <span>Total / month</span>
+          <b>{fmtRupees(total)}</b>
         </div>
 
-        {applyTax && sampleTaxYear && (
-          <div className="tax-proof-card">
-            <div className="tax-title">Tax Impact (Retirement)</div>
-            <div className="tax-row"><span>Gross Passive</span><span>{fmtL(sampleTaxYear.passiveIncomeGross)}</span></div>
-            <div className="tax-row"><span>Tax (12.5%)</span><span>-{fmtL(sampleTaxYear.monthlyTax)}</span></div>
-            <div className="tax-row final"><span>Net Income</span><span>{fmtL(sampleTaxYear.passiveIncomeMonthly)}</span></div>
+        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={applyTax}
+              onChange={(e) => onApplyTaxChange(e.target.checked)}
+            />
+            <span className="track"></span>Apply tax on withdrawals
+          </label>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={showOneTime}
+              onChange={(e) => onShowOneTimeChange(e.target.checked)}
+            />
+            <span className="track"></span>Return-to-India setup costs
+          </label>
+        </div>
+
+        {showOneTime && (
+          <div className="drawer-grid" style={{ marginTop: 14 }}>
+            {ONETIME_META.map((o: { key: keyof OneTimeExpenses; label: string }) => (
+              <div className="in-wrap" key={o.key}>
+                <label>{o.label}</label>
+                <NumberInput
+                  className="in"
+                  value={oneTimeExpenses[o.key]}
+                  onCommit={(n) => onOneTimeChange(o.key, String(n))}
+                />
+              </div>
+            ))}
           </div>
         )}
 
-        <div className="one-time-section">
-          <label className="checkbox-wrapper">
-            <input type="checkbox" checked={showOneTime} onChange={(event) => onShowOneTimeChange(event.target.checked)} />
-            Return-to-India Setup Costs?
-          </label>
+        {applyTax && sampleTaxYear && (
+          <div className="card card-pad" style={{ marginTop: 14, background: 'var(--surface-2)' }}>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>Tax at retirement · per bucket</div>
+            <div className="stress-row">
+              <span>Gross passive</span>
+              <strong>{fmtL(sampleTaxYear.passiveIncomeGross)}</strong>
+            </div>
+            <div className="stress-row">
+              <span>Equity LTCG (12.5% above ₹1.25L/yr)</span>
+              <strong className="text-neg">−{fmtL(sampleTaxYear.equityTaxMonthly)}</strong>
+            </div>
+            <div className="stress-row">
+              <span>Debt/FD/NPS/US stocks (slab rate)</span>
+              <strong className="text-neg">−{fmtL(sampleTaxYear.slabTaxMonthly)}</strong>
+            </div>
+            <div className="stress-row" style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 8 }}>
+              <span>Net / mo</span>
+              <strong className="text-pos">{fmtL(sampleTaxYear.passiveIncomeMonthly)}</strong>
+            </div>
+            <div className="panel-cap" style={{ marginLeft: 0, marginTop: 10 }}>
+              EPF/PPF stay tax-free. Equity gain fraction estimated from your MF principal — no per-unit lot tracking.
+            </div>
+          </div>
+        )}
+      </div>
 
-          {showOneTime && (
-            <div className="one-time-grid">
-              {Object.keys(oneTimeExpenses).map((key) => (
-                <div key={key} className="mini-input-group">
-                  <label>{key.replace(/([A-Z])/g, ' $1').trim()}</label>
-                  <input type="number" value={oneTimeExpenses[key as keyof OneTimeExpenses]} onChange={(event) => onOneTimeChange(key as keyof OneTimeExpenses, event.target.value)} />
-                </div>
-              ))}
+      <div className="stack">
+        <div className="card card-pad">
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+            <div>
+              <div className="panel-h">
+                <span className="panel-t">Spend breakdown</span>
+              </div>
+            </div>
+          </div>
+          {hasExp ? (
+            <ApexChartComponent
+              height={240}
+              dep={'don' + themeKey + total}
+              build={CHARTS.expenseDonut(expenses)}
+            />
+          ) : (
+            <div className="empty">
+              <p>Add expenses to see the split</p>
+            </div>
+          )}
+        </div>
+
+        <div className="card card-pad">
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+            <div>
+              <div className="panel-h">
+                <span className="panel-t">Passive income vs expenses</span>
+              </div>
+              <div className="panel-cap" style={{ marginLeft: 0 }}>Lakhs per month · post-return</div>
+            </div>
+          </div>
+          {results ? (
+            <ApexChartComponent
+              height={280}
+              dep={'ie' + themeKey + applyTax}
+              build={CHARTS.incomeVsExpense(results.fireProjections, inputs.retirementYear, inputs.returnYear, applyTax)}
+            />
+          ) : (
+            <div className="empty">
+              <p>Run calculation to view passive income progression</p>
             </div>
           )}
         </div>
       </div>
+    </div>
 
-      <div>
-        <div className="chart-container">
-          <div className="chart-header">
-            <div>
-              <div className="chart-title" style={{ color: 'var(--accent-green)' }}><TrendingUp size={18} /> Monthly Passive Income vs Monthly Expenses</div>
-              <div className="panel-subtitle">Income line is a simplified 4% withdrawal-style estimate from the projected corpus, shown in lakhs per month.</div>
-            </div>
-            <label className="checkbox-wrapper">
-              <input type="checkbox" checked={applyTax} onChange={(event) => onApplyTaxChange(event.target.checked)} />
-              Apply 12.5% Tax
-            </label>
+    <div className="card card-pad">
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+        <div>
+          <div className="panel-h">
+            <span className="panel-t">Villa purchase (India)</span>
           </div>
-          <div className="chart-wrapper">
-            <ApexChartComponent type="line" series={incomeExpenseSeries} options={incomeExpenseOptions} />
+          <div className="panel-cap" style={{ marginLeft: 0 }}>
+            Optional goal — down payment hits your portfolio the year you buy; the loan EMI only draws from
+            the corpus for whichever loan years fall after you've retired (pre-retirement EMI is assumed
+            covered by salary, same as your regular monthly expenses).
           </div>
         </div>
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={inputs.villaEnabled}
+            onChange={(e) => onInput('villaEnabled', e.target.checked)}
+          />
+          <span className="track"></span>Include
+        </label>
       </div>
+
+      {inputs.villaEnabled && (
+        <>
+          <div className="grid-3" style={{ marginBottom: 14 }}>
+            <div className="in-wrap">
+              <label>Purchase year</label>
+              <NumberInput className="in" step={1} value={inputs.villaYear} onCommit={(n) => onInput('villaYear', n)} />
+            </div>
+            <div className="in-wrap">
+              <label>Down payment (₹ Lakhs)</label>
+              <NumberInput className="in" step={5} value={inputs.villaDownPaymentLakhs} onCommit={(n) => onInput('villaDownPaymentLakhs', n)} />
+            </div>
+            <div className="in-wrap">
+              <label>Loan amount (₹ Lakhs)</label>
+              <NumberInput className="in" step={1} value={inputs.villaLoanAmountLakhs} onCommit={(n) => onInput('villaLoanAmountLakhs', n)} />
+            </div>
+            <div className="in-wrap">
+              <label>Loan rate (% p.a.)</label>
+              <NumberInput className="in" step={0.1} value={inputs.villaLoanRatePct} onCommit={(n) => onInput('villaLoanRatePct', n)} />
+            </div>
+            <div className="in-wrap">
+              <label>Loan tenure (years)</label>
+              <NumberInput className="in" step={1} value={inputs.villaLoanTenureYears} onCommit={(n) => onInput('villaLoanTenureYears', n)} />
+            </div>
+          </div>
+
+          <div className="stat-grid">
+            <div className="stat">
+              <div className="stat-top">Down payment (today's ₹)</div>
+              <div className="stat-val" style={{ fontSize: 18 }}>{fmtL(inputs.villaDownPaymentLakhs)}</div>
+              <div className="stat-foot">Inflated to {inputs.villaYear} when deducted</div>
+            </div>
+            <div className="stat">
+              <div className="stat-top">Monthly EMI</div>
+              <div className="stat-val" style={{ fontSize: 18 }}>{fmtRupees(villaEmi.monthlyINR)}</div>
+              <div className="stat-foot">{inputs.villaLoanAmountLakhs}L @ {inputs.villaLoanRatePct}% for {inputs.villaLoanTenureYears}y</div>
+            </div>
+            <div className="stat">
+              <div className="stat-top">Loan paid off</div>
+              <div className="stat-val" style={{ fontSize: 18 }}>{villaEmi.payoffYear ?? '—'}</div>
+              <div className="stat-foot">Purchase year {inputs.villaYear}</div>
+            </div>
+            <div className="stat">
+              <div className="stat-top">Total cash needed</div>
+              <div className="stat-val" style={{ fontSize: 18 }}>{fmtL(inputs.villaDownPaymentLakhs + inputs.villaLoanAmountLakhs)}</div>
+              <div className="stat-foot">Down payment + loan principal</div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+              <div>
+                <div className="panel-t" style={{ fontSize: 13 }}>Existing apartment</div>
+                <div className="panel-cap" style={{ marginLeft: 0 }}>
+                  Current value {fmtL(inputs.apartmentCurrent)} at {inputs.apartmentAppreciationPct}%/yr — edit in Assumptions
+                </div>
+              </div>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={inputs.apartmentSellAtVilla}
+                  onChange={(e) => onInput('apartmentSellAtVilla', e.target.checked)}
+                />
+                <span className="track"></span>Sell for down payment
+              </label>
+            </div>
+
+            <div className="stat-grid">
+              <div className="stat">
+                <div className="stat-top">Est. value in {inputs.villaYear}</div>
+                <div className="stat-val" style={{ fontSize: 18 }}>{fmtL(apartmentAtVillaYear)}</div>
+                <div className="stat-foot">
+                  {inputs.apartmentSellAtVilla ? 'Liquidated the year you buy' : 'Kept as a 2nd property, still appreciating'}
+                </div>
+              </div>
+              <div className="stat">
+                <div className="stat-top">{inputs.apartmentSellAtVilla ? 'Net from portfolio' : 'From portfolio'}</div>
+                <div className="stat-val" style={{ fontSize: 18, color: netFromPortfolio < 0 ? 'var(--pos)' : undefined }}>
+                  {netFromPortfolio < 0 ? '+' : ''}{fmtL(Math.abs(netFromPortfolio))}
+                </div>
+                <div className="stat-foot">
+                  {inputs.apartmentSellAtVilla
+                    ? (netFromPortfolio < 0 ? 'Sale proceeds exceed down payment — surplus added back' : 'Down payment − sale proceeds')
+                    : 'Full down payment, apartment untouched'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <button className="btn btn-sm" onClick={() => void runCompare()} disabled={comparing}>
+                <Wand2 size={12} /> {comparing ? 'Comparing…' : 'Compare Keep vs Sell'}
+              </button>
+
+              {comparison && (
+                <div className="card card-pad" style={{ marginTop: 12, background: 'var(--surface-2)' }}>
+                  <div className="eyebrow" style={{ marginBottom: 10 }}>Corpus at retirement ({inputs.retirementYear})</div>
+                  <div className="stress-row">
+                    <span>Keep apartment (2nd property)</span>
+                    <strong>{fmtL(comparison.keep)}</strong>
+                  </div>
+                  <div className="stress-row">
+                    <span>Sell at villa purchase</span>
+                    <strong>{fmtL(comparison.sell)}</strong>
+                  </div>
+                  <div className="stress-row" style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 8 }}>
+                    <span>Verdict</span>
+                    <strong className={comparison.sell >= comparison.keep ? 'text-pos' : 'text-neg'}>
+                      {comparison.sell === comparison.keep
+                        ? 'No difference'
+                        : comparison.sell > comparison.keep
+                          ? `Selling nets +${fmtL(comparison.sell - comparison.keep)} more`
+                          : `Keeping nets +${fmtL(comparison.keep - comparison.sell)} more`}
+                    </strong>
+                  </div>
+                  <div className="panel-cap" style={{ marginLeft: 0, marginTop: 10 }}>
+                    Assumes {inputs.apartmentAppreciationPct}%/yr apartment growth vs your portfolio's blended return —
+                    selling usually wins when the portfolio return outpaces real-estate appreciation by enough to
+                    offset the one-time transaction hassle; this doesn't account for brokerage, capital-gains tax on
+                    the sale, or how much you'd actually want two properties.
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
     </div>
   );
 }

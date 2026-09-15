@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"><style>body{margin:0;background:#07090d;font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased}a{color:#15a05f;text-decoration:none}a:hover{color:#1faa6b}input[type=range]{accent-color:#15a05f;height:22px}::-webkit-scrollbar{width:0;height:0}@keyframes sheetUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}</style></helmet>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+<div style="{{ rootStyle }}">
+
+<div style="padding:52px 16px 12px;background:var(--hd,linear-gradient(#11161e,#0d1219));border-bottom:1px solid var(--bd,rgba(255,255,255,.075));flex:none">
+<div style="display:flex;align-items:center;gap:10px">
+<div style="width:26px;height:26px;border-radius:8px;background:#15a05f;display:flex;align-items:center;justify-content:center;font:800 13px 'Plus Jakarta Sans';color:#fff">F</div>
+<div style="display:flex;flex-direction:column;gap:1px">
+<div style="font:700 13.5px 'Plus Jakarta Sans';letter-spacing:-.01em">FIRE Planner</div>
+<div style="font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">Plan {{ planYear }} · returning-NRI</div>
+</div>
+<div style="margin-left:auto;display:flex;align-items:center;gap:7px">
+<button onClick="{{ cycleTheme }}" title="{{ themeTitle }}" style="width:32px;height:32px;border-radius:10px;border:1px solid var(--bd,rgba(255,255,255,.075));background:var(--sf2,#161c26);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0">
+<svg viewBox="0 0 18 18" style="width:16px;height:16px" fill="none" stroke="var(--tx2,#98a4b6)" stroke-width="1.6" stroke-linecap="round">
+<circle cx="9" cy="9" r="4.2"></circle>
+<sc-if value="{{ themeRays }}" hint-placeholder-val="{{ false }}"><g><line x1="9" y1="1.4" x2="9" y2="3"></line><line x1="9" y1="15" x2="9" y2="16.6"></line><line x1="1.4" y1="9" x2="3" y2="9"></line><line x1="15" y1="9" x2="16.6" y2="9"></line></g></sc-if>
+</svg>
+</button>
+<button onClick="{{ openSnapshots }}" title="Snapshots" style="width:32px;height:32px;border-radius:10px;border:1px solid var(--bd,rgba(255,255,255,.075));background:var(--sf2,#161c26);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;position:relative">
+<svg viewBox="0 0 18 18" style="width:16px;height:16px" fill="none" stroke="var(--tx2,#98a4b6)" stroke-width="1.6" stroke-linecap="round">
+<rect x="2.5" y="3" width="13" height="4" rx="1.4"></rect>
+<rect x="4" y="8" width="10" height="7" rx="1.4"></rect>
+</svg>
+<span style="position:absolute;top:-3px;right:-3px;min-width:15px;height:15px;border-radius:999px;background:#15a05f;color:#fff;font:700 9px 'JetBrains Mono',ui-monospace;display:flex;align-items:center;justify-content:center;padding:0 3px">{{ snapCount }}</span>
+</button>
+</div>
+</div>
+<div style="display:flex;margin-top:14px;border-radius:12px;background:var(--bg,#0a0d12);border:1px solid var(--bd,rgba(255,255,255,.075));overflow:hidden">
+<div style="flex:1;padding:9px 10px;border-right:1px solid var(--bd,rgba(255,255,255,.06))">
+<div style="font:600 9.5px 'Plus Jakarta Sans';letter-spacing:.08em;text-transform:uppercase;color:var(--tx3,#647084)">Wealth</div>
+<div style="margin-top:3px;font:700 14px 'JetBrains Mono',ui-monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em">{{ wealthStr }}</div>
+</div>
+<div style="flex:1;padding:9px 10px;border-right:1px solid var(--bd,rgba(255,255,255,.06))">
+<div style="font:600 9.5px 'Plus Jakarta Sans';letter-spacing:.08em;text-transform:uppercase;color:var(--tx3,#647084)">Target</div>
+<div style="margin-top:3px;font:700 14px 'JetBrains Mono',ui-monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em">{{ targetStr }}</div>
+</div>
+<div style="flex:1;padding:9px 10px">
+<div style="font:600 9.5px 'Plus Jakarta Sans';letter-spacing:.08em;text-transform:uppercase;color:var(--tx3,#647084)">Progress</div>
+<div style="margin-top:3px;font:700 14px 'JetBrains Mono',ui-monospace;color:#1faa6b;letter-spacing:-.02em">{{ progressStr }}</div>
+</div>
+</div>
+</div>
+
+<div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:16px 14px 108px">
+
+<sc-if value="{{ isJourney }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:baseline;gap:8px">
+<h1 style="margin:0;font:700 19px 'Plus Jakarta Sans';letter-spacing:-.02em">Journey</h1>
+<span style="font:500 11px 'Plus Jakarta Sans';color:var(--tx3,#647084)">{{ jr.subLabel }}</span>
+</div>
+
+<div style="display:flex;gap:4px;padding:3px;border-radius:12px;background:var(--sf2,#161c26);border:1px solid var(--bd,rgba(255,255,255,.075))">
+<sc-for list="{{ jr.subTabs }}" as="s" hint-placeholder-count="3">
+<button onClick="{{ s.pick }}" style="flex:1;padding:9px 0;border-radius:9px;border:1px solid {{ s.bd }};background:{{ s.bg }};color:{{ s.fg }};font:650 12px 'Plus Jakarta Sans';cursor:pointer">{{ s.label }}</button>
+</sc-for>
+</div>
+
+<sc-if value="{{ jr.isPath }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="border-radius:18px;padding:18px;background:linear-gradient(160deg,rgba(21,160,95,.16),rgba(21,160,95,.03) 55%,var(--sf,#11161e));border:1px solid rgba(21,160,95,.28)">
+<div style="font:700 10px 'Plus Jakarta Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--tx2,#98a4b6)">Corpus at retirement · {{ jr.retireYear }}</div>
+<div style="margin-top:8px;font:700 34px 'JetBrains Mono',ui-monospace;font-variant-numeric:tabular-nums;letter-spacing:-.03em;line-height:1">{{ jr.corpusAtRetStr }}</div>
+<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">
+<span style="padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--bd,rgba(255,255,255,.09));font:600 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx2,#98a4b6)">FIRE target {{ targetStr }}</span>
+<span style="padding:4px 9px;border-radius:999px;background:rgba(31,170,107,.13);border:1px solid rgba(31,170,107,.3);font:600 10.5px 'JetBrains Mono',ui-monospace;color:#1faa6b">{{ jr.fireYearLabel }}</span>
+</div>
+<div style="margin-top:14px;height:6px;border-radius:999px;background:var(--sf3,#1d2533);overflow:hidden">
+<div style="height:100%;width:{{ jr.progressW }};background:#15a05f;border-radius:999px"></div>
+</div>
+<div style="margin-top:6px;font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">{{ progressStr }} of target funded today · passive {{ jr.passiveAtRetStr }}/mo at retirement</div>
+</div>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:16px 16px 10px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+<div style="font:700 13px 'Plus Jakarta Sans';letter-spacing:-.01em">Corpus trajectory</div>
+<div style="font:500 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">₹L · start of year</div>
+</div>
+<svg viewBox="0 0 330 140" style="width:100%;height:auto;margin-top:12px;display:block" preserveAspectRatio="none">
+<defs><linearGradient id="jrg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#15a05f" stop-opacity=".32"></stop><stop offset="1" stop-color="#15a05f" stop-opacity="0"></stop></linearGradient></defs>
+<line x1="0" y1="35" x2="330" y2="35" stroke="var(--gd,rgba(255,255,255,.06))" stroke-width="1"></line>
+<line x1="0" y1="80" x2="330" y2="80" stroke="var(--gd,rgba(255,255,255,.06))" stroke-width="1"></line>
+<line x1="0" y1="125" x2="330" y2="125" stroke="var(--gd,rgba(255,255,255,.06))" stroke-width="1"></line>
+<path d="{{ jr.area }}" fill="url(#jrg)"></path>
+<path d="{{ jr.line }}" fill="none" stroke="#15a05f" stroke-width="2" stroke-linejoin="round"></path>
+<line x1="{{ jr.retX }}" y1="4" x2="{{ jr.retX }}" y2="130" stroke="#d98a23" stroke-width="1" stroke-dasharray="3 3"></line>
+<line x1="0" y1="{{ jr.targetY }}" x2="330" y2="{{ jr.targetY }}" stroke="#e0556b" stroke-width="1" stroke-dasharray="5 4" opacity=".85"></line>
+<circle cx="{{ jr.retX }}" cy="{{ jr.retY }}" r="3.4" fill="#d98a23"></circle>
+</svg>
+<div style="display:flex;justify-content:space-between;margin-top:6px;padding-bottom:6px">
+<span style="font:500 10px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">{{ planYear }}</span>
+<span style="font:500 10px 'JetBrains Mono',ui-monospace;color:#d98a23">retire {{ jr.retireYear }}</span>
+<span style="font:500 10px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">{{ jr.endYear }}</span>
+</div>
+</div>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;overflow:hidden">
+<div style="padding:14px 16px;border-bottom:1px solid var(--bd,rgba(255,255,255,.06));display:flex;align-items:baseline;justify-content:space-between">
+<div style="font:700 13px 'Plus Jakarta Sans'">Year by year</div>
+<div style="font:500 10px 'Plus Jakarta Sans';letter-spacing:.08em;text-transform:uppercase;color:var(--tx3,#647084)">total · passive/mo</div>
+</div>
+<sc-for list="{{ jr.rows }}" as="r" hint-placeholder-count="8">
+<div style="padding:11px 16px;border-bottom:1px solid var(--bd,rgba(255,255,255,.04));background:{{ r.bg }}">
+<div style="display:flex;align-items:center;gap:10px">
+<span style="font:700 11.5px 'JetBrains Mono',ui-monospace;color:var(--tx2,#98a4b6);min-width:34px">{{ r.year }}</span>
+<span style="font:700 12.5px 'JetBrains Mono',ui-monospace">{{ r.total }}</span>
+<span style="margin-left:auto;font:600 11.5px 'JetBrains Mono',ui-monospace;color:#1faa6b">{{ r.passive }}</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+<span style="flex:1;height:5px;border-radius:999px;background:var(--sf3,#1d2533);overflow:hidden;display:flex">
+<span style="width:{{ r.usW }};background:#f472b6"></span>
+<span style="width:{{ r.inW }};background:#14b8a6"></span>
+</span>
+<sc-if value="{{ r.hasEvent }}" hint-placeholder-val="{{ false }}">
+<span style="flex:none;padding:3px 8px;border-radius:999px;font:650 9.5px 'Plus Jakarta Sans';background:{{ r.eventBg }};border:1px solid {{ r.eventBd }};color:{{ r.eventFg }}">{{ r.event }}</span>
+</sc-if>
+</div>
+</div>
+</sc-for>
+<div style="padding:12px 16px;display:flex;gap:14px;align-items:center">
+<span style="display:flex;align-items:center;gap:6px;font:500 10px 'Plus Jakarta Sans';color:var(--tx3,#647084)"><i style="width:8px;height:8px;border-radius:2px;background:#f472b6"></i>US 401k</span>
+<span style="display:flex;align-items:center;gap:6px;font:500 10px 'Plus Jakarta Sans';color:var(--tx3,#647084)"><i style="width:8px;height:8px;border-radius:2px;background:#14b8a6"></i>India retirals</span>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ jr.isRisk }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="font:700 10px 'Plus Jakarta Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--tx3,#647084)">Stress scenarios · corpus at retirement</div>
+<sc-for list="{{ risk.scenarios }}" as="s" hint-placeholder-count="3">
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-left:3px solid {{ s.tone }};border-radius:14px;padding:14px 16px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+<span style="font:700 12.5px 'Plus Jakarta Sans'">{{ s.label }}</span>
+<span style="font:700 15px 'JetBrains Mono',ui-monospace">{{ s.corpus }}</span>
+</div>
+<div style="margin-top:3px;font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">{{ s.assumption }}</div>
+<div style="display:flex;gap:8px;margin-top:12px">
+<div style="flex:1;padding:8px 10px;border-radius:10px;background:var(--sf2,#161c26)">
+<div style="font:600 9.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">vs base</div>
+<div style="margin-top:3px;font:700 12px 'JetBrains Mono',ui-monospace;color:{{ s.deltaColor }}">{{ s.delta }}</div>
+</div>
+<div style="flex:1;padding:8px 10px;border-radius:10px;background:var(--sf2,#161c26)">
+<div style="font:600 9.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">Cover</div>
+<div style="margin-top:3px;font:700 12px 'JetBrains Mono',ui-monospace">{{ s.cover }}</div>
+</div>
+<div style="flex:1;padding:8px 10px;border-radius:10px;background:var(--sf2,#161c26)">
+<div style="font:600 9.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">FIRE year</div>
+<div style="margin-top:3px;font:700 12px 'JetBrains Mono',ui-monospace">{{ s.fireYear }}</div>
+</div>
+</div>
+</div>
+</sc-for>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:16px">
+<div style="font:700 13px 'Plus Jakarta Sans'">Composition drift</div>
+<div style="margin-top:4px;font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">Share of corpus by source, {{ planYear }}–{{ jr.endYear }}</div>
+<div style="display:flex;gap:6px;align-items:flex-end;height:110px;margin-top:14px">
+<sc-for list="{{ risk.composition }}" as="c" hint-placeholder-count="7">
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
+<div style="width:100%;height:88px;border-radius:5px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;background:var(--sf3,#1d2533)">
+<div style="height:{{ c.usH }};background:#f472b6"></div>
+<div style="height:{{ c.inH }};background:#14b8a6"></div>
+</div>
+<span style="font:500 9px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">{{ c.year }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:16px">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="display:flex;flex-direction:column;gap:2px">
+<span style="font:700 13px 'Plus Jakarta Sans'">Sequence-risk buffer</span>
+<span style="font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">Years of spend held in cash + bonds at retirement</span>
+</div>
+<span style="margin-left:auto;font:700 20px 'JetBrains Mono',ui-monospace;color:{{ risk.bufferColor }}">{{ risk.bufferLabel }}</span>
+</div>
+<div style="margin-top:12px;height:6px;border-radius:999px;background:var(--sf3,#1d2533);overflow:hidden">
+<div style="height:100%;width:{{ risk.bufferW }};background:{{ risk.bufferColor }};border-radius:999px"></div>
+</div>
+<div style="margin-top:8px;font:500 10.5px/1.5 'Plus Jakarta Sans';color:var(--tx3,#647084)">Driven by the cash / bond split on the PF Reinvest tab — 3 years or more absorbs a first-decade drawdown without selling equity.</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ jr.isWithdrawal }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="border-radius:18px;padding:18px;background:linear-gradient(160deg,rgba(21,160,95,.16),rgba(21,160,95,.03) 55%,var(--sf,#11161e));border:1px solid rgba(21,160,95,.28)">
+<div style="font:700 10px 'Plus Jakarta Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--tx2,#98a4b6)">Net income · {{ wd.rateLabel }} SWR</div>
+<div style="margin-top:8px;font:700 34px 'JetBrains Mono',ui-monospace;letter-spacing:-.03em;line-height:1">{{ wd.netMonthStr }}</div>
+<div style="margin-top:8px;font:500 11px 'Plus Jakarta Sans';color:var(--tx2,#98a4b6)">per month, after LTCG · from {{ jr.retireYear }}</div>
+<div style="display:flex;gap:5px;margin-top:14px">
+<sc-for list="{{ wd.rates }}" as="r" hint-placeholder-count="3">
+<button onClick="{{ r.pick }}" style="flex:1;padding:10px 0;border-radius:11px;border:1px solid {{ r.bd }};background:{{ r.bg }};color:{{ r.fg }};font:700 13px 'JetBrains Mono',ui-monospace;cursor:pointer">{{ r.label }}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<sc-for list="{{ wd.tiles }}" as="t" hint-placeholder-count="4">
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:14px">
+<div style="font:600 10px 'Plus Jakarta Sans';letter-spacing:.1em;text-transform:uppercase;color:var(--tx3,#647084)">{{ t.label }}</div>
+<div style="margin-top:7px;font:700 18px 'JetBrains Mono',ui-monospace;letter-spacing:-.02em;color:{{ t.color }}">{{ t.value }}</div>
+<div style="margin-top:3px;font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">{{ t.foot }}</div>
+</div>
+</sc-for>
+</div>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:16px 16px 10px">
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<div style="font:700 13px 'Plus Jakarta Sans'">Corpus sustainability</div>
+<div style="font:500 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">25 yrs @ {{ wd.rateLabel }}</div>
+</div>
+<svg viewBox="0 0 330 110" style="width:100%;height:auto;margin-top:12px;display:block" preserveAspectRatio="none">
+<defs><linearGradient id="wdg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#15a05f" stop-opacity=".3"></stop><stop offset="1" stop-color="#15a05f" stop-opacity="0"></stop></linearGradient></defs>
+<line x1="0" y1="52" x2="330" y2="52" stroke="var(--gd,rgba(255,255,255,.06))" stroke-width="1"></line>
+<line x1="0" y1="100" x2="330" y2="100" stroke="var(--gd,rgba(255,255,255,.06))" stroke-width="1"></line>
+<path d="{{ wd.area }}" fill="url(#wdg)"></path>
+<path d="{{ wd.line }}" fill="none" stroke="{{ wd.lineColor }}" stroke-width="2" stroke-linejoin="round"></path>
+</svg>
+<div style="display:flex;justify-content:space-between;padding-bottom:6px">
+<span style="font:500 10px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">{{ jr.retireYear }}</span>
+<span style="font:500 10px 'JetBrains Mono',ui-monospace;color:{{ wd.lineColor }}">{{ wd.endLabel }}</span>
+</div>
+</div>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;overflow:hidden">
+<div style="padding:14px 16px;border-bottom:1px solid var(--bd,rgba(255,255,255,.06));display:flex;align-items:baseline;justify-content:space-between">
+<div style="font:700 13px 'Plus Jakarta Sans'">Post-tax income</div>
+<div style="font:500 10px 'Plus Jakarta Sans';letter-spacing:.08em;text-transform:uppercase;color:var(--tx3,#647084)">corpus · net/mo</div>
+</div>
+<sc-for list="{{ wd.rows }}" as="r" hint-placeholder-count="6">
+<div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--bd,rgba(255,255,255,.04))">
+<span style="font:700 11.5px 'JetBrains Mono',ui-monospace;color:var(--tx2,#98a4b6);min-width:34px">{{ r.year }}</span>
+<span style="font:600 12px 'JetBrains Mono',ui-monospace">{{ r.corpus }}</span>
+<span style="font:500 11px 'JetBrains Mono',ui-monospace;color:#e0556b">{{ r.tax }}</span>
+<span style="margin-left:auto;font:700 12px 'JetBrains Mono',ui-monospace;color:#1faa6b">{{ r.net }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ isK401 }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:baseline;gap:8px">
+<h1 style="margin:0;font:700 19px 'Plus Jakarta Sans';letter-spacing:-.02em">401k Projector</h1>
+<span style="font:500 11px 'Plus Jakarta Sans';color:var(--tx3,#647084)">{{ k401.horizonLabel }}</span>
+</div>
+
+<div style="border-radius:18px;padding:18px;background:linear-gradient(160deg,rgba(21,160,95,.16),rgba(21,160,95,.03) 55%,var(--sf,#11161e));border:1px solid rgba(21,160,95,.28)">
+<div style="font:700 10px 'Plus Jakarta Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--tx2,#98a4b6)">Net after tax · {{ k401.withdrawYear }}</div>
+<div style="margin-top:8px;font:700 34px 'JetBrains Mono',ui-monospace;font-variant-numeric:tabular-nums;letter-spacing:-.03em;line-height:1">{{ k401.netStr }}</div>
+<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">
+<span style="padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--bd,rgba(255,255,255,.09));font:600 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx2,#98a4b6)">Gross {{ k401.grossStr }}</span>
+<span style="padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--bd,rgba(255,255,255,.09));font:600 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx2,#98a4b6)">Tax {{ k401.taxPctStr }}</span>
+<span style="padding:4px 9px;border-radius:999px;background:rgba(31,170,107,.13);border:1px solid rgba(31,170,107,.3);font:600 10.5px 'JetBrains Mono',ui-monospace;color:#1faa6b">{{ k401.multipleStr }} of today</span>
+</div>
+<div style="margin-top:14px;display:flex;gap:10px">
+<div style="flex:1;padding:10px 12px;border-radius:12px;background:var(--tile,rgba(10,13,18,.55));border:1px solid var(--bd,rgba(255,255,255,.07))">
+<div style="font:600 10px 'Plus Jakarta Sans';color:var(--tx3,#647084)">Today</div>
+<div style="margin-top:4px;font:700 15px 'JetBrains Mono',ui-monospace">{{ k401.startStr }}</div>
+</div>
+<div style="flex:1;padding:10px 12px;border-radius:12px;background:var(--tile,rgba(10,13,18,.55));border:1px solid var(--bd,rgba(255,255,255,.07))">
+<div style="font:600 10px 'Plus Jakarta Sans';color:var(--tx3,#647084)">Leave US {{ k401.stopYear }}</div>
+<div style="margin-top:4px;font:700 15px 'JetBrains Mono',ui-monospace">{{ k401.atStopStr }}</div>
+</div>
+</div>
+</div>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:16px 16px 10px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+<div style="font:700 13px 'Plus Jakarta Sans';letter-spacing:-.01em">Balance path</div>
+<div style="font:500 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">{{ k401.retLabel }} · {{ k401.contribLabel }}</div>
+</div>
+<svg viewBox="0 0 330 132" style="width:100%;height:auto;margin-top:12px;display:block" preserveAspectRatio="none">
+<defs><linearGradient id="k4g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#15a05f" stop-opacity=".34"></stop><stop offset="1" stop-color="#15a05f" stop-opacity="0"></stop></linearGradient></defs>
+<line x1="0" y1="33" x2="330" y2="33" stroke="var(--gd,rgba(255,255,255,.06))" stroke-width="1"></line>
+<line x1="0" y1="76" x2="330" y2="76" stroke="var(--gd,rgba(255,255,255,.06))" stroke-width="1"></line>
+<line x1="0" y1="119" x2="330" y2="119" stroke="var(--gd,rgba(255,255,255,.06))" stroke-width="1"></line>
+<path d="{{ k401.area }}" fill="url(#k4g)"></path>
+<path d="{{ k401.line }}" fill="none" stroke="#15a05f" stroke-width="2" stroke-linejoin="round"></path>
+<line x1="{{ k401.stopX }}" y1="4" x2="{{ k401.stopX }}" y2="120" stroke="#d98a23" stroke-width="1" stroke-dasharray="3 3"></line>
+<circle cx="{{ k401.stopX }}" cy="{{ k401.stopY }}" r="3.4" fill="#d98a23"></circle>
+<circle cx="326" cy="{{ k401.endY }}" r="3.4" fill="#15a05f"></circle>
+<sc-if value="{{ k401.showCompare }}" hint-placeholder-val="{{ false }}">
+<g>
+<sc-for list="{{ k401.compareLines }}" as="cl" hint-placeholder-count="3">
+<path d="{{ cl.line }}" fill="none" stroke="{{ cl.color }}" stroke-width="1.3" stroke-dasharray="4 3" opacity=".85"></path>
+</sc-for>
+</g>
+</sc-if>
+</svg>
+<div style="display:flex;justify-content:space-between;margin-top:6px;padding-bottom:6px">
+<span style="font:500 10px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">{{ k401.startYear }}</span>
+<span style="font:500 10px 'JetBrains Mono',ui-monospace;color:#d98a23">India {{ k401.stopYear }}</span>
+<span style="font:500 10px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">{{ k401.withdrawYear }}</span>
+</div>
+</div>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:16px">
+<div style="font:700 10px 'Plus Jakarta Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--tx3,#647084)">Employee contribution</div>
+<div style="display:flex;gap:6px;margin-top:10px">
+<sc-for list="{{ contribOptions }}" as="c" hint-placeholder-count="4">
+<button onClick="{{ c.pick }}" style="flex:1;padding:11px 0;border-radius:11px;border:1px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }};font:700 13px 'JetBrains Mono',ui-monospace;cursor:pointer">{{ c.label }}</button>
+</sc-for>
+</div>
+<div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:12px;border-top:1px solid var(--bd,rgba(255,255,255,.06))">
+<div style="font:600 12px 'Plus Jakarta Sans';color:var(--tx2,#98a4b6)">Monthly in (you + {{ k401.matchLabel }} match)</div>
+<div style="font:700 14px 'JetBrains Mono',ui-monospace">{{ k401.monthlyInStr }}</div>
+</div>
+<div style="margin-top:14px;font:700 10px 'Plus Jakarta Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--tx3,#647084)">Return scenario</div>
+<div style="display:flex;gap:6px;margin-top:10px;overflow-x:auto;padding-bottom:2px">
+<sc-for list="{{ returnOptions }}" as="r" hint-placeholder-count="4">
+<button onClick="{{ r.pick }}" style="flex:none;padding:9px 12px;border-radius:999px;border:1px solid {{ r.bd }};background:{{ r.bg }};color:{{ r.fg }};font:650 11.5px 'Plus Jakarta Sans';white-space:nowrap;cursor:pointer">{{ r.label }}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:16px">
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<div style="font:700 13px 'Plus Jakarta Sans'">Funds</div>
+<div style="font:500 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">10-yr avg</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px;margin-top:14px">
+<sc-for list="{{ funds }}" as="f" hint-placeholder-count="3">
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="display:flex;align-items:center;gap:8px">
+<span style="width:8px;height:8px;border-radius:2px;background:{{ f.color }}"></span>
+<span style="font:600 12.5px 'Plus Jakarta Sans'">{{ f.ticker }}</span>
+<span style="font:500 11px 'Plus Jakarta Sans';color:var(--tx3,#647084);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.name }}</span>
+<span style="margin-left:auto;font:700 12.5px 'JetBrains Mono',ui-monospace;color:#1faa6b">{{ f.r10Str }}</span>
+</div>
+<div style="display:flex;align-items:center;gap:10px">
+<div style="flex:1;height:6px;border-radius:999px;background:var(--sf3,#1d2533);overflow:hidden">
+<div style="height:100%;width:{{ f.width }};background:{{ f.color }};border-radius:999px"></div>
+</div>
+<span style="font:600 11px 'JetBrains Mono',ui-monospace;color:var(--tx2,#98a4b6);min-width:34px;text-align:right">{{ f.allocStr }}</span>
+<span style="font:600 11px 'JetBrains Mono',ui-monospace;min-width:62px;text-align:right">{{ f.valueStr }}</span>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bd,rgba(255,255,255,.06));font:500 11px/1.5 'Plus Jakarta Sans';color:var(--tx3,#647084)">Blended 10-yr {{ blend10Str }} · since inception {{ blendIncStr }}. For an {{ k401.years }}-year hold the long windows are the defensible assumption.</div>
+</div>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:16px">
+<div style="font:700 13px 'Plus Jakarta Sans'">Withdrawal at age {{ k401.withdrawAge }}</div>
+<div style="margin-top:6px;font:500 11.5px/1.5 'Plus Jakarta Sans';color:var(--tx2,#98a4b6)">{{ k401.penaltyNote }}</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+<sc-for list="{{ k401.withdrawRows }}" as="w" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:12px;background:{{ w.bg }};border:1px solid {{ w.bd }}">
+<span style="width:7px;height:7px;border-radius:2px;background:{{ w.color }}"></span>
+<span style="font:650 12px 'JetBrains Mono',ui-monospace;color:var(--tx2,#98a4b6)">{{ w.label }}</span>
+<span style="margin-left:auto;font:700 14px 'JetBrains Mono',ui-monospace">{{ w.net }}</span>
+<span style="font:500 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">net</span>
+</div>
+</sc-for>
+</div>
+<div style="margin-top:12px;display:flex;align-items:center;gap:10px">
+<button onClick="{{ toggleCompare }}" style="padding:9px 13px;border-radius:10px;border:1px solid var(--bds,rgba(255,255,255,.14));background:var(--sf2,#161c26);color:var(--tx,#e8edf4);font:650 11.5px 'Plus Jakarta Sans';cursor:pointer">{{ compareBtnLabel }}</button>
+<span style="font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">Overlay 5 / 7 / 8 / 10% on the chart</span>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isPf }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:baseline;gap:8px">
+<h1 style="margin:0;font:700 19px 'Plus Jakarta Sans';letter-spacing:-.02em">PF Reinvest</h1>
+<span style="font:500 11px 'Plus Jakarta Sans';color:var(--tx3,#647084)">closure {{ pf.dateLabel }}</span>
+</div>
+
+<div style="border-radius:18px;padding:18px;background:linear-gradient(160deg,rgba(47,109,240,.16),rgba(47,109,240,.03) 55%,var(--sf,#11161e));border:1px solid rgba(47,109,240,.26)">
+<div style="font:700 10px 'Plus Jakarta Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--tx2,#98a4b6)">Corpus to reinvest</div>
+<div style="margin-top:8px;font:700 34px 'JetBrains Mono',ui-monospace;font-variant-numeric:tabular-nums;letter-spacing:-.03em;line-height:1">{{ pf.corpusStr }}</div>
+<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+<span style="padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--bd,rgba(255,255,255,.09));font:600 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx2,#98a4b6)">{{ pf.monthsLabel }}</span>
+<span style="padding:4px 9px;border-radius:999px;background:rgba(217,138,35,.13);border:1px solid rgba(217,138,35,.32);font:600 10.5px 'Plus Jakarta Sans';color:#d98a23">Date not confirmed</span>
+</div>
+<div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+<sc-for list="{{ pf.sources }}" as="s" hint-placeholder-count="4">
+<div style="padding:10px 12px;border-radius:12px;background:var(--tile,rgba(10,13,18,.55));border:1px solid var(--bd,rgba(255,255,255,.07))">
+<div style="font:600 10px 'Plus Jakarta Sans';color:var(--tx3,#647084)">{{ s.label }}</div>
+<div style="margin-top:4px;font:700 14px 'JetBrains Mono',ui-monospace">{{ s.value }}</div>
+<div style="margin-top:2px;font:500 9.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">{{ s.foot }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:16px">
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<div style="font:700 13px 'Plus Jakarta Sans'">Allocation</div>
+<div style="font:500 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">blended {{ pf.yieldStr }}/yr</div>
+</div>
+<div style="display:flex;height:12px;border-radius:999px;overflow:hidden;background:var(--sf3,#1d2533);margin-top:12px">
+<div style="width:{{ pf.cashW }};background:#5b9cff"></div>
+<div style="width:{{ pf.bondW }};background:#2dd4a7"></div>
+<div style="width:{{ pf.wheelW }};background:#ffb84d"></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+<sc-for list="{{ pf.buckets }}" as="b" hint-placeholder-count="3">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:8px">
+<span style="width:8px;height:8px;border-radius:2px;background:{{ b.color }}"></span>
+<span style="font:650 12.5px 'Plus Jakarta Sans'">{{ b.label }}</span>
+<span style="font:500 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">{{ b.rate }}</span>
+<span style="margin-left:auto;font:700 12.5px 'JetBrains Mono',ui-monospace">{{ b.amount }}</span>
+<span style="font:600 11px 'JetBrains Mono',ui-monospace;color:var(--tx2,#98a4b6);min-width:34px;text-align:right">{{ b.pct }}</span>
+</div>
+<input type="range" min="0" max="100" step="1" value="{{ b.value }}" onChange="{{ b.onChange }}" disabled="{{ b.locked }}" style="width:100%;margin:0;opacity:{{ b.opacity }}">
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:14px">
+<div style="font:600 10px 'Plus Jakarta Sans';letter-spacing:.1em;text-transform:uppercase;color:var(--tx3,#647084)">Income / month</div>
+<div style="margin-top:7px;font:700 20px 'JetBrains Mono',ui-monospace;letter-spacing:-.02em">{{ pf.incomeStr }}</div>
+<div style="margin-top:3px;font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">post-tax, month one</div>
+</div>
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:14px">
+<div style="font:600 10px 'Plus Jakarta Sans';letter-spacing:.1em;text-transform:uppercase;color:var(--tx3,#647084)">Annuity / month</div>
+<div style="margin-top:7px;font:700 20px 'JetBrains Mono',ui-monospace;letter-spacing:-.02em">{{ pf.annuityStr }}</div>
+<div style="margin-top:3px;font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">on annuitised super</div>
+</div>
+</div>
+
+<div style="border-radius:16px;padding:16px;background:{{ pf.verdictBg }};border:1px solid {{ pf.verdictBd }}">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+<div style="font:700 12.5px 'Plus Jakarta Sans';color:{{ pf.verdictFg }}">{{ pf.verdictTitle }}</div>
+<div style="font:700 15px 'JetBrains Mono',ui-monospace;color:{{ pf.verdictFg }}">{{ pf.diffStr }}</div>
+</div>
+<div style="margin-top:4px;font:500 11px 'Plus Jakarta Sans';color:var(--tx2,#98a4b6)">vs staying in PF @ {{ pf.epfRateStr }} by {{ pf.endLabel }}</div>
+<svg viewBox="0 0 330 96" style="width:100%;height:auto;margin-top:12px;display:block" preserveAspectRatio="none">
+<path d="{{ pf.benchLine }}" fill="none" stroke="var(--tx3,#647084)" stroke-width="1.4" stroke-dasharray="4 3"></path>
+<path d="{{ pf.reinvestLine }}" fill="none" stroke="{{ pf.verdictFg }}" stroke-width="2" stroke-linejoin="round"></path>
+</svg>
+<div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+<span style="font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084);white-space:nowrap">Horizon {{ pf.horizonLabel }}</span>
+<input type="range" min="6" max="60" step="1" value="{{ pf.horizon }}" onChange="{{ pf.setHorizon }}" style="flex:1;margin:0">
+</div>
+</div>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;overflow:hidden">
+<div style="padding:14px 16px;border-bottom:1px solid var(--bd,rgba(255,255,255,.06));display:flex;align-items:baseline;justify-content:space-between">
+<div style="font:700 13px 'Plus Jakarta Sans'">Month by month</div>
+<div style="font:500 10px 'Plus Jakarta Sans';letter-spacing:.08em;text-transform:uppercase;color:var(--tx3,#647084)">income · ahead</div>
+</div>
+<sc-for list="{{ pf.rows }}" as="r" hint-placeholder-count="6">
+<div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--bd,rgba(255,255,255,.04))">
+<span style="font:600 11.5px 'JetBrains Mono',ui-monospace;color:var(--tx2,#98a4b6);min-width:64px">{{ r.label }}</span>
+<span style="font:600 12px 'JetBrains Mono',ui-monospace">{{ r.income }}</span>
+<span style="margin-left:auto;font:700 12px 'JetBrains Mono',ui-monospace;color:{{ r.diffColor }}">{{ r.diff }}</span>
+</div>
+</sc-for>
+<div style="padding:12px 16px;font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">First {{ pf.rowCount }} months of {{ pf.horizonLabel }}</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isExpenses }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:baseline;gap:8px">
+<h1 style="margin:0;font:700 19px 'Plus Jakarta Sans';letter-spacing:-.02em">Expenses</h1>
+<span style="font:500 11px 'Plus Jakarta Sans';color:var(--tx3,#647084)">India lifestyle · from {{ exp.returnYear }}</span>
+</div>
+
+<div style="border-radius:18px;padding:18px;background:linear-gradient(160deg,rgba(224,85,107,.14),rgba(224,85,107,.03) 55%,var(--sf,#11161e));border:1px solid rgba(224,85,107,.24)">
+<div style="font:700 10px 'Plus Jakarta Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--tx2,#98a4b6)">Total per month</div>
+<div style="margin-top:8px;font:700 34px 'JetBrains Mono',ui-monospace;font-variant-numeric:tabular-nums;letter-spacing:-.03em;line-height:1">{{ exp.totalStr }}</div>
+<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+<span style="padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--bd,rgba(255,255,255,.09));font:600 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx2,#98a4b6)">{{ exp.annualStr }}/yr</span>
+<span style="padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--bd,rgba(255,255,255,.09));font:600 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx2,#98a4b6)">FIRE target {{ exp.targetStr }}</span>
+</div>
+<div style="margin-top:14px;display:flex;height:10px;border-radius:999px;overflow:hidden;background:var(--sf3,#1d2533)">
+<sc-for list="{{ exp.rows }}" as="s" hint-placeholder-count="7">
+<div style="width:{{ s.width }};background:{{ s.color }}"></div>
+</sc-for>
+</div>
+</div>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:6px 16px 10px">
+<sc-for list="{{ exp.rows }}" as="e" hint-placeholder-count="7">
+<div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--bd,rgba(255,255,255,.05))">
+<span style="width:8px;height:8px;border-radius:2px;background:{{ e.color }}"></span>
+<div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+<span style="font:650 12.5px 'Plus Jakarta Sans'">{{ e.label }}</span>
+<span style="font:500 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">{{ e.share }} of spend</span>
+</div>
+<div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+<button onClick="{{ e.dec }}" style="width:30px;height:30px;border-radius:9px;border:1px solid var(--bds,rgba(255,255,255,.12));background:var(--sf2,#161c26);color:var(--tx2,#98a4b6);font:600 15px 'JetBrains Mono',ui-monospace;cursor:pointer;line-height:1">−</button>
+<span style="min-width:64px;text-align:right;font:700 13px 'JetBrains Mono',ui-monospace">{{ e.amount }}</span>
+<button onClick="{{ e.inc }}" style="width:30px;height:30px;border-radius:9px;border:1px solid var(--bds,rgba(255,255,255,.12));background:var(--sf2,#161c26);color:var(--tx2,#98a4b6);font:600 15px 'JetBrains Mono',ui-monospace;cursor:pointer;line-height:1">+</button>
+</div>
+</div>
+</sc-for>
+<div style="display:flex;align-items:center;padding:14px 0 6px">
+<span style="font:700 12px 'Plus Jakarta Sans';color:var(--tx2,#98a4b6)">Total / month</span>
+<span style="margin-left:auto;font:700 17px 'JetBrains Mono',ui-monospace">{{ exp.totalStr }}</span>
+</div>
+</div>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:14px">
+<sc-for list="{{ exp.toggles }}" as="t" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+<span style="font:650 12.5px 'Plus Jakarta Sans'">{{ t.label }}</span>
+<span style="font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">{{ t.foot }}</span>
+</div>
+<button onClick="{{ t.toggle }}" style="margin-left:auto;flex:none;width:44px;height:26px;border-radius:999px;border:1px solid {{ t.bd }};background:{{ t.bg }};position:relative;cursor:pointer;padding:0">
+<span style="position:absolute;top:2px;left:{{ t.knobLeft }};width:18px;height:18px;border-radius:999px;background:{{ t.knob }};transition:left .16s ease"></span>
+</button>
+</div>
+</sc-for>
+</div>
+
+<sc-if value="{{ exp.showSetup }}" hint-placeholder-val="{{ true }}">
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:16px">
+<div style="font:700 10px 'Plus Jakarta Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--tx3,#647084)">Return-to-India setup</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+<sc-for list="{{ exp.setupRows }}" as="o" hint-placeholder-count="5">
+<div style="padding:10px 12px;border-radius:12px;background:var(--sf2,#161c26);border:1px solid var(--bd,rgba(255,255,255,.06))">
+<div style="font:600 10px 'Plus Jakarta Sans';color:var(--tx3,#647084)">{{ o.label }}</div>
+<div style="margin-top:4px;font:700 13px 'JetBrains Mono',ui-monospace">{{ o.value }}</div>
+</div>
+</sc-for>
+</div>
+<div style="margin-top:12px;display:flex;align-items:center;padding-top:12px;border-top:1px solid var(--bd,rgba(255,255,255,.06))">
+<span style="font:600 11.5px 'Plus Jakarta Sans';color:var(--tx2,#98a4b6)">One-time total</span>
+<span style="margin-left:auto;font:700 14px 'JetBrains Mono',ui-monospace;color:#e0556b">{{ exp.setupTotal }}</span>
+</div>
+</div>
+</sc-if>
+
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:16px">
+<div style="display:flex;align-items:flex-start;gap:12px">
+<div style="display:flex;flex-direction:column;gap:3px;min-width:0">
+<span style="font:700 13px 'Plus Jakarta Sans'">Villa purchase</span>
+<span style="font:500 10.5px/1.45 'Plus Jakarta Sans';color:var(--tx3,#647084)">Optional goal — down payment hits the corpus, EMI draws only post-retirement</span>
+</div>
+<button onClick="{{ exp.toggleVilla }}" style="margin-left:auto;flex:none;width:44px;height:26px;border-radius:999px;border:1px solid {{ exp.villaBd }};background:{{ exp.villaBg }};position:relative;cursor:pointer;padding:0">
+<span style="position:absolute;top:2px;left:{{ exp.villaKnobLeft }};width:18px;height:18px;border-radius:999px;background:{{ exp.villaKnob }};transition:left .16s ease"></span>
+</button>
+</div>
+<sc-if value="{{ exp.villa }}" hint-placeholder-val="{{ false }}">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px">
+<sc-for list="{{ exp.villaRows }}" as="v" hint-placeholder-count="4">
+<div style="padding:11px 12px;border-radius:12px;background:var(--sf2,#161c26);border:1px solid var(--bd,rgba(255,255,255,.06))">
+<div style="font:600 10px 'Plus Jakarta Sans';color:var(--tx3,#647084)">{{ v.label }}</div>
+<div style="margin-top:4px;font:700 15px 'JetBrains Mono',ui-monospace">{{ v.value }}</div>
+<div style="margin-top:2px;font:500 9.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">{{ v.foot }}</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isSetup }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:baseline;gap:8px">
+<h1 style="margin:0;font:700 19px 'Plus Jakarta Sans';letter-spacing:-.02em">Assumptions</h1>
+<span style="font:500 11px 'Plus Jakarta Sans';color:var(--tx3,#647084)">drives every projection</span>
+</div>
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:16px">
+<div style="font:700 10px 'Plus Jakarta Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--tx3,#647084)">US salary</div>
+<div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+<button onClick="{{ setup.salDec }}" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--bds,rgba(255,255,255,.12));background:var(--sf2,#161c26);color:var(--tx2,#98a4b6);font:600 16px 'JetBrains Mono',ui-monospace;cursor:pointer">−</button>
+<div style="flex:1;text-align:center;font:700 22px 'JetBrains Mono',ui-monospace;letter-spacing:-.02em">{{ setup.salaryStr }}</div>
+<button onClick="{{ setup.salInc }}" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--bds,rgba(255,255,255,.12));background:var(--sf2,#161c26);color:var(--tx2,#98a4b6);font:600 16px 'JetBrains Mono',ui-monospace;cursor:pointer">+</button>
+</div>
+<div style="margin-top:8px;font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">Contributions are a share of this — at $0 every rate projects the same.</div>
+</div>
+<sc-for list="{{ setup.groups }}" as="g" hint-placeholder-count="4">
+<div style="background:var(--sf,#11161e);border:1px solid var(--bd,rgba(255,255,255,.075));border-radius:16px;padding:16px">
+<div style="font:700 10px 'Plus Jakarta Sans';letter-spacing:.14em;text-transform:uppercase;color:var(--tx3,#647084)">{{ g.title }}</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+<sc-for list="{{ g.fields }}" as="f" hint-placeholder-count="4">
+<div style="padding:10px 12px;border-radius:12px;background:var(--sf2,#161c26);border:1px solid var(--bd,rgba(255,255,255,.06))">
+<div style="font:600 10px 'Plus Jakarta Sans';color:var(--tx3,#647084)">{{ f.label }}</div>
+<div style="margin-top:4px;font:700 13.5px 'JetBrains Mono',ui-monospace">{{ f.value }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+</div>
+
+<div style="flex:none;display:flex;padding:8px 4px 26px;background:var(--nav,rgba(13,18,25,.96));border-top:1px solid var(--bd,rgba(255,255,255,.075));backdrop-filter:blur(12px)">
+<sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+<button onClick="{{ n.pick }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 0;background:none;border:none;cursor:pointer;color:{{ n.color }}">
+<svg viewBox="0 0 20 20" style="width:20px;height:20px;display:block" fill="none" stroke="{{ n.color }}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+<sc-if value="{{ n.isTrend }}" hint-placeholder-val="{{ false }}"><polyline points="3,14 8,8 12,11 17,4"></polyline></sc-if>
+<sc-if value="{{ n.isDot }}" hint-placeholder-val="{{ false }}"><circle cx="10" cy="10" r="6.5"></circle></sc-if>
+<sc-if value="{{ n.isSquare }}" hint-placeholder-val="{{ false }}"><rect x="3.5" y="3.5" width="13" height="13" rx="3.5"></rect></sc-if>
+<sc-if value="{{ n.isDiamond }}" hint-placeholder-val="{{ false }}"><rect x="4" y="4" width="12" height="12" rx="2.5" transform="rotate(45 10 10)"></rect></sc-if>
+<sc-if value="{{ n.isLines }}" hint-placeholder-val="{{ false }}"><g><line x1="3.5" y1="6" x2="16.5" y2="6"></line><line x1="3.5" y1="10" x2="16.5" y2="10"></line><line x1="3.5" y1="14" x2="16.5" y2="14"></line></g></sc-if>
+</svg>
+<span style="font:650 9.5px 'Plus Jakarta Sans';letter-spacing:.01em">{{ n.label }}</span>
+</button>
+</sc-for>
+</div>
+
+<sc-if value="{{ snapOpen }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;z-index:80;display:flex;flex-direction:column;justify-content:flex-end;background:rgba(2,6,12,.5)">
+<div onClick="{{ closeSnapshots }}" style="flex:1"></div>
+<div style="background:var(--sf,#11161e);border-top:1px solid var(--bd,rgba(255,255,255,.075));border-radius:22px 22px 0 0;padding:16px 16px 34px;max-height:76%;overflow-y:auto;animation:sheetUp .2s ease">
+<div style="display:flex;align-items:center;gap:10px">
+<div style="display:flex;flex-direction:column;gap:2px">
+<span style="font:700 15px 'Plus Jakarta Sans';letter-spacing:-.01em">Snapshots</span>
+<span style="font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">Compare saved versions of the plan</span>
+</div>
+<button onClick="{{ closeSnapshots }}" style="margin-left:auto;width:30px;height:30px;border-radius:9px;border:1px solid var(--bd,rgba(255,255,255,.075));background:var(--sf2,#161c26);color:var(--tx2,#98a4b6);font:600 14px 'Plus Jakarta Sans';cursor:pointer;line-height:1">✕</button>
+</div>
+<div style="display:flex;gap:8px;margin-top:14px">
+<button style="flex:1;padding:11px 0;border-radius:11px;border:1px solid #15a05f;background:#15a05f;color:#fff;font:700 12.5px 'Plus Jakarta Sans';cursor:pointer">＋ Save current</button>
+<button style="flex:none;padding:11px 16px;border-radius:11px;border:1px solid var(--bds,rgba(255,255,255,.14));background:var(--sf2,#161c26);color:var(--tx,#e8edf4);font:650 12.5px 'Plus Jakarta Sans';cursor:pointer">Export</button>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+<sc-for list="{{ snapshots }}" as="s" hint-placeholder-count="3">
+<div onClick="{{ s.toggle }}" style="padding:13px 15px;border-radius:12px;background:{{ s.bg }};border:1px solid {{ s.bd }};cursor:pointer">
+<div style="display:flex;align-items:baseline;gap:8px">
+<span style="font:650 12.5px 'Plus Jakarta Sans'">{{ s.label }}</span>
+<span style="font:500 10.5px 'Plus Jakarta Sans';color:var(--tx3,#647084)">{{ s.note }}</span>
+<span style="margin-left:auto;font:700 13px 'JetBrains Mono',ui-monospace">{{ s.wealth }}</span>
+</div>
+<div style="display:flex;align-items:baseline;gap:8px;margin-top:5px">
+<span style="font:600 10.5px 'JetBrains Mono',ui-monospace;color:{{ s.deltaColor }}">{{ s.delta }}</span>
+<span style="margin-left:auto;font:500 10.5px 'JetBrains Mono',ui-monospace;color:var(--tx3,#647084)">{{ s.date }}</span>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="margin-top:14px;padding:14px 14px 10px;border-radius:14px;background:var(--sf2,#161c26);border:1px solid var(--bd,rgba(255,255,255,.06))">
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<span style="font:700 11.5px 'Plus Jakarta Sans'">Wealth progression</span>
+<span style="font:500 10px 'JetBrains Mono',ui-monospace;color:#e0556b">— target {{ targetStr }}</span>
+</div>
+<svg viewBox="0 0 300 80" style="width:100%;height:auto;margin-top:10px;display:block" preserveAspectRatio="none">
+<line x1="0" y1="8" x2="300" y2="8" stroke="#e0556b" stroke-width="1" stroke-dasharray="5 4" opacity=".8"></line>
+<path d="{{ snapLine }}" fill="none" stroke="#15a05f" stroke-width="2" stroke-linejoin="round"></path>
+<sc-for list="{{ snapDots }}" as="d" hint-placeholder-count="3">
+<circle cx="{{ d.x }}" cy="{{ d.y }}" r="3.2" fill="#15a05f"></circle>
+</sc-for>
+</svg>
+</div>
+</div>
+</div>
+</sc-if>
+
+</div>
+</x-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:940},&quot;defaultTab&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;journey&quot;,&quot;expenses&quot;,&quot;k401&quot;,&quot;pf&quot;,&quot;setup&quot;],&quot;default&quot;:&quot;journey&quot;,&quot;tsType&quot;:&quot;'journey'|'expenses'|'k401'|'pf'|'setup'&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;,&quot;paper&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'|'paper'&quot;},&quot;annualSalary&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:145000,&quot;min&quot;:0,&quot;max&quot;:400000,&quot;step&quot;:5000,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Model&quot;},&quot;compareRates&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Model&quot;}}">
+class Component extends DCLogic {
+  FUNDS = [
+    { name: 'Vanguard IT Index', ticker: 'VITAX', alloc: 25, r5: 17.83, r10: 23.99, rInc: 15.28, color: '#4f9dff' },
+    { name: 'JPM Large Cap Growth', ticker: 'JLGMX', alloc: 45, r5: 10.11, r10: 18.68, rInc: 16.22, color: '#2dd4a7' },
+    { name: 'Fidelity 500 Index', ticker: 'FXAIX', alloc: 30, r5: 12.84, r10: 15.07, rInc: 13.98, color: '#ffb84d' }
+  ];
+  CONTRIBS = [0.05, 0.07, 0.08, 0.10];
+  CONTRIB_COLORS = { 0.05: '#4f9dff', 0.07: '#2dd4a7', 0.08: '#ffb84d', 0.10: '#a78bfa' };
+  EXPENSE_META = [
+    { key: 'rent', label: 'Rent', color: '#4f9dff' },
+    { key: 'groceries', label: 'Groceries', color: '#22c55e' },
+    { key: 'utilities', label: 'Utilities', color: '#f59e0b' },
+    { key: 'transport', label: 'Transport', color: '#a78bfa' },
+    { key: 'health', label: 'Health', color: '#ef4444' },
+    { key: 'entertainment', label: 'Entertainment', color: '#14b8a6' },
+    { key: 'misc', label: 'Misc', color: '#94a3b8' }
+  ];
+  SETUP_META = [
+    { key: 'homeBuying', label: 'Home setup' }, { key: 'carBuying', label: 'Car' },
+    { key: 'renovation', label: 'Renovation' }, { key: 'wedding', label: 'Family event' },
+    { key: 'misc', label: 'Misc' }
+  ];
+  THEMES = {
+    dark: { bg: '#0a0d12', sf: '#11161e', sf2: '#161c26', sf3: '#1d2533', bd: 'rgba(255,255,255,.075)', bds: 'rgba(255,255,255,.14)', tx: '#e8edf4', tx2: '#98a4b6', tx3: '#647084', gd: 'rgba(255,255,255,.06)', hd: 'linear-gradient(#11161e,#0d1219)', nav: 'rgba(13,18,25,.96)', tile: 'rgba(10,13,18,.55)' },
+    light: { bg: '#eef1f6', sf: '#ffffff', sf2: '#f6f8fb', sf3: '#eef2f7', bd: '#e4e9f0', bds: '#d2d9e4', tx: '#101826', tx2: '#586273', tx3: '#8a94a4', gd: 'rgba(16,24,38,.07)', hd: 'linear-gradient(#ffffff,#f6f8fb)', nav: 'rgba(255,255,255,.96)', tile: 'rgba(255,255,255,.72)' },
+    paper: { bg: '#ece5d6', sf: '#faf6ec', sf2: '#f3ecdd', sf3: '#eae0cd', bd: '#ddd2bd', bds: '#cbbd9f', tx: '#2a2417', tx2: '#6d6450', tx3: '#9c9079', gd: 'rgba(42,36,23,.08)', hd: 'linear-gradient(#faf6ec,#f3ecdd)', nav: 'rgba(250,246,236,.96)', tile: 'rgba(255,255,255,.6)' }
+  };
+  THEME_ORDER = ['dark', 'light', 'paper'];
+  MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  state = {
+    tab: null, sub: 'path', theme: null, snapOpen: false, snapSel: [1, 2],
+    contrib: 0.05, ret: null, compare: null,
+    cash: 68, bond: 0, horizon: 36, salary: null, swr: 4,
+    applyTax: false, setupCosts: true, compoundWheel: false, villa: false,
+    exp: { rent: 45000, groceries: 22000, utilities: 8000, transport: 12000, health: 9000, entertainment: 10000, misc: 8000 },
+    setupCostRows: { homeBuying: 800000, carBuying: 1200000, renovation: 400000, wedding: 300000, misc: 200000 }
+  };
+
+  startYear = 2026; startMonth = 8; currentAge = 42; returnYear = 2031; retireYear = 2036;
+  withdrawYear = 2044; taxRate401k = 0.22; matchPct = 0.04;
+  fundBal = 52226; loanBal = 9228; usdInr = 86;
+  epfLakhs = 68.8505; basicPay = 36700; epfRate = 0.0825; vpfRate = 0.88;
+  gratuity = 574855; superBal = 602082; superMonthly = 5505; superRate = 7.9;
+  commutation = 0.5; annuityRate = 0.06; cashRate = 7; bondRate = 7.5; wheelMonthly = 1.25; reinvestTax = 0;
+  pfMonth = 5; pfYear = 2027; inflation = 0.06; postFireRate = 0.065; ltcgRate = 0.125; taxablePart = 0.6;
+  villaDownL = 150; villaLoanL = 45; villaRate = 8.5; villaTenure = 15; villaYear = 2031;
+
+  fmtUSD(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
+  fmtINR(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+  fmtL(l) { return l >= 100 ? '₹' + (l / 100).toFixed(2) + 'Cr' : '₹' + l.toFixed(1) + 'L'; }
+  fmtCr(rupees) { return this.fmtL(rupees / 100000); }
+  pct(x, d) { return (x * 100).toFixed(d === undefined ? 1 : d) + '%'; }
+  blend(key) { return this.FUNDS.reduce((s, f) => s + (f.alloc / 100) * f[key], 0) / 100; }
+
+  get theme() { return this.state.theme ?? this.props.theme ?? 'dark'; }
+  get salary() { return this.state.salary ?? this.props.annualSalary ?? 145000; }
+  get compare() { return this.state.compare ?? this.props.compareRates ?? false; }
+  get tab() { return this.state.tab ?? this.props.defaultTab ?? 'journey'; }
+  get ret() { return this.state.ret ?? this.blend('r10'); }
+
+  projectK401(contrib, annualReturn) {
+    const mr = annualReturn / 12;
+    const mc = (this.salary * (contrib + this.matchPct)) / 12;
+    let bal = this.fundBal + this.loanBal, y = this.startYear, m = this.startMonth;
+    const out = [{ year: y, bal }];
+    while (y < this.withdrawYear || (y === this.withdrawYear && m <= 12)) {
+      bal = bal * (1 + mr) + (y <= this.returnYear ? mc : 0);
+      if (m === 12) out.push({ year: y, bal });
+      m++; if (m > 12) { m = 1; y++; }
+    }
+    return out;
+  }
+
+  projectEpf(months) {
+    let bal = this.epfLakhs * 100000, interest = 0;
+    const monthly = this.basicPay * (0.12 + this.vpfRate) + this.basicPay * 0.12;
+    for (let i = 0; i < months; i++) { bal += monthly; interest += bal * (this.epfRate / 12); }
+    return bal + interest;
+  }
+
+  projectSuper(months) {
+    let bal = this.superBal, interest = 0;
+    for (let i = 0; i < months; i++) { bal += this.superMonthly; interest += bal * (this.superRate / 100 / 12); }
+    return bal + interest;
+  }
+
+  alloc() {
+    let c = Math.max(0, Math.min(100, this.state.cash)) / 100;
+    let b = Math.max(0, Math.min(100, this.state.bond)) / 100;
+    if (c + b > 1) { const s = 1 / (c + b); c *= s; b *= s; }
+    return { c, b, w: 1 - c - b };
+  }
+
+  reinvestYield() {
+    const a = this.alloc();
+    return a.c * (this.cashRate / 100) + a.b * (this.bondRate / 100) + a.w * (this.wheelMonthly / 100 * 12);
+  }
+
+  projectReinvest(corpus, months) {
+    const a = this.alloc();
+    let cash = corpus * a.c, bonds = corpus * a.b, wheel = corpus * a.w, bench = corpus, pending = 0;
+    const rows = [];
+    for (let m = 1; m <= months; m++) {
+      const ci = cash * (this.cashRate / 100) / 12;
+      const bi = bonds * (this.bondRate / 100) / 12;
+      const wi = wheel * (this.wheelMonthly / 100);
+      bonds += bi;
+      if (this.state.compoundWheel) wheel += wi; else cash += wi;
+      pending += ci;
+      if (m % 3 === 0) { cash += pending; pending = 0; }
+      bench *= 1 + this.epfRate / 12;
+      const total = m - 1 + (this.pfMonth - 1);
+      rows.push({
+        label: this.MONTHS[((total % 12) + 12) % 12] + ' ' + (this.pfYear + Math.floor(total / 12)),
+        income: (ci + bi + wi) * (1 - this.reinvestTax / 100),
+        value: cash + bonds + wheel + pending, bench, diff: cash + bonds + wheel + pending - bench
+      });
+    }
+    return rows;
+  }
+
+  // Whole-plan yearly projection: US 401k (INR) + India retirals.
+  projectPlan(opts) {
+    const o = opts || {};
+    const retDelta = o.retDelta || 0;
+    const k401Return = this.ret - retDelta;
+    const reYield = this.reinvestYield() - retDelta;
+    const k = this.projectK401(this.state.contrib, k401Return);
+    const monthsToPf = Math.max(0, (this.pfYear * 12 + this.pfMonth - 1) - (this.startYear * 12 + this.startMonth - 1));
+    const pfAt = this.projectEpf(monthsToPf);
+    const superAt = this.projectSuper(monthsToPf);
+    const superLump = superAt * this.commutation;
+    const annuityCorpus = superAt - superLump;
+    const corpusAtClose = pfAt + this.gratuity + superLump;
+    const rows = [];
+    for (let i = 0; i < k.length; i++) {
+      const year = k[i].year;
+      let usL = (k[i].bal * this.usdInr) / 100000;
+      let inL;
+      if (year < this.pfYear) {
+        inL = (this.epfLakhs * 100000 * Math.pow(1 + this.epfRate, year - this.startYear)) / 100000;
+      } else {
+        inL = (corpusAtClose * Math.pow(1 + reYield, year - this.pfYear)) / 100000;
+      }
+      if (o.crashYear && year >= o.crashYear) usL *= 0.7;
+      if (this.state.villa && year >= this.villaYear) inL = Math.max(0, inL - this.villaDownL);
+      const totalL = usL + inL;
+      const passive = (totalL * 100000 * this.postFireRate) / 12 + (annuityCorpus * this.annuityRate) / 12;
+      rows.push({ year, usL, inL, totalL, passive });
+    }
+    return { rows, annuityMonthly: (annuityCorpus * this.annuityRate) / 12 };
+  }
+
+  spark(vals, w, h, pad, domain) {
+    const p = pad === undefined ? 8 : pad;
+    const min = domain ? domain[0] : Math.min.apply(null, vals);
+    const max = domain ? domain[1] : Math.max.apply(null, vals);
+    const span = max - min || 1;
+    const pts = vals.map((v, i) => {
+      const x = (i / (vals.length - 1 || 1)) * (w - 4) + 2;
+      const y = h - p - ((v - min) / span) * (h - p * 2);
+      return [x, y];
+    });
+    const line = pts.map((pt, i) => (i ? 'L' : 'M') + pt[0].toFixed(1) + ' ' + pt[1].toFixed(1)).join(' ');
+    return { line, area: line + ' L' + (w - 2) + ' ' + h + ' L2 ' + h + ' Z', pts, min, max, span };
+  }
+
+  set(patch) { this.setState(patch); }
+  bumpExp(key, delta) {
+    this.setState((s) => {
+      const exp = Object.assign({}, s.exp);
+      exp[key] = Math.max(0, exp[key] + delta);
+      return { exp };
+    });
+  }
+
+  renderVals() {
+    const S = this.state;
+    const tab = this.tab;
+    const th = this.THEMES[this.theme];
+    const rootStyle = '--bg:' + th.bg + ';--sf:' + th.sf + ';--sf2:' + th.sf2 + ';--sf3:' + th.sf3 +
+      ';--bd:' + th.bd + ';--bds:' + th.bds + ';--tx:' + th.tx + ';--tx2:' + th.tx2 + ';--tx3:' + th.tx3 +
+      ';--gd:' + th.gd + ';--hd:' + th.hd + ';--nav:' + th.nav + ';--tile:' + th.tile +
+      ';height:100%;display:flex;flex-direction:column;position:relative;background:var(--bg);color:var(--tx)';
+
+    const expTotal = this.EXPENSE_META.reduce((s, e) => s + (S.exp[e.key] || 0), 0);
+    const annual = expTotal * 12;
+    const targetL = (annual * 25) / 100000;
+    const monthsToPf = Math.max(0, (this.pfYear * 12 + this.pfMonth - 1) - (this.startYear * 12 + this.startMonth - 1));
+    const wealthL = ((this.fundBal + this.loanBal) * this.usdInr) / 100000 + this.epfLakhs;
+    const progress = targetL > 0 ? (wealthL / targetL) * 100 : 0;
+
+    // ── whole-plan base projection (Journey / Risk / Withdrawal) ──
+    const base = this.projectPlan({});
+    const jrows = base.rows;
+    const totals = jrows.map((r) => r.totalL);
+    const jsp = this.spark(totals, 330, 140, 12, [Math.min.apply(null, totals), Math.max(Math.max.apply(null, totals), targetL)]);
+    const retIdx = jrows.findIndex((r) => r.year === this.retireYear);
+    const atRet = jrows[retIdx >= 0 ? retIdx : jrows.length - 1];
+    const fireRow = jrows.find((r) => r.totalL >= targetL);
+    const targetY = 140 - 12 - ((targetL - jsp.min) / jsp.span) * (140 - 24);
+    const events = {};
+    events[this.pfYear] = { label: 'PF closure', c: '#4f9dff' };
+    events[this.returnYear] = { label: 'Return to India', c: '#15a05f' };
+    events[this.retireYear] = { label: 'Retire', c: '#d98a23' };
+    events[this.withdrawYear] = { label: '401k draw', c: '#f472b6' };
+
+    const jr = {
+      subLabel: S.sub === 'path' ? this.startYear + '–' + this.withdrawYear : (S.sub === 'risk' ? 'stress & drift' : 'drawdown plan'),
+      subTabs: ['path', 'risk', 'withdrawal'].map((k) => {
+        const on = S.sub === k;
+        return {
+          label: k === 'path' ? 'Trajectory' : (k === 'risk' ? 'Risk' : 'Withdrawal'),
+          bg: on ? 'rgba(21,160,95,.16)' : 'transparent',
+          bd: on ? '#15a05f' : 'transparent',
+          fg: on ? '#4fd493' : 'var(--tx2,#98a4b6)',
+          pick: () => this.set({ sub: k })
+        };
+      }),
+      isPath: S.sub === 'path', isRisk: S.sub === 'risk', isWithdrawal: S.sub === 'withdrawal',
+      retireYear: this.retireYear, endYear: this.withdrawYear,
+      corpusAtRetStr: this.fmtL(atRet.totalL),
+      passiveAtRetStr: this.fmtINR(atRet.passive),
+      fireYearLabel: fireRow ? 'FIRE by ' + fireRow.year : 'Target not reached',
+      progressW: Math.min(100, progress).toFixed(0) + '%',
+      line: jsp.line, area: jsp.area,
+      retX: retIdx >= 0 ? jsp.pts[retIdx][0] : 0,
+      retY: retIdx >= 0 ? jsp.pts[retIdx][1] : 0,
+      targetY: targetY.toFixed(1),
+      rows: jrows.filter((r, i) => i % 2 === 0 || events[r.year]).map((r) => {
+        const ev = events[r.year];
+        return {
+          year: r.year, total: this.fmtL(r.totalL), passive: this.fmtINR(r.passive) + '/mo',
+          usW: ((r.usL / r.totalL) * 100).toFixed(1) + '%',
+          inW: ((r.inL / r.totalL) * 100).toFixed(1) + '%',
+          bg: r.year === this.retireYear ? 'rgba(21,160,95,.09)' : 'transparent',
+          hasEvent: !!ev, event: ev ? ev.label : '',
+          eventFg: ev ? ev.c : '', eventBd: ev ? ev.c + '55' : '', eventBg: ev ? ev.c + '20' : ''
+        };
+      })
+    };
+
+    // ── Risk ──
+    const expAtRet = expTotal * Math.pow(1 + this.inflation, this.retireYear - this.startYear);
+    const expAtRetHigh = expTotal * Math.pow(1.08, this.retireYear - this.startYear);
+    const scenarioOf = (label, assumption, tone, proj, expense) => {
+      const rowsS = proj.rows;
+      const at = rowsS.find((r) => r.year === this.retireYear) || rowsS[rowsS.length - 1];
+      const fr = rowsS.find((r) => r.totalL >= targetL);
+      const delta = at.totalL - atRet.totalL;
+      return {
+        label, assumption, tone,
+        corpus: this.fmtL(at.totalL),
+        delta: (delta >= 0 ? '+' : '−') + this.fmtL(Math.abs(delta)),
+        deltaColor: delta >= 0 ? '#1faa6b' : '#e0556b',
+        cover: ((at.passive / expense) * 100).toFixed(0) + '%',
+        fireYear: fr ? String(fr.year) : 'Not reached'
+      };
+    };
+    const bufferYears = (atRet.totalL * (this.alloc().c + this.alloc().b) * 100000) / (expAtRet * 12);
+    const risk = {
+      scenarios: [
+        scenarioOf('Market crash', '−30% on US equity from 2030', '#e0556b', this.projectPlan({ crashYear: 2030 }), expAtRet),
+        scenarioOf('Low returns', 'CAGR 2pp below plan', '#d98a23', this.projectPlan({ retDelta: 0.02 }), expAtRet),
+        scenarioOf('High inflation', 'Spend inflates 8% not 6%', '#d98a23', base, expAtRetHigh)
+      ],
+      composition: jrows.filter((r, i) => i % 3 === 0).map((r) => ({
+        year: r.year,
+        usH: ((r.usL / r.totalL) * 100).toFixed(1) + '%',
+        inH: ((r.inL / r.totalL) * 100).toFixed(1) + '%'
+      })),
+      bufferLabel: bufferYears.toFixed(1) + 'y',
+      bufferW: Math.min(100, (bufferYears / 5) * 100).toFixed(0) + '%',
+      bufferColor: bufferYears >= 3 ? '#1faa6b' : (bufferYears >= 1.5 ? '#d98a23' : '#e0556b')
+    };
+
+    // ── Withdrawal ──
+    const corpusRet = atRet.totalL;
+    const swrAnnualL = corpusRet * (S.swr / 100);
+    const swrTaxL = swrAnnualL * this.taxablePart * this.ltcgRate;
+    const wdVals = []; const wdRows = [];
+    let c = corpusRet, draw = swrAnnualL;
+    for (let i = 0; i < 25; i++) {
+      wdVals.push(Math.max(0, c));
+      if (i < 6) {
+        wdRows.push({
+          year: this.retireYear + i, corpus: this.fmtL(Math.max(0, c)),
+          tax: '−' + this.fmtL(draw * this.taxablePart * this.ltcgRate),
+          net: this.fmtINR(((draw - draw * this.taxablePart * this.ltcgRate) * 100000) / 12)
+        });
+      }
+      c = c * (1 + this.postFireRate) - draw;
+      draw *= 1 + this.inflation;
+    }
+    const wsp = this.spark(wdVals, 330, 110, 8);
+    const depleted = wdVals[wdVals.length - 1] <= 0.5;
+    const wd = {
+      rateLabel: S.swr + '%',
+      rates: [2, 3, 4].map((r) => {
+        const on = S.swr === r;
+        return {
+          label: r + '%',
+          bg: on ? 'rgba(21,160,95,.16)' : 'var(--sf2,#161c26)',
+          bd: on ? '#15a05f' : 'var(--bd,rgba(255,255,255,.08))',
+          fg: on ? '#4fd493' : 'var(--tx2,#98a4b6)',
+          pick: () => this.set({ swr: r })
+        };
+      }),
+      netMonthStr: this.fmtINR(((swrAnnualL - swrTaxL) * 100000) / 12),
+      tiles: [
+        { label: 'Annual withdrawal', value: this.fmtL(swrAnnualL), foot: 'sell ' + S.swr + '% of units', color: 'var(--tx,#e8edf4)' },
+        { label: 'Taxable component', value: this.fmtL(swrAnnualL * this.taxablePart), foot: '40% is principal', color: 'var(--tx,#e8edf4)' },
+        { label: 'Est. LTCG tax', value: this.fmtL(swrTaxL), foot: '12.5% on gains', color: '#e0556b' },
+        { label: 'Corpus at ' + this.retireYear, value: this.fmtL(corpusRet), foot: 'from the trajectory', color: 'var(--tx,#e8edf4)' }
+      ],
+      line: wsp.line, area: wsp.area,
+      lineColor: depleted ? '#e0556b' : '#15a05f',
+      endLabel: depleted ? 'depleted before ' + (this.retireYear + 25) : (this.retireYear + 25) + ' · ' + this.fmtL(wdVals[wdVals.length - 1]),
+      rows: wdRows
+    };
+
+    // ── 401k ──
+    const series = this.projectK401(S.contrib, this.ret);
+    const vals = series.map((r) => r.bal);
+    const compareSeries = this.CONTRIBS.map((cc) => ({ c: cc, vals: this.projectK401(cc, this.ret).map((r) => r.bal) }));
+    const allVals = vals.concat.apply(vals, compareSeries.map((s) => s.vals));
+    const domain = [Math.min.apply(null, allVals), Math.max.apply(null, allVals)];
+    const sp = this.spark(vals, 330, 132, 10, domain);
+    const stopIdx = series.findIndex((r) => r.year === this.returnYear);
+    const gross = vals[vals.length - 1];
+    const withdrawAge = this.currentAge + (this.withdrawYear - this.startYear);
+    const k401 = {
+      startYear: this.startYear, stopYear: this.returnYear, withdrawYear: this.withdrawYear,
+      years: this.withdrawYear - this.startYear, withdrawAge,
+      horizonLabel: (this.withdrawYear - this.startYear) + 'y to draw',
+      netStr: this.fmtUSD(gross * (1 - this.taxRate401k)), grossStr: this.fmtUSD(gross),
+      taxPctStr: this.pct(this.taxRate401k, 0),
+      multipleStr: (gross / (this.fundBal + this.loanBal)).toFixed(1) + '×',
+      startStr: this.fmtUSD(this.fundBal + this.loanBal),
+      atStopStr: this.fmtUSD(stopIdx >= 0 ? vals[stopIdx] : vals[0]),
+      line: sp.line, area: sp.area,
+      stopX: stopIdx >= 0 ? sp.pts[stopIdx][0] : 0,
+      stopY: stopIdx >= 0 ? sp.pts[stopIdx][1] : 0,
+      endY: sp.pts[sp.pts.length - 1][1],
+      retLabel: this.pct(this.ret) + ' return',
+      contribLabel: this.pct(S.contrib, 0) + ' + ' + this.pct(this.matchPct, 0),
+      matchLabel: this.pct(this.matchPct, 0),
+      monthlyInStr: this.fmtUSD((this.salary * (S.contrib + this.matchPct)) / 12) + '/mo',
+      penaltyNote: withdrawAge >= 60
+        ? 'At ' + withdrawAge + ' you are past 59½ — ordinary income tax only, no 10% early-withdrawal penalty.'
+        : 'Before 59½ — income tax plus a 10% early-withdrawal penalty.',
+      showCompare: this.compare,
+      compareLines: compareSeries.map((s) => ({ line: this.spark(s.vals, 330, 132, 10, domain).line, color: this.CONTRIB_COLORS[s.c] })),
+      withdrawRows: (this.compare ? this.CONTRIBS : [S.contrib]).map((cc) => {
+        const g = this.projectK401(cc, this.ret).slice(-1)[0].bal;
+        const active = Math.abs(cc - S.contrib) < 1e-6;
+        return {
+          label: this.pct(cc, 0) + ' contribution',
+          net: this.fmtUSD(g * (1 - this.taxRate401k)),
+          color: this.CONTRIB_COLORS[cc],
+          bg: active ? 'rgba(21,160,95,.1)' : 'var(--sf2,#161c26)',
+          bd: active ? 'rgba(21,160,95,.32)' : 'var(--bd,rgba(255,255,255,.06))'
+        };
+      })
+    };
+
+    // ── PF ──
+    const pfBal = this.projectEpf(monthsToPf);
+    const superAt = this.projectSuper(monthsToPf);
+    const superLump = superAt * this.commutation;
+    const annuityCorpus = superAt - superLump;
+    const corpus = pfBal + this.gratuity + superLump;
+    const rows = this.projectReinvest(corpus, S.horizon);
+    const last = rows[rows.length - 1] || { diff: 0, label: '', value: 0, bench: 0 };
+    const beating = last.diff >= 0;
+    const a = this.alloc();
+    const income1 = rows[0] ? rows[0].income : 0;
+    const rvals = rows.map((r) => r.value), bvals = rows.map((r) => r.bench);
+    const lo = Math.min.apply(null, rvals.concat(bvals)), hi = Math.max.apply(null, rvals.concat(bvals));
+    const scale = (arr) => arr.map((v, i) => {
+      const x = (i / (arr.length - 1 || 1)) * 326 + 2;
+      const y = 90 - ((v - lo) / ((hi - lo) || 1)) * 82;
+      return (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+    }).join(' ');
+    const pf = {
+      dateLabel: this.MONTHS[this.pfMonth - 1] + ' ' + this.pfYear,
+      monthsLabel: monthsToPf + ' months out',
+      corpusStr: this.fmtCr(corpus),
+      sources: [
+        { label: 'EPF + VPF', value: this.fmtCr(pfBal), foot: 'grown to closure' },
+        { label: 'Gratuity', value: this.fmtCr(this.gratuity), foot: 'at separation' },
+        { label: 'Super lump', value: this.fmtCr(superLump), foot: this.pct(this.commutation, 0) + ' commuted' },
+        { label: 'Annuitised', value: this.fmtCr(annuityCorpus), foot: this.pct(this.annuityRate, 0) + ' payout' }
+      ],
+      cashW: (a.c * 100).toFixed(1) + '%', bondW: (a.b * 100).toFixed(1) + '%', wheelW: (a.w * 100).toFixed(1) + '%',
+      buckets: [
+        { label: 'Cash / FD', color: '#5b9cff', rate: this.cashRate.toFixed(1) + '% p.a.', amount: this.fmtCr(corpus * a.c), pct: (a.c * 100).toFixed(0) + '%', value: S.cash, locked: false, opacity: 1, onChange: (e) => this.set({ cash: Number(e.target.value) }) },
+        { label: 'Bonds / debt', color: '#2dd4a7', rate: this.bondRate.toFixed(1) + '% p.a.', amount: this.fmtCr(corpus * a.b), pct: (a.b * 100).toFixed(0) + '%', value: S.bond, locked: false, opacity: 1, onChange: (e) => this.set({ bond: Number(e.target.value) }) },
+        { label: 'Wheeling', color: '#ffb84d', rate: this.wheelMonthly.toFixed(2) + '% p.m.', amount: this.fmtCr(corpus * a.w), pct: (a.w * 100).toFixed(0) + '%', value: Math.round(a.w * 100), locked: true, opacity: 0.45, onChange: () => {} }
+      ],
+      incomeStr: this.fmtINR(income1),
+      annuityStr: this.fmtINR((annuityCorpus * this.annuityRate) / 12),
+      yieldStr: corpus > 0 ? ((income1 * 12) / corpus * 100).toFixed(2) + '%' : '0%',
+      verdictTitle: beating ? 'Ahead of PF' : 'Behind PF',
+      verdictFg: beating ? '#1faa6b' : '#e0556b',
+      verdictBg: beating ? 'rgba(31,170,107,.09)' : 'rgba(224,85,107,.09)',
+      verdictBd: beating ? 'rgba(31,170,107,.28)' : 'rgba(224,85,107,.28)',
+      diffStr: (beating ? '+' : '−') + this.fmtCr(Math.abs(last.diff)),
+      epfRateStr: this.pct(this.epfRate, 2),
+      endLabel: last.label,
+      benchLine: scale(bvals), reinvestLine: scale(rvals),
+      horizon: S.horizon, horizonLabel: S.horizon + ' mo',
+      setHorizon: (e) => this.set({ horizon: Number(e.target.value) }),
+      rowCount: Math.min(6, rows.length),
+      rows: rows.slice(0, 6).map((r) => ({
+        label: r.label, income: this.fmtINR(r.income),
+        diff: (r.diff >= 0 ? '+' : '−') + this.fmtCr(Math.abs(r.diff)),
+        diffColor: r.diff >= 0 ? '#1faa6b' : '#e0556b'
+      }))
+    };
+
+    // ── Expenses ──
+    const setupTotal = this.SETUP_META.reduce((s, o) => s + S.setupCostRows[o.key], 0);
+    const r0 = this.villaRate / 100 / 12, n = this.villaTenure * 12;
+    const emi = (this.villaLoanL * 100000 * r0 * Math.pow(1 + r0, n)) / (Math.pow(1 + r0, n) - 1);
+    const tog = (on) => ({
+      bg: on ? '#15a05f' : 'var(--sf3,#1d2533)', bd: on ? '#15a05f' : 'var(--bds,rgba(255,255,255,.14))',
+      knob: on ? '#fff' : 'var(--tx2,#98a4b6)', knobLeft: on ? '20px' : '2px'
+    });
+    const exp = Object.assign({
+      returnYear: this.returnYear,
+      totalStr: this.fmtINR(expTotal),
+      annualStr: this.fmtCr(annual),
+      targetStr: this.fmtL(targetL),
+      rows: this.EXPENSE_META.map((e) => ({
+        label: e.label, color: e.color,
+        amount: this.fmtINR(S.exp[e.key]),
+        share: expTotal > 0 ? ((S.exp[e.key] / expTotal) * 100).toFixed(0) + '%' : '0%',
+        width: (expTotal > 0 ? (S.exp[e.key] / expTotal) * 100 : 0).toFixed(1) + '%',
+        inc: () => this.bumpExp(e.key, 1000),
+        dec: () => this.bumpExp(e.key, -1000)
+      })),
+      toggles: [
+        Object.assign({ label: 'Apply 12.5% tax drag', foot: 'Taxes passive income in retirement', toggle: () => this.set({ applyTax: !S.applyTax }) }, tog(S.applyTax)),
+        Object.assign({ label: 'Return-to-India setup costs', foot: 'One-time relocation spend', toggle: () => this.set({ setupCosts: !S.setupCosts }) }, tog(S.setupCosts)),
+        Object.assign({ label: 'Compound wheeling premiums', foot: 'Otherwise swept to cash', toggle: () => this.set({ compoundWheel: !S.compoundWheel }) }, tog(S.compoundWheel))
+      ],
+      showSetup: S.setupCosts,
+      setupRows: this.SETUP_META.map((o) => ({ label: o.label, value: this.fmtCr(S.setupCostRows[o.key]) })),
+      setupTotal: this.fmtCr(setupTotal),
+      villa: S.villa,
+      toggleVilla: () => this.set({ villa: !S.villa }),
+      villaRows: [
+        { label: 'Down payment', value: this.fmtL(this.villaDownL), foot: 'inflated to ' + this.villaYear },
+        { label: 'Monthly EMI', value: this.fmtINR(emi), foot: this.villaLoanL + 'L @ ' + this.villaRate + '%' },
+        { label: 'Loan paid off', value: String(this.villaYear + this.villaTenure - 1), foot: this.villaTenure + 'y tenure' },
+        { label: 'Cash needed', value: this.fmtL(this.villaDownL + this.villaLoanL), foot: 'down + principal' }
+      ]
+    }, { villaBg: tog(S.villa).bg, villaBd: tog(S.villa).bd, villaKnob: tog(S.villa).knob, villaKnobLeft: tog(S.villa).knobLeft });
+
+    // ── Assumptions ──
+    const setup = {
+      salaryStr: this.fmtUSD(this.salary),
+      salInc: () => this.set({ salary: this.salary + 5000 }),
+      salDec: () => this.set({ salary: Math.max(0, this.salary - 5000) }),
+      groups: [
+        { title: 'Timeline', fields: [
+          { label: 'Start', value: this.MONTHS[this.startMonth - 1] + ' ' + this.startYear },
+          { label: 'Return to India', value: String(this.returnYear) },
+          { label: 'Retire', value: String(this.retireYear) },
+          { label: '401k draw', value: String(this.withdrawYear) }
+        ] },
+        { title: 'US 401k', fields: [
+          { label: 'Fund balance', value: this.fmtUSD(this.fundBal) },
+          { label: 'Loan balance', value: this.fmtUSD(this.loanBal) },
+          { label: 'Employer match', value: this.pct(this.matchPct, 0) },
+          { label: '₹ / $', value: String(this.usdInr) }
+        ] },
+        { title: 'PF & retirals', fields: [
+          { label: 'EPF today', value: this.fmtL(this.epfLakhs) },
+          { label: 'Basic pay', value: this.fmtINR(this.basicPay) },
+          { label: 'EPF rate', value: this.pct(this.epfRate, 2) },
+          { label: 'VPF rate', value: this.pct(this.vpfRate, 0) },
+          { label: 'Gratuity', value: this.fmtCr(this.gratuity) },
+          { label: 'Superannuation', value: this.fmtCr(this.superBal) }
+        ] },
+        { title: 'Rates', fields: [
+          { label: 'Cash', value: this.cashRate.toFixed(1) + '%' },
+          { label: 'Bonds', value: this.bondRate.toFixed(1) + '%' },
+          { label: 'Wheeling', value: this.wheelMonthly.toFixed(2) + '%/mo' },
+          { label: 'Inflation', value: this.pct(this.inflation, 0) },
+          { label: 'Post-FIRE', value: this.pct(this.postFireRate, 1) },
+          { label: 'Tax on income', value: this.reinvestTax + '%' }
+        ] }
+      ]
+    };
+
+    // ── Snapshots sheet ──
+    const snapDefs = [
+      { label: 'Baseline', note: 'initial plan', w: wealthL * 0.93, date: 'Jan 2026', delta: null },
+      { label: 'Post PF plan', note: 'reinvest split set', w: wealthL * 0.97, date: 'Apr 2026', delta: 4.3 },
+      { label: 'Current', note: 'Aug review', w: wealthL, date: 'Aug 2026', delta: 3.1 }
+    ];
+    const snapshots = snapDefs.map((s, i) => {
+      const on = S.snapSel.indexOf(i) >= 0;
+      return {
+        label: s.label, note: '· ' + s.note, wealth: this.fmtL(s.w), date: s.date,
+        delta: s.delta === null ? 'baseline' : '↑ ' + s.delta.toFixed(1) + '%',
+        deltaColor: s.delta === null ? 'var(--tx3,#647084)' : '#1faa6b',
+        bg: on ? 'rgba(21,160,95,.1)' : 'var(--sf2,#161c26)',
+        bd: on ? '#15a05f' : 'var(--bd,rgba(255,255,255,.06))',
+        toggle: () => this.setState((st) => {
+          const sel = st.snapSel.slice();
+          const at = sel.indexOf(i);
+          if (at >= 0) sel.splice(at, 1); else sel.push(i);
+          return { snapSel: sel };
+        })
+      };
+    });
+    const snapVals = snapDefs.map((s) => s.w);
+    const snapMax = Math.max(targetL, Math.max.apply(null, snapVals));
+    const snapPts = snapVals.map((v, i) => [8 + (i / (snapVals.length - 1 || 1)) * 284, 76 - (v / snapMax) * 62]);
+    const snapLine = snapPts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+
+    const navDefs = [
+      { key: 'journey', label: 'Journey', shape: 'trend' },
+      { key: 'expenses', label: 'Expenses', shape: 'square' },
+      { key: 'k401', label: '401k', shape: 'dot' },
+      { key: 'pf', label: 'PF', shape: 'diamond' },
+      { key: 'setup', label: 'Assumptions', shape: 'lines' }
+    ];
+
+    return {
+      rootStyle, isDark: this.theme === 'dark',
+      themeTitle: this.theme[0].toUpperCase() + this.theme.slice(1) + ' theme',
+      themeRays: this.theme !== 'dark',
+      cycleTheme: () => this.set({ theme: this.THEME_ORDER[(this.THEME_ORDER.indexOf(this.theme) + 1) % 3] }),
+      snapOpen: S.snapOpen, snapCount: snapDefs.length,
+      openSnapshots: () => this.set({ snapOpen: true }),
+      closeSnapshots: () => this.set({ snapOpen: false }),
+      snapshots, snapLine,
+      snapDots: snapPts.map((p) => ({ x: p[0].toFixed(1), y: p[1].toFixed(1) })),
+      planYear: this.startYear,
+      wealthStr: this.fmtL(wealthL), targetStr: this.fmtL(targetL),
+      progressStr: progress.toFixed(0) + '%',
+      isJourney: tab === 'journey', isK401: tab === 'k401', isPf: tab === 'pf',
+      isExpenses: tab === 'expenses', isSetup: tab === 'setup',
+      jr, risk, wd, k401, pf, exp, setup,
+      contribOptions: this.CONTRIBS.map((cc) => {
+        const on = Math.abs(cc - S.contrib) < 1e-6;
+        return {
+          label: this.pct(cc, 0),
+          bg: on ? 'rgba(21,160,95,.16)' : 'var(--sf2,#161c26)',
+          bd: on ? '#15a05f' : 'var(--bd,rgba(255,255,255,.08))',
+          fg: on ? '#4fd493' : 'var(--tx2,#98a4b6)',
+          pick: () => this.set({ contrib: cc })
+        };
+      }),
+      returnOptions: [
+        { v: 0.06, label: '6% conservative' },
+        { v: 0.10, label: '10% moderate' },
+        { v: this.blend('r5'), label: this.pct(this.blend('r5')) + ' · 5-yr' },
+        { v: this.blend('r10'), label: this.pct(this.blend('r10')) + ' · 10-yr' },
+        { v: this.blend('rInc'), label: this.pct(this.blend('rInc')) + ' · inception' }
+      ].map((o) => {
+        const on = Math.abs(o.v - this.ret) < 1e-6;
+        return {
+          label: o.label,
+          bg: on ? 'rgba(21,160,95,.16)' : 'var(--sf2,#161c26)',
+          bd: on ? '#15a05f' : 'var(--bd,rgba(255,255,255,.08))',
+          fg: on ? '#4fd493' : 'var(--tx2,#98a4b6)',
+          pick: () => this.set({ ret: o.v })
+        };
+      }),
+      funds: this.FUNDS.map((f) => ({
+        name: f.name, ticker: f.ticker, color: f.color,
+        r10Str: f.r10.toFixed(1) + '%', allocStr: f.alloc + '%', width: f.alloc + '%',
+        valueStr: this.fmtUSD((this.fundBal + this.loanBal) * (f.alloc / 100))
+      })),
+      blend10Str: this.pct(this.blend('r10')),
+      blendIncStr: this.pct(this.blend('rInc')),
+      compareBtnLabel: this.compare ? 'Hide rate overlay' : 'Compare all rates',
+      toggleCompare: () => this.set({ compare: !this.compare }),
+      nav: navDefs.map((nn) => ({
+        label: nn.label,
+        color: tab === nn.key ? '#15a05f' : 'var(--tx3,#647084)',
+        isTrend: nn.shape === 'trend', isDot: nn.shape === 'dot', isSquare: nn.shape === 'square',
+        isDiamond: nn.shape === 'diamond', isLines: nn.shape === 'lines',
+        pick: () => this.set({ tab: nn.key })
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

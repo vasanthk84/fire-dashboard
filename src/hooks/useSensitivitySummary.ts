@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { calculatePlan } from '../services/api';
+import { estimateTaxDragApprox } from '../utils/taxModel';
 import type { CalculationResults, Inputs } from '../types';
 
 type SensitivityTone = 'success' | 'warning' | 'danger';
 
 export interface SensitivityScenario {
-  key: 'inflation' | 'returns' | 'expenses';
+  key: 'inflation' | 'returns' | 'expenses' | 'fx';
   label: string;
   assumption: string;
   tone: SensitivityTone;
@@ -39,7 +40,7 @@ function computeFireYear(result: CalculationResults, currentMonthlyExp: number, 
     return null;
   }
 
-  const taxDrag = inputs.applyTax ? 0.125 : 0;
+  const taxDrag = estimateTaxDragApprox(inputs);
   const fireTargetLakhs = ((currentMonthlyExp * 12) * inputs.fireMultiplier) / (1 - taxDrag) / 100000;
   const match = result.fireProjections.find((projection) => projection.total >= fireTargetLakhs);
   return match?.year ?? null;
@@ -101,33 +102,31 @@ export function useSensitivitySummary({ inputs, results, currentMonthlyExp, oneT
       };
 
       try {
-        const [inflationResult, returnsResult, expensesResult] = await Promise.all([
-          calculatePlan({ ...basePayload, inflationRate: inputs.inflationRate + 0.01 }),
+        const [inflationResult, returnsResult, shockResult, fxResult] = await Promise.all([
+          calculatePlan({ ...basePayload, inflationRate: inputs.inflationRate + 0.02 }),
           calculatePlan({
             ...basePayload,
             mfRate: Math.max(0, inputs.mfRate - 0.02),
             stocksRate: Math.max(0, inputs.stocksRate - 0.02),
             usRate: Math.max(0, inputs.usRate - 0.02)
           }),
-          calculatePlan({ ...basePayload, monthlyExpenses: currentMonthlyExp * 1.15 })
+          calculatePlan({
+            ...basePayload,
+            mfCurrent: inputs.mfCurrent * 0.7,
+            stocksIndia: inputs.stocksIndia * 0.7,
+            usStocks: inputs.usStocks * 0.7
+          }),
+          calculatePlan({
+            ...basePayload,
+            usdExchangeRate: inputs.usdExchangeRate * 0.85
+          })
         ]);
 
         const nextScenarios = [
           {
-            key: 'inflation',
-            label: 'Inflation Stress',
-            assumption: 'Inflation +1 percentage point',
-            finalWealth: inflationResult.summary.finalWealth,
-            wealthDelta: inflationResult.summary.finalWealth - results.summary.finalWealth,
-            coverage: computeCoverage(inflationResult, inputs.retirementYear),
-            fireYear: computeFireYear(inflationResult, currentMonthlyExp, inputs),
-            tone: 'warning',
-            summary: ''
-          },
-          {
             key: 'returns',
-            label: 'Return Stress',
-            assumption: 'MF, India, and US returns -2 percentage points',
+            label: 'Low returns',
+            assumption: 'Equity CAGR −2%',
             finalWealth: returnsResult.summary.finalWealth,
             wealthDelta: returnsResult.summary.finalWealth - results.summary.finalWealth,
             coverage: computeCoverage(returnsResult, inputs.retirementYear),
@@ -136,13 +135,35 @@ export function useSensitivitySummary({ inputs, results, currentMonthlyExp, oneT
             summary: ''
           },
           {
+            key: 'inflation',
+            label: 'High inflation',
+            assumption: 'Inflation +2%',
+            finalWealth: inflationResult.summary.finalWealth,
+            wealthDelta: inflationResult.summary.finalWealth - results.summary.finalWealth,
+            coverage: computeCoverage(inflationResult, inputs.retirementYear),
+            fireYear: computeFireYear(inflationResult, currentMonthlyExp, inputs),
+            tone: 'warning',
+            summary: ''
+          },
+          {
             key: 'expenses',
-            label: 'Expense Stress',
-            assumption: 'Monthly expenses +15%',
-            finalWealth: expensesResult.summary.finalWealth,
-            wealthDelta: expensesResult.summary.finalWealth - results.summary.finalWealth,
-            coverage: computeCoverage(expensesResult, inputs.retirementYear),
-            fireYear: computeFireYear(expensesResult, currentMonthlyExp * 1.15, inputs),
+            label: 'Market shock',
+            assumption: 'Equity −30% today',
+            finalWealth: shockResult.summary.finalWealth,
+            wealthDelta: shockResult.summary.finalWealth - results.summary.finalWealth,
+            coverage: computeCoverage(shockResult, inputs.retirementYear),
+            fireYear: computeFireYear(shockResult, currentMonthlyExp, inputs),
+            tone: 'danger',
+            summary: ''
+          },
+          {
+            key: 'fx',
+            label: 'Rupee strengthens',
+            assumption: '₹/$ −15%',
+            finalWealth: fxResult.summary.finalWealth,
+            wealthDelta: fxResult.summary.finalWealth - results.summary.finalWealth,
+            coverage: computeCoverage(fxResult, inputs.retirementYear),
+            fireYear: computeFireYear(fxResult, currentMonthlyExp, inputs),
             tone: 'warning',
             summary: ''
           }

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>401k India Return Planner v2</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f3;
+      color: #1a1a18;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #5f5e5a; margin-bottom: 1.5rem; line-height: 1.6; }
+
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+    .metric { background: #ebebeb; border-radius: 8px; padding: 0.875rem 1rem; }
+    .metric-label { font-size: 11px; color: #5f5e5a; margin-bottom: 4px; }
+    .metric-value { font-size: 17px; font-weight: 500; color: #1a1a18; }
+    .metric-value.red { color: #a32d2d; }
+    .metric-sub { font-size: 11px; color: #5f5e5a; margin-top: 2px; }
+
+    .section-card { background: #fff; border: 0.5px solid rgba(0,0,0,0.15); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+    .section-title { font-size: 13px; font-weight: 500; color: #1a1a18; margin-bottom: 12px; }
+
+    .fund-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 0.5px solid rgba(0,0,0,0.08); font-size: 12px; }
+    .fund-row:last-child { border-bottom: none; }
+    .fund-row.header { font-size: 11px; color: #5f5e5a; font-weight: 500; padding-bottom: 6px; }
+    .fund-name { font-size: 12px; color: #1a1a18; }
+    .fund-ticker { font-size: 11px; color: #5f5e5a; }
+    .right { text-align: right; }
+    .center { text-align: center; }
+    .alloc-bar-wrap { background: #f1efe8; border-radius: 4px; height: 6px; overflow: hidden; }
+    .alloc-bar { height: 100%; border-radius: 4px; }
+
+    .ctrl-row { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap; }
+    .ctrl-row:last-child { margin-bottom: 0; }
+    .ctrl-label { font-size: 13px; color: #5f5e5a; min-width: 135px; display: flex; align-items: center; gap: 5px; }
+    .tab-btn { padding: 5px 13px; border: 0.5px solid rgba(0,0,0,0.3); border-radius: 8px; background: transparent; cursor: pointer; font-size: 12px; color: #5f5e5a; transition: all 0.15s; }
+    .tab-btn:hover { background: #f1efe8; }
+    .tab-btn.active { background: #e6f1fb; color: #0c447c; border-color: transparent; }
+    input[type="range"] { flex: 1; min-width: 120px; accent-color: #378add; cursor: pointer; }
+    .slider-val { font-size: 15px; font-weight: 500; min-width: 48px; color: #1a1a18; }
+    .slider-age { font-size: 12px; color: #5f5e5a; }
+
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 8px; font-size: 12px; color: #5f5e5a; }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .legend-swatch { width: 16px; height: 3px; border-radius: 2px; display: inline-block; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; background: #e24b4a; display: inline-block; }
+    .legend-dash { width: 16px; height: 2px; border-top: 2px dashed #888780; display: inline-block; }
+
+    .chart-wrap { position: relative; width: 100%; height: 340px; margin-bottom: 1.5rem; }
+
+    .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; }
+    table { width: 100%; font-size: 12px; border-collapse: collapse; table-layout: fixed; }
+    th { text-align: left; padding: 6px 8px; font-weight: 500; font-size: 11px; color: #5f5e5a; border-bottom: 0.5px solid rgba(0,0,0,0.15); }
+    td { padding: 6px 8px; border-bottom: 0.5px solid rgba(0,0,0,0.1); }
+    .right-td { text-align: right; }
+    tr.row-india { background: #faeeda; }
+    tr.row-withdraw { background: #fcebeb; }
+
+    .phase-badge { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 6px; white-space: nowrap; }
+    .phase-active   { background: #eaf3de; color: #3b6d11; }
+    .phase-coast    { background: #faeeda; color: #854f0b; }
+    .phase-withdraw { background: #fcebeb; color: #a32d2d; }
+
+    .withdrawal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+    .w-item { background: #f5f5f3; border-radius: 8px; padding: 0.75rem 1rem; }
+    .w-label { font-size: 11px; color: #5f5e5a; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
+    .w-gross { font-size: 12px; color: #5f5e5a; margin: 2px 0; }
+    .w-net { font-size: 15px; font-weight: 500; color: #3b6d11; margin: 2px 0; }
+
+    .note { font-size: 11px; color: #5f5e5a; line-height: 1.7; background: #f5f5f3; border-radius: 8px; padding: 0.75rem 1rem; }
+    .highlight-box { background: #e6f1fb; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; font-size: 12px; color: #0c447c; line-height: 1.7; }
+
+    @media (max-width: 520px) {
+      .ctrl-label { min-width: 100%; }
+      h1 { font-size: 18px; }
+      .fund-row { grid-template-columns: 2fr 1fr 1fr; }
+      .fund-row .hide-mobile { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>401k India Return Planner</h1>
+  <p class="subtitle">
+    Balance as of <strong>June 2026</strong> &nbsp;·&nbsp; Projections show <strong>end-of-year</strong> balance for each year shown &nbsp;·&nbsp;
+    Loans paid off mid-2027 &nbsp;·&nbsp; Coast phase after India move &nbsp;·&nbsp; Withdraw at age 60 (Dec 2044)
+  </p>
+
+  <div class="metric-grid">
+    <div class="metric" style="grid-column: span 1;">
+      <div class="metric-label" style="margin-bottom:6px;">Balance — as of month/year</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <div style="flex:1;">
+          <div style="font-size:10px;color:#5f5e5a;margin-bottom:3px;">Month</div>
+          <select id="balMonth" onchange="updateBalance()" style="width:100%;font-size:12px;padding:3px 5px;border:0.5px solid rgba(0,0,0,0.25);border-radius:6px;background:#fff;color:#1a1a18;">
+            <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+            <option value="4">Apr</option><option value="5">May</option><option value="6" selected>Jun</option>
+            <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+            <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+          </select>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:10px;color:#5f5e5a;margin-bottom:3px;">Year</div>
+          <input id="balYear" type="number" value="2026" min="2024" max="2030" onchange="updateBalance()" oninput="updateBalance()" style="width:100%;font-size:12px;padding:3px 5px;border:0.5px solid rgba(0,0,0,0.25);border-radius:6px;background:#fff;color:#1a1a18;" />
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <div style="flex:1;">
+          <div style="font-size:10px;color:#5f5e5a;margin-bottom:3px;">Fund balance ($)</div>
+          <input id="fundBal" type="number" value="52226" min="0" onchange="updateBalance()" oninput="updateBalance()" style="width:100%;font-size:12px;padding:3px 5px;border:0.5px solid rgba(0,0,0,0.25);border-radius:6px;background:#fff;color:#1a1a18;" />
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:10px;color:#5f5e5a;margin-bottom:3px;">Loan balance ($)</div>
+          <input id="loanBal" type="number" value="9228" min="0" onchange="updateBalance()" oninput="updateBalance()" style="width:100%;font-size:12px;padding:3px 5px;border:0.5px solid rgba(0,0,0,0.25);border-radius:6px;background:#fff;color:#1a1a18;" />
+        </div>
+      </div>
+      <div id="totalBalDisplay" style="font-size:15px;font-weight:500;color:#1a1a18;">Total: $61,454</div>
+      <div id="balDateDisplay" style="font-size:11px;color:#5f5e5a;margin-top:2px;">As of Jun 2026</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Your salary</div>
+      <div class="metric-value">$94,000</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Loans paid off</div>
+      <div class="metric-value">Mid-2027</div>
+      <div class="metric-sub">Loan 3: Aug · Loan 4: Jul</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Withdraw at age 60</div>
+      <div class="metric-value red">Dec 2044</div>
+      <div class="metric-sub">Penalty-free after 59½</div>
+    </div>
+  </div>
+
+  <div class="section-card">
+    <div class="section-title">Your fund allocation &amp; historic returns</div>
+    <div class="fund-row header">
+      <span>Fund</span>
+      <span class="center">Allocation</span>
+      <span class="right hide-mobile">10-yr return</span>
+      <span class="right hide-mobile">5-yr return</span>
+      <span class="right">Value (Jun 2026)</span>
+    </div>
+    <div class="fund-row">
+      <div>
+        <div class="fund-name">Vanguard IT Index Admiral</div>
+        <div class="fund-ticker">VITAX</div>
+        <div class="alloc-bar-wrap" style="margin-top:4px;"><div class="alloc-bar" style="width:25%;background:#378ADD;"></div></div>
+      </div>
+      <div class="center">25%</div>
+      <div class="right hide-mobile" style="color:#3b6d11;font-weight:500;">24.1%</div>
+      <div class="right hide-mobile" style="color:#3b6d11;">17.8%</div>
+      <div class="right">$15,123</div>
+    </div>
+    <div class="fund-row">
+      <div>
+        <div class="fund-name">JPMorgan Large Cap Growth R6</div>
+        <div class="fund-ticker">JLGMX</div>
+        <div class="alloc-bar-wrap" style="margin-top:4px;"><div class="alloc-bar" style="width:45%;background:#1D9E75;"></div></div>
+      </div>
+      <div class="center">45%</div>
+      <div class="right hide-mobile" style="color:#3b6d11;font-weight:500;">18.3%</div>
+      <div class="right hide-mobile" style="color:#5f5e5a;">10.9%</div>
+      <div class="right">$21,778</div>
+    </div>
+    <div class="fund-row">
+      <div>
+        <div class="fund-name">Fidelity 500 Index Fund</div>
+        <div class="fund-ticker">FXAIX</div>
+        <div class="alloc-bar-wrap" style="margin-top:4px;"><div class="alloc-bar" style="width:30%;background:#D85A30;"></div></div>
+      </div>
+      <div class="center">30%</div>
+      <div class="right hide-mobile" style="color:#3b6d11;font-weight:500;">15.6%</div>
+      <div class="right hide-mobile" style="color:#3b6d11;">14.1%</div>
+      <div class="right">$15,325</div>
+    </div>
+  </div>
+
+  <div class="highlight-box">
+    <strong>Blended portfolio return (weighted by your allocation):</strong><br>
+    10-year historical: (25% × 24.1%) + (45% × 18.3%) + (30% × 15.6%) = <strong>18.9% per year</strong><br>
+    5-year historical: (25% × 17.8%) + (45% × 10.9%) + (30% × 14.1%) = <strong>13.3% per year</strong><br>
+    <span style="font-size:11px;opacity:0.85;">These are past returns and do not guarantee future performance. The return selector below includes these plus conservative/moderate options.</span>
+  </div>
+
+  <div class="section-card">
+    <div class="ctrl-row">
+      <span class="ctrl-label">&#9992;&#65039; India return year</span>
+      <input type="range" min="2027" max="2040" value="2031" id="indiaSlider" step="1" />
+      <span class="slider-val" id="indiaYearLbl">2031</span>
+      <span class="slider-age" id="indiaAgeLbl">(age 47, end of year)</span>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">&#128200; Annual return</span>
+      <button class="tab-btn" id="r6"   onclick="setReturn(0.06,  this)">6% conservative</button>
+      <button class="tab-btn" id="r10"  onclick="setReturn(0.10,  this)">10% moderate</button>
+      <button class="tab-btn active" id="r133" onclick="setReturn(0.133, this)">13.3% (5-yr blend)</button>
+      <button class="tab-btn" id="r189" onclick="setReturn(0.189, this)">18.9% (10-yr blend)</button>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">&#128184; Contribution</span>
+      <button class="tab-btn active" id="c5"  onclick="setContrib(0.05, this)">5%</button>
+      <button class="tab-btn"        id="c7"  onclick="setContrib(0.07, this)">7%</button>
+      <button class="tab-btn"        id="c8"  onclick="setContrib(0.08, this)">8%</button>
+      <button class="tab-btn"        id="c10" onclick="setContrib(0.10, this)">10%</button>
+      <button class="tab-btn"        id="call" onclick="setContrib('all', this)">All 4</button>
+    </div>
+  </div>
+
+  <div class="summary-grid" id="summary-cards"></div>
+  <div class="legend" id="legend"></div>
+
+  <div class="chart-wrap">
+    <canvas id="projChart" role="img" aria-label="401k projection from June 2026 to December 2044, showing active contribution and coast phases per contribution rate"></canvas>
+  </div>
+
+  <div class="table-wrap">
+    <table id="projTable"></table>
+  </div>
+
+  <div class="section-card">
+    <div class="section-title">Age 60 withdrawal estimate — Dec 2044 (no early penalty)</div>
+    <div class="withdrawal-grid" id="withdrawal-cards"></div>
+    <p style="font-size:11px;color:#5f5e5a;margin-top:10px;line-height:1.6;">
+      Assumes 25% effective tax rate as NRI. Age 60 = fully penalty-free (after 59½ rule). US-India tax treaty may lower withholding further — consult a cross-border CPA before withdrawing.
+    </p>
+  </div>
+
+  <div class="note">
+    <strong>How to read this:</strong> Each year shown is the <strong>end-of-year balance</strong> (Dec 31 of that year). The starting point is <strong>June 2026</strong> ($61,454.64).
+    The India move year is also end-of-year — so "2031" means contributions stop after Dec 2031 and coast begins Jan 2032.
+    <br><br>
+    <span class="phase-badge phase-active">Active</span> Salary contributions + loan repayments flowing in &nbsp;
+    <span class="phase-badge phase-coast">Coast</span> No new contributions — compounding only &nbsp;
+    <span class="phase-badge phase-withdraw">Withdraw</span> Full balance taken Dec 2044 (age 60)
+    <br><br>
+    Loan repayments: $204.22 × 2/mo (Loan 3, through Aug 2027) + $147.35 × 2/mo (Loan 4, through Jul 2027). All returns compounded monthly.
+  </div>
+
+</div>
+
+<script>
+  const SALARY        = 94000;
+  let START_BAL     = 61454.64;
+  let START_YEAR    = 2026;
+  let START_MONTH   = 6;
+  const CURRENT_AGE   = 42;
+  const WITHDRAW_AGE  = 60;
+  const WITHDRAW_YEAR = 2044;
+  const END_YEAR      = WITHDRAW_YEAR;
+  const TOTAL_YEARS   = END_YEAR - START_YEAR;
+
+  const LOAN3_MONTHLY = 204.22 * 2;
+  const LOAN4_MONTHLY = 147.35 * 2;
+  const LOAN3_END = { year: 2027, month: 8 };
+  const LOAN4_END = { year: 2027, month: 7 };
+
+  const COLORS = { 0.05: '#378ADD', 0.07: '#1D9E75', 0.08: '#D85A30', 0.10: '#7F77DD' };
+  const CONTRIB_LABELS = { 0.05: '5%', 0.07: '7%', 0.08: '8%', 0.10: '10%' };
+
+  let currentReturn = 0.133;
+  let currentContrib = 0.05;
+  let indiaYear = 2031;
+  let chart = null;
+
+  function loanActive(calYear, calMonth) {
+    const cur = calYear * 12 + calMonth;
+    const l3  = LOAN3_END.year * 12 + LOAN3_END.month;
+    const l4  = LOAN4_END.year * 12 + LOAN4_END.month;
+    let b = 0;
+    if (cur <= l3) b += LOAN3_MONTHLY;
+    if (cur <= l4) b += LOAN4_MONTHLY;
+    return b;
+  }
+
+  function project(contribRate, annualReturn, stopYear) {
+    const mr = annualReturn / 12;
+    const mc = (SALARY * contribRate) / 12;
+    let bal = START_BAL;
+    const results = [];
+
+    let calYear  = START_YEAR;
+    let calMonth = START_MONTH;
+
+    const totalSteps = (END_YEAR - START_YEAR) * 12 + (12 - START_MONTH + 1);
+
+    for (let step = 0; step <= totalSteps; step++) {
+      if (step > 0) {
+        const isActive = calYear < stopYear || (calYear === stopYear && calMonth <= 12);
+        const contrib  = isActive ? mc + loanActive(calYear, calMonth) : 0;
+        bal = bal * (1 + mr) + contrib;
+      }
+
+      if (calMonth === 12 || step === 0) {
+        const age   = CURRENT_AGE + (calYear - START_YEAR);
+        const phase = calYear < stopYear ? 'active' :
+                      calYear === stopYear ? 'active' :
+                      calYear === WITHDRAW_YEAR ? 'withdraw' : 'coast';
+        results.push({ year: calYear, month: calMonth, age, balance: Math.round(bal), phase });
+      }
+
+      calMonth++;
+      if (calMonth > 12) { calMonth = 1; calYear++; }
+      if (calYear > END_YEAR) break;
+    }
+    return results;
+  }
+
+  function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
+  function pct(r) { return (r * 100 % 1 === 0) ? (r * 100) + '%' : (r * 100).toFixed(1) + '%'; }
+
+  function getContribs() {
+    return currentContrib === 'all' ? [0.05, 0.07, 0.08, 0.10] : [currentContrib];
+  }
+
+  function renderSummary(contribs) {
+    const el = document.getElementById('summary-cards');
+    el.innerHTML = '';
+    contribs.forEach(c => {
+      const d        = project(c, currentReturn, indiaYear);
+      const atIndia  = d.find(r => r.year === indiaYear) || d[d.length - 1];
+      const atEnd    = d[d.length - 1];
+      el.innerHTML += `<div class="metric">
+        <div class="metric-label" style="display:flex;align-items:center;gap:5px;">
+          <span style="width:9px;height:9px;border-radius:2px;background:${COLORS[c]};display:inline-block;"></span>
+          ${CONTRIB_LABELS[c]} — end of ${indiaYear}
+        </div>
+        <div class="metric-value" style="font-size:15px;">${fmt(atIndia.balance)}</div>
+        <div class="metric-sub">Dec 2044 (age 60): <strong style="color:#a32d2d;">${fmt(atEnd.balance)}</strong></div>
+      </div>`;
+    });
+  }
+
+  function renderWithdrawalCards(contribs) {
+    const el = document.getElementById('withdrawal-cards');
+    el.innerHTML = '';
+    contribs.forEach(c => {
+      const d        = project(c, currentReturn, indiaYear);
+      const gross    = d[d.length - 1].balance;
+      const afterTax = Math.round(gross * 0.75);
+      el.innerHTML += `<div class="w-item">
+        <div class="w-label">
+          <span style="width:8px;height:8px;border-radius:2px;background:${COLORS[c]};display:inline-block;"></span>
+          ${CONTRIB_LABELS[c]} contrib
+        </div>
+        <div class="w-gross">Gross: ${fmt(gross)}</div>
+        <div class="w-net">Net ~${fmt(afterTax)}</div>
+      </div>`;
+    });
+  }
+
+  function renderLegend(contribs) {
+    const el = document.getElementById('legend');
+    el.innerHTML = contribs.map(c => `
+      <span class="legend-item">
+        <span class="legend-swatch" style="background:${COLORS[c]};"></span>
+        ${CONTRIB_LABELS[c]}
+      </span>`).join('');
+    el.innerHTML += `
+      <span class="legend-item" style="margin-left:4px;">
+        <span class="legend-dash"></span> coast (no contributions)
+      </span>
+      <span class="legend-item">
+        <span class="legend-dot"></span> age 60 withdrawal
+      </span>`;
+  }
+
+  function renderChart(contribs) {
+    const stopIdx = indiaYear - START_YEAR;
+    const labels  = [];
+    for (let y = START_YEAR; y <= END_YEAR; y++) {
+      labels.push('Dec ' + y + '\n(age ' + (CURRENT_AGE + y - START_YEAR) + ')');
+    }
+
+    const datasets = [];
+    contribs.forEach(c => {
+      const data       = project(c, currentReturn, indiaYear);
+      const balances   = data.map(d => d.balance);
+      const activeData = balances.map((b, i) => i <= stopIdx ? b : null);
+      const coastData  = balances.map((b, i) => i >= stopIdx ? b : null);
+
+      datasets.push({
+        label: CONTRIB_LABELS[c] + ' active',
+        data: activeData,
+        borderColor: COLORS[c],
+        borderDash: [],
+        backgroundColor: 'transparent',
+        borderWidth: 2.5,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.3,
+        spanGaps: false
+      });
+      datasets.push({
+        label: CONTRIB_LABELS[c] + ' coast',
+        data: coastData,
+        borderColor: COLORS[c],
+        borderDash: [5, 4],
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        pointRadius: data.map(d => d.age === WITHDRAW_AGE ? 7 : 0),
+        pointBackgroundColor: '#E24B4A',
+        pointBorderColor: '#E24B4A',
+        pointHoverRadius: 8,
+        tension: 0.3,
+        spanGaps: false
+      });
+    });
+
+    if (chart) chart.destroy();
+    chart = new Chart(document.getElementById('projChart'), {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            filter: item => item.parsed.y !== null,
+            callbacks: {
+              title: ctx => ctx[0].label.replace('\n', ' '),
+              label: ctx => {
+                const name  = ctx.dataset.label.replace(' active', '').replace(' coast', '');
+                const phase = ctx.dataset.label.includes('coast') ? ' (coast)' : ' (active)';
+                return name + phase + ': ' + fmt(ctx.parsed.y);
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              autoSkip: true,
+              maxTicksLimit: 10,
+              callback: function(val, idx) {
+                return labels[idx] ? labels[idx].split('\n')[0] : '';
+              }
+            },
+            title: { display: true, text: 'Year (end of year balance)', font: { size: 11 } }
+          },
+          y: {
+            title: { display: true, text: 'Balance', font: { size: 11 } },
+            ticks: { callback: v => v >= 1000000 ? '$' + (v / 1000000).toFixed(1) + 'M' : '$' + (v / 1000).toFixed(0) + 'k' }
+          }
+        }
+      }
+    });
+  }
+
+  function renderTable(contribs) {
+    const unique = [];
+    for (let y = START_YEAR; y <= END_YEAR; y++) unique.push(y);
+    const datasets   = contribs.map(c => project(c, currentReturn, indiaYear));
+
+    let html = `<tr>
+      <th style="width:52px;">Year</th>
+      <th style="width:38px;">Age</th>
+      <th style="width:48px;">Month</th>
+      <th style="width:75px;">Phase</th>`;
+    contribs.forEach(c => { html += `<th style="text-align:right;">${CONTRIB_LABELS[c]}</th>`; });
+    html += '</tr>';
+
+    unique.forEach(y => {
+      const row = datasets[0].find(r => r.year === y);
+      if (!row) return;
+      const isWithdraw = y === WITHDRAW_YEAR;
+      const isIndia    = y === indiaYear && !isWithdraw;
+      const isStart    = y === START_YEAR;
+      const rowClass   = isWithdraw ? 'row-withdraw' : isIndia ? 'row-india' : '';
+      const monthLabel = isStart ? 'Jun 2026' : 'Dec ' + y;
+      const phaseLabel = isStart ? '<span class="phase-badge phase-active">Active</span>' :
+                         row.phase === 'active' ? '<span class="phase-badge phase-active">Active</span>' :
+                         isWithdraw ? '<span class="phase-badge phase-withdraw">Withdraw</span>' :
+                         '<span class="phase-badge phase-coast">Coast</span>';
+
+      html += `<tr class="${rowClass}">
+        <td>${y}</td>
+        <td>${row.age}${isWithdraw ? ' ★' : ''}${isIndia ? ' ✈' : ''}</td>
+        <td style="font-size:11px;color:#5f5e5a;">${monthLabel}</td>
+        <td>${phaseLabel}</td>`;
+      datasets.forEach(d => {
+        const r = d.find(x => x.year === y);
+        html += `<td class="right-td" style="font-weight:${isWithdraw ? '500' : '400'};color:${isWithdraw ? '#a32d2d' : 'inherit'};">${r ? fmt(r.balance) : '—'}</td>`;
+      });
+      html += '</tr>';
+    });
+    document.getElementById('projTable').innerHTML = html;
+  }
+
+  function refresh() {
+    const contribs = getContribs();
+    renderSummary(contribs);
+    renderLegend(contribs);
+    renderChart(contribs);
+    renderTable(contribs);
+    renderWithdrawalCards(contribs);
+  }
+
+  function setReturn(r, btn) {
+    currentReturn = r;
+    ['r6', 'r10', 'r133', 'r189'].forEach(id => document.getElementById(id).classList.remove('active'));
+    btn.classList.add('active');
+    refresh();
+  }
+
+  function setContrib(c, btn) {
+    currentContrib = c;
+    ['c5', 'c7', 'c8', 'c10', 'call'].forEach(id => document.getElementById(id).classList.remove('active'));
+    btn.classList.add('active');
+    refresh();
+  }
+
+  document.getElementById('indiaSlider').addEventListener('input', e => {
+    indiaYear = parseInt(e.target.value);
+    const age = CURRENT_AGE + (indiaYear - START_YEAR);
+    document.getElementById('indiaYearLbl').textContent = indiaYear;
+    document.getElementById('indiaAgeLbl').textContent  = '(age ' + age + ', end of year)';
+    refresh();
+  });
+
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function updateBalance() {
+    const fund  = parseFloat(document.getElementById('fundBal').value) || 0;
+    const loans = parseFloat(document.getElementById('loanBal').value) || 0;
+    const month = parseInt(document.getElementById('balMonth').value);
+    const year  = parseInt(document.getElementById('balYear').value);
+
+    START_BAL   = fund + loans;
+    START_MONTH = month;
+    START_YEAR  = year;
+
+    const totalStr = '$' + Math.round(START_BAL).toLocaleString();
+    document.getElementById('totalBalDisplay').textContent = 'Total: ' + totalStr;
+    document.getElementById('balDateDisplay').textContent  = 'As of ' + MONTH_NAMES[month - 1] + ' ' + year;
+
+    // Update subtitle
+    document.querySelector('.subtitle').innerHTML =
+      'Balance as of <strong>' + MONTH_NAMES[month - 1] + ' ' + year + '</strong> &nbsp;&middot;&nbsp; Projections show <strong>end-of-year</strong> balance for each year shown &nbsp;&middot;&nbsp; Loans paid off mid-2027 &nbsp;&middot;&nbsp; Coast phase after India move &nbsp;&middot;&nbsp; Withdraw at age 60 (Dec 2044)';
+
+    refresh();
+  }
+
+  refresh();
+</script>
+</body>
+</html>

@@ -93,7 +93,11 @@ export function useSnapshots(props: UseSnapshotsProps) {
         mfCurrent: inputs.mfCurrent,
         stocksIndia: inputs.stocksIndia,
         usStocks: inputs.usStocks,
-        emergencyFund: inputs.emergencyFund,
+        ppfCurrent: inputs.ppfCurrent,
+        fdCurrent: inputs.fdCurrent,
+        npsCurrent: inputs.npsCurrent,
+        apartmentCurrent: inputs.apartmentCurrent,
+        apartmentAppreciationPct: inputs.apartmentAppreciationPct,
         epfCurrent: inputs.epfCurrent,
         bondsInitial: inputs.bondsInitial,
         us401k: inputs.us401k,
@@ -102,7 +106,8 @@ export function useSnapshots(props: UseSnapshotsProps) {
       flows: {
         mfSIP: inputs.mfSIP,
         sipStepUpRate: inputs.sipStepUpRate,
-        optionSellingMonthly: inputs.optionSellingMonthly,
+        optionsPortfolioValue: inputs.optionsPortfolioValue,
+        optionsYieldPct: inputs.optionsYieldPct,
         annualSalary: inputs.annualSalary,
         basicPay: inputs.basicPay
       },
@@ -130,15 +135,55 @@ export function useSnapshots(props: UseSnapshotsProps) {
       },
       planningParams: {
         startYear: inputs.startYear,
+        startMonth: inputs.startMonth,
+        currentAge: inputs.currentAge,
         retirementYear: inputs.retirementYear,
         returnYear: inputs.returnYear,
         withdraw401kYear: inputs.withdraw401kYear,
+        retirementIncomeTaxRate: inputs.retirementIncomeTaxRate,
         applyTax: inputs.applyTax,
+        indiaSlabRatePct: inputs.indiaSlabRatePct,
         fireMultiplier: inputs.fireMultiplier
+      },
+      retirement401k: {
+        us401kContribPct: inputs.us401kContribPct,
+        us401kEmployerMatchPct: inputs.us401kEmployerMatchPct
+      },
+      pfReinvestment: {
+        pfWithdrawalMonth: inputs.pfWithdrawalMonth,
+        pfWithdrawalYear: inputs.pfWithdrawalYear,
+        gratuityAmount: inputs.gratuityAmount,
+        superannuationBalance: inputs.superannuationBalance,
+        superMonthlyContribution: inputs.superMonthlyContribution,
+        superInterestRatePct: inputs.superInterestRatePct,
+        superCommutationPct: inputs.superCommutationPct,
+        annuityRatePct: inputs.annuityRatePct,
+        pfCashAllocPct: inputs.pfCashAllocPct,
+        pfCashRatePct: inputs.pfCashRatePct,
+        pfBondAllocPct: inputs.pfBondAllocPct,
+        pfBondRatePct: inputs.pfBondRatePct,
+        pfWheelYieldPctMonthly: inputs.pfWheelYieldPctMonthly,
+        pfReinvestTaxPct: inputs.pfReinvestTaxPct
+      },
+      villa: {
+        villaEnabled: inputs.villaEnabled,
+        villaYear: inputs.villaYear,
+        villaDownPaymentLakhs: inputs.villaDownPaymentLakhs,
+        villaLoanAmountLakhs: inputs.villaLoanAmountLakhs,
+        villaLoanRatePct: inputs.villaLoanRatePct,
+        villaLoanTenureYears: inputs.villaLoanTenureYears,
+        apartmentSellAtVilla: inputs.apartmentSellAtVilla
       }
     };
 
     setSnapshots((prev) => [snapshot, ...prev]);
+    setShowSaveModal(false);
+    setSnapshotLabel('');
+    setSnapshotNotes('');
+    setSnapshotTags([]);
+  };
+
+  const closeSaveModal = () => {
     setShowSaveModal(false);
     setSnapshotLabel('');
     setSnapshotNotes('');
@@ -182,7 +227,10 @@ export function useSnapshots(props: UseSnapshotsProps) {
       ...snapshot.flows,
       ...snapshot.growthRates,
       ...snapshot.bonds,
-      ...snapshot.planningParams
+      ...snapshot.planningParams,
+      ...(snapshot.retirement401k ?? {}),
+      ...(snapshot.pfReinvestment ?? {}),
+      ...(snapshot.villa ?? {})
     }));
     setExpenses(snapshot.expenses.monthly);
     setOneTimeExpenses(nextOneTimeExpenses);
@@ -194,6 +242,9 @@ export function useSnapshots(props: UseSnapshotsProps) {
       ...snapshot.growthRates,
       ...snapshot.bonds,
       ...snapshot.planningParams,
+      ...(snapshot.retirement401k ?? {}),
+      ...(snapshot.pfReinvestment ?? {}),
+      ...(snapshot.villa ?? {}),
       monthlyExpenses: sumExpenses(snapshot.expenses.monthly),
       oneTimeExpenseTotal: sumExpenses(nextOneTimeExpenses)
     });
@@ -258,6 +309,7 @@ export function useSnapshots(props: UseSnapshotsProps) {
     snapshotNotes,
     snapshotTags,
     setShowSaveModal,
+    closeSaveModal,
     setSnapshotLabel,
     setSnapshotNotes,
     addTag,

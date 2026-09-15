@@ -1,122 +1,156 @@
-import { PieChart } from 'lucide-react';
 import type { CalculationResults, Inputs } from '../../types';
-import { fmtL } from '../../utils/formatters';
+import { fmtL, fmtRupees } from '../../utils/formatters';
+import { ApexChartComponent } from '../ApexChartComponent';
+import { CHARTS } from '../../utils/chartBuilders';
+import { buildTaxChecklist } from '../../utils/taxModel';
 
 interface WithdrawalTabProps {
   results: CalculationResults;
   inputs: Inputs;
   selectedWithdrawalRate: string;
   onSelectedRateChange: (value: string) => void;
+  themeKey: string;
 }
 
-export function WithdrawalTab({ results, inputs, selectedWithdrawalRate, onSelectedRateChange }: WithdrawalTabProps) {
+export function WithdrawalTab({ results, inputs, selectedWithdrawalRate, onSelectedRateChange, themeKey }: WithdrawalTabProps) {
   const scenario = results.withdrawalScenarios[selectedWithdrawalRate] ?? [];
+  if (scenario.length === 0) return null;
 
-  if (scenario.length === 0) {
-    return null;
-  }
+  const sustainability = results.withdrawalSustainability?.[selectedWithdrawalRate];
+  const postFireRatePct = ((inputs.postFireRate ?? 0.065) * 100).toFixed(1);
+  const taxModel = results.summary.taxModel;
 
-  const annualWithdrawal = scenario[0].withdrawalMonthly * 12;
-  const corpusAtRetirement = results.summary.finalWealth;
-  const yearsToRetire = inputs.retirementYear - inputs.startYear;
-  const totalSIPAddition = inputs.mfSIP * 12 * yearsToRetire;
-  const projectedPrincipal = (inputs.mfPrincipal || inputs.mfCurrent * 0.7) + totalSIPAddition;
-  const gainRatio = Math.max(0, (corpusAtRetirement - projectedPrincipal) / corpusAtRetirement);
-  const taxableGainComponent = annualWithdrawal * gainRatio;
-  const netTaxableGain = Math.max(0, taxableGainComponent - 1.25);
-  const ltcgTax = netTaxableGain * 0.125;
-  const oldWayTax = annualWithdrawal > 15 ? (annualWithdrawal - 15) * 0.3 + 1.5 + (1.5 * 0.04) : 0;
+  // Backend now computes the actual per-bucket tax (equity LTCG above the
+  // Rs 1.25L exemption + slab-rate tax on debt-taxed buckets, EPF/PPF free) —
+  // these numbers are read directly rather than re-derived here, avoiding the
+  // double-taxation that used to happen when "Apply tax" was also on.
+  const first = scenario[0];
+  const annualGross = first.grossWithdrawalMonthly * 12;
+  const annualTax = first.taxMonthly * 12;
+  const annualEquityTax = first.equityTaxMonthly * 12;
+  const annualSlabTax = first.slabTaxMonthly * 12;
+  const effectiveTaxPct = annualGross > 0 ? (annualTax / annualGross) * 100 : 0;
+
+  const cards = [
+    { l: 'Annual withdrawal', v: fmtL(annualGross), f: `Sell ${selectedWithdrawalRate} of corpus`, cls: '' },
+    { l: 'Est. tax', v: fmtL(annualTax), f: `Equity ${fmtL(annualEquityTax)} · Debt/US ${fmtL(annualSlabTax)}`, cls: '' },
+    { l: 'Net / mo', v: fmtRupees(((annualGross - annualTax) / 12) * 100000), f: `${effectiveTaxPct.toFixed(1)}% effective rate`, cls: 'hl' }
+  ];
+
+  const checklist = buildTaxChecklist(results, inputs, selectedWithdrawalRate);
 
   return (
-    <div>
-      <div className="withdrawal-shell">
-        <div className="withdrawal-header">
+    <div className="stack">
+      <div className="card card-pad">
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
           <div>
-            <h3 className="panel-title"><PieChart size={18} /> Smart Withdrawal Strategy (SWP)</h3>
-            <p className="panel-subtitle">Optimized for Long Term Capital Gains (LTCG)</p>
+            <div className="panel-h">
+              <span className="panel-t">Withdrawal (SWP)</span>
+            </div>
+            <div className="panel-cap" style={{ marginLeft: 0 }}>LTCG-optimised · FY2025 rules</div>
           </div>
-          <select className="rate-select" value={selectedWithdrawalRate} onChange={(event) => onSelectedRateChange(event.target.value)}>
-            <option value="2%">2% (Conservative)</option>
-            <option value="3%">3% (Balanced)</option>
-            <option value="4%">4% (Aggressive)</option>
+          <select
+            className="in"
+            style={{ width: 170, maxWidth: '100%' }}
+            value={selectedWithdrawalRate}
+            onChange={(e) => onSelectedRateChange(e.target.value)}
+          >
+            <option value="2%">2% · Conservative</option>
+            <option value="3%">3% · Balanced</option>
+            <option value="4%">4% · Aggressive</option>
           </select>
         </div>
 
-        <div className="withdrawal-grid">
-          <div className="info-card info-card-primary">
-            <div className="info-label">Annual Withdrawal</div>
-            <div className="info-value">{fmtL(annualWithdrawal)}</div>
-            <div className="info-note">You sell {selectedWithdrawalRate} of units</div>
-          </div>
-
-          <div className="info-card">
-            <div className="info-label">Taxable Component</div>
-            <div className="info-value info-value-amber">{fmtL(taxableGainComponent)}</div>
-            <div className="info-note">{((1 - gainRatio) * 100).toFixed(0)}% is your own principal</div>
-          </div>
-
-          <div className="info-card info-card-success">
-            <div className="info-label">Estimated Tax (LTCG)</div>
-            <div className="info-value info-value-green">₹{((ltcgTax * 100000) / 12).toFixed(0)}<span className="small-unit">/mo</span></div>
-            <div className="info-note success-row">
-              <span className="strike">Old: {fmtL(oldWayTax)}</span>
-              <span>Save {fmtL(Math.max(0, oldWayTax - ltcgTax))}!</span>
+        <div className="grid-3" style={{ marginTop: 4 }}>
+          {cards.map((c) => (
+            <div className={'calc ' + c.cls} key={c.l}>
+              <div className="calc-l">{c.l}</div>
+              <div className="calc-v">{c.v}</div>
+              <div className="calc-foot">{c.f}</div>
             </div>
-          </div>
+          ))}
+        </div>
 
-          <div className="logic-panel">
-            <h4>Calculation Logic (FY 2025 Rules)</h4>
-            <div className="logic-grid">
-              <div>
-                <div className="info-label">Estimated Principal in {inputs.retirementYear}</div>
-                <div className="logic-value">{fmtL(projectedPrincipal)}</div>
-              </div>
-              <div>
-                <div className="info-label">Capital Gains Ratio</div>
-                <div className="logic-value">{(gainRatio * 100).toFixed(1)}% of withdrawal</div>
-              </div>
-              <div>
-                <div className="info-label">Tax Calculation</div>
-                <div className="logic-mono">({fmtL(taxableGainComponent)} - 1.25L) × 12.5%</div>
-              </div>
+        <div style={{ marginTop: 18 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+            <div className="eyebrow">
+              Corpus sustainability · {sustainability?.horizonYears ?? 30}-yr horizon @ {selectedWithdrawalRate}
             </div>
+            {sustainability?.depletionYear ? (
+              <span className="tag bad">
+                Depletes {sustainability.depletionYear} · lasts {sustainability.sustainableYears}y
+              </span>
+            ) : (
+              <span className="tag ok">
+                Sustains full {sustainability?.horizonYears ?? 30}y horizon
+              </span>
+            )}
           </div>
+          <div className="panel-cap" style={{ marginLeft: 0, marginBottom: 12 }}>
+            Fixed real withdrawal, inflation-adjusted yearly · post-FI return assumed {postFireRatePct}%
+          </div>
+          <ApexChartComponent
+            height={240}
+            dep={'dep' + themeKey + selectedWithdrawalRate}
+            build={CHARTS.depletion(scenario, selectedWithdrawalRate)}
+          />
         </div>
       </div>
 
-      <div className="table-wrapper">
-        <div className="table-title">Projected Post-Tax Income</div>
-        <table>
-          <thead>
-            <tr>
-              <th>Year</th>
-              <th>Corpus</th>
-              <th>Withdrawal</th>
-              <th>Est. Tax (LTCG)</th>
-              <th>Net Monthly</th>
-            </tr>
-          </thead>
-          <tbody>
-            {scenario.map((row) => {
-              const corpus = row.corpusStart;
-              const gainShare = Math.max(0, (corpus - projectedPrincipal) / corpus);
-              const annualW = row.withdrawalMonthly * 12;
-              const taxable = Math.max(0, annualW * gainShare - 1.25);
-              const tax = taxable * 0.125;
-
-              return (
-                <tr key={row.year}>
-                  <td>{row.year}</td>
-                  <td>{fmtL(row.corpusStart)}</td>
-                  <td>{fmtL(annualW)}</td>
-                  <td className="text-red">-{fmtL(tax)}</td>
-                  <td className="text-green">₹{(((annualW - tax) / 12) * 100000).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div className="table-card">
+        <div className="table-head">
+          <div className="panel-t">Projected post-tax income</div>
+        </div>
+        <div className="table-scroll" style={{ maxHeight: 420, overflowY: 'auto' }}>
+          <table className="grid">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>Corpus</th>
+                <th>Withdrawal</th>
+                <th>Est. tax</th>
+                <th>Net / mo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scenario.map((r) => {
+                const aw = r.grossWithdrawalMonthly * 12;
+                const tax = r.depleted ? 0 : r.taxMonthly * 12;
+                return (
+                  <tr key={r.year} className={r.depleted ? 'text-neg' : ''}>
+                    <td className="k">{r.year}</td>
+                    <td>{r.depleted ? '—' : fmtL(r.corpusStart)}</td>
+                    <td>{r.depleted ? '—' : fmtL(aw)}</td>
+                    <td className="text-neg">{r.depleted ? '—' : `−${fmtL(tax)}`}</td>
+                    <td className={r.depleted ? '' : 'text-pos'}>
+                      {r.depleted ? 'Depleted' : fmtRupees(r.withdrawalMonthly * 100000)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {checklist.length > 0 && (
+        <div className="card card-pad">
+          <div className="panel-h">
+            <span className="panel-t">Legal ways to reduce SWP tax</span>
+          </div>
+          <div className="panel-cap" style={{ marginLeft: 0, marginBottom: 14 }}>
+            Plugged in with your numbers at {selectedWithdrawalRate} SWR · general guidance, not personalized tax advice
+          </div>
+          <div className="stack" style={{ gap: 12 }}>
+            {checklist.map((item) => (
+              <div key={item.title} style={{ borderLeft: '3px solid var(--accent)', paddingLeft: 12 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{item.title}</div>
+                <div className="panel-cap" style={{ marginLeft: 0, lineHeight: 1.5 }}>{item.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

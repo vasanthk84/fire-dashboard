@@ -1,26 +1,32 @@
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useState, useEffect, useMemo } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
+  Archive,
   Download,
-  Flag,
-  Info,
-  Play,
-  ShieldAlert,
-  ShieldCheck,
-  Target,
-  TrendingUp,
+  Map,
+  PlusCircle,
+  Shield,
+  SlidersHorizontal,
   Wallet,
-  Zap
+  X,
+  BookOpen,
+  Sun,
+  Moon,
+  ShieldCheck,
+  DownloadCloud,
+  PiggyBank,
+  Landmark,
+  RotateCcw
 } from 'lucide-react';
-import { InputDeck } from './components/InputDeck';
+import { InputDeck, INPUT_GROUPS, InputField } from './components/InputDeck';
 import { SaveSnapshotModal } from './components/SaveSnapshotModal';
 import { StatsDeck } from './components/StatsDeck';
-import { TabNavigation } from './components/TabNavigation';
-import { useChartData } from './hooks/useChartData';
 import { useFirePlanner } from './hooks/useFirePlanner';
 import { useSensitivitySummary } from './hooks/useSensitivitySummary';
 import { useSnapshots } from './hooks/useSnapshots';
+import { useIsMobile } from './mobile/hooks/useIsMobile';
+import { MobileApp } from './mobile/MobileApp';
 import { downloadPlanExcel } from './services/api';
 import type { TabKey } from './types';
 import { fmtL } from './utils/formatters';
@@ -30,14 +36,49 @@ const RiskTab = lazy(() => import('./components/tabs/RiskTab').then((module) => 
 const ExpensesTab = lazy(() => import('./components/tabs/ExpensesTab').then((module) => ({ default: module.ExpensesTab })));
 const WithdrawalTab = lazy(() => import('./components/tabs/WithdrawalTab').then((module) => ({ default: module.WithdrawalTab })));
 const SnapshotsTab = lazy(() => import('./components/tabs/SnapshotsTab').then((module) => ({ default: module.SnapshotsTab })));
+const Retirement401kTab = lazy(() => import('./components/tabs/Retirement401kTab').then((module) => ({ default: module.Retirement401kTab })));
+const PFReinvestmentTab = lazy(() => import('./components/tabs/PFReinvestmentTab').then((module) => ({ default: module.PFReinvestmentTab })));
 
 function TabFallback() {
   return <div className="tab-panel-loading">Loading panel...</div>;
 }
 
+const tabIcons = {
+  journey: Map,
+  risk: Shield,
+  expenses: Wallet,
+  withdrawal: PlusCircle,
+  retirement401k: PiggyBank,
+  pfReinvest: Landmark,
+  snapshots: Archive
+};
+
+const tabsMeta = [
+  { key: 'journey' as TabKey, label: 'Journey' },
+  { key: 'risk' as TabKey, label: 'Risk' },
+  { key: 'expenses' as TabKey, label: 'Expenses' },
+  { key: 'withdrawal' as TabKey, label: 'Withdrawal' },
+  { key: 'retirement401k' as TabKey, label: '401k Projector' },
+  { key: 'pfReinvest' as TabKey, label: 'PF Reinvest' },
+  { key: 'snapshots' as TabKey, label: 'Snapshots' }
+];
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('journey');
   const [selectedWithdrawalRate, setSelectedWithdrawalRate] = useState('4%');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Theme states
+  const [layout, setLayout] = useState<'console' | 'report'>(() => {
+    return (localStorage.getItem('fire-planner-layout') as 'console' | 'report') || 'console';
+  });
+  const [theme, setTheme] = useState<'dark' | 'light' | 'paper'>(() => {
+    return (localStorage.getItem('fire-planner-theme') as 'dark' | 'light' | 'paper') || 'dark';
+  });
+  const [hue, setHue] = useState<'green' | 'blue' | 'indigo' | 'cyan'>(() => {
+    return (localStorage.getItem('fire-planner-hue') as 'green' | 'blue' | 'indigo' | 'cyan') || 'green';
+  });
+
   const planner = useFirePlanner();
   const {
     inputs,
@@ -60,15 +101,36 @@ export default function App() {
     handleExpense,
     handleOneTime,
     runCalculation,
+    compareApartmentScenarios,
+    resetToDefaults,
     setExpenses,
     setOneTimeExpenses,
     sumExpenses,
     initialOneTimeExpenses
   } = planner;
 
+  // Run calculation on mount
+  useEffect(() => {
+    void runCalculation();
+  }, []);
+
+  // Update HTML attributes for CSS cascade
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('fire-planner-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-hue', hue);
+    localStorage.setItem('fire-planner-hue', hue);
+  }, [hue]);
+
+  useEffect(() => {
+    localStorage.setItem('fire-planner-layout', layout);
+  }, [layout]);
+
   const oneTimeExpenseTotal = showOneTime ? sumExpenses(oneTimeExpenses) : 0;
 
-  const { equityPctSeries, equityPctOptions, netWorthSeries, netWorthOptions, incomeExpenseSeries, incomeExpenseOptions } = useChartData({ inputs, results });
   const snapshots = useSnapshots({
     inputs,
     expenses,
@@ -86,6 +148,7 @@ export default function App() {
     runCalculation,
     sumExpenses
   });
+
   const sensitivity = useSensitivitySummary({
     inputs,
     results,
@@ -94,311 +157,534 @@ export default function App() {
     enabled: Boolean(results) && !validation.hasBlocking && currentMonthlyExp > 0
   });
 
-  const retirementProjection = results?.fireProjections.find((projection) => projection.year === inputs.retirementYear);
+  // Target multiplier stepper callback
+  const handleMultiplierChange = (val: number) => {
+    handleInput('fireMultiplier', val);
+    void runCalculation({ fireMultiplier: val });
+  };
+
+  const handleResetToDefaults = () => {
+    if (window.confirm('Reset all inputs and expenses back to the app defaults? Your saved Snapshots are not affected.')) {
+      void resetToDefaults();
+    }
+  };
+
+  // Theme Key used to rebuild charts
+  const themeKey = theme + '-' + hue;
+  const isMobile = useIsMobile(920);
+  const cycleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : prev === 'light' ? 'paper' : 'dark'));
+  };
+
+  // Readiness Calculation
+  const retirementProjection = results?.fireProjections.find((p) => p.year === inputs.retirementYear);
   const retirementCoverage = retirementProjection && retirementProjection.calculatedMonthlyExpense
     ? (retirementProjection.passiveIncomeMonthly / retirementProjection.calculatedMonthlyExpense) * 100
     : null;
 
-  const readiness = !results
-    ? null
-    : currentMonthlyExp === 0
-      ? {
-          tone: 'warning',
-          title: 'Incomplete planning input',
-          detail: 'The portfolio projection is available, but your expense base is still zero so the retirement target is not decision-ready.'
-        }
-      : retirementCoverage !== null && retirementCoverage >= 100
-        ? {
-            tone: 'success',
-            title: 'Plan is funded at retirement',
-            detail: `Projected passive income covers ${retirementCoverage.toFixed(0)}% of inflation-adjusted retirement expenses in ${inputs.retirementYear}.`
-          }
-        : yearsToFI !== null && inputs.startYear + yearsToFI <= inputs.retirementYear
-          ? {
-              tone: 'success',
-              title: 'Plan reaches FIRE before retirement',
-              detail: `The current assumptions reach the target around ${inputs.startYear + yearsToFI}, ahead of the planned retirement year.`
-            }
-          : {
-              tone: 'warning',
-              title: 'Gap remains under the current assumptions',
-              detail: 'The model still needs either higher savings, lower retirement expenses, or a later retirement year.'
-            };
+  const readiness = useMemo(() => {
+    if (currentMonthlyExp === 0) {
+      return { tone: 'warn', text: 'Add expenses to assess readiness' };
+    }
+    if (retirementCoverage !== null && retirementCoverage >= 100) {
+      return { tone: 'ok', text: `Funded · ${retirementCoverage.toFixed(0)}% expense cover` };
+    }
+    if (yearsToFI !== null && inputs.startYear + yearsToFI <= inputs.retirementYear) {
+      return { tone: 'ok', text: `On track · FIRE by ${inputs.startYear + yearsToFI}` };
+    }
+    return { tone: 'bad', text: 'Gap under current assumptions' };
+  }, [currentMonthlyExp, retirementCoverage, yearsToFI, inputs.startYear, inputs.retirementYear]);
 
-  return (
-    <div className="app-container">
-      <div className="app-header">
-        <div className="brand-block">
-          <div className="hero-kicker">Financial Independence Planner</div>
-          <div className="brand">
-            <h1><TrendingUp size={22} /> FIRE Architect Pro</h1>
-          </div>
-          <p className="hero-subtitle">
-            Model wealth accumulation, return-to-India costs, withdrawal strategy, and snapshot comparisons in one dark-mode workspace.
-          </p>
-          <div className="hero-badges">
-            <span className="hero-badge">TSX Modular UI</span>
-            <span className="hero-badge">Vercel Ready</span>
-            <span className="hero-badge">Scenario Planning</span>
-          </div>
-        </div>
-        <div className="hero-sidecard">
-          <div className="hero-card-label">Plan Snapshot</div>
-          <div className="hero-metric-grid">
-            <div className="hero-metric">
-              <span>Current Wealth</span>
-              <strong>{fmtL(currentWealthLakhs)}</strong>
-            </div>
-            <div className="hero-metric">
-              <span>FIRE Target</span>
-              <strong>{fireNumberLakhs > 0 ? fmtL(fireNumberLakhs) : 'Pending'}</strong>
-            </div>
-            <div className="hero-metric">
-              <span>Status</span>
-              <strong>{results ? `${progressToFire.toFixed(0)}% funded` : 'Ready to model'}</strong>
-            </div>
-          </div>
-          {results && (
-            <div className="hero-actions">
-              <button className="btn-dl" onClick={() => downloadPlanExcel(results, expenses, oneTimeExpenses, inputs)}>
-                <Download size={16} /> Export Excel
-              </button>
-            </div>
-          )}
-        </div>
+  // Mini-KPIs block
+  const kpis = (
+    <div className="head-kpis">
+      <div className="kpi-mini">
+        <span>Wealth</span>
+        <strong className="num">{fmtL(currentWealthLakhs)}</strong>
       </div>
-
-      <div className="section-heading">
-        <div>
-          <div className="section-eyebrow">Inputs</div>
-          <h2 className="section-title">Plan your accumulation model</h2>
-        </div>
-        <p className="section-note">
-          Update assumptions across assets, contributions, and growth rates before running the projection engine.
-        </p>
+      <div className="kpi-mini">
+        <span>Target</span>
+        <strong className="num">{fireNumberLakhs > 0 ? fmtL(fireNumberLakhs) : '—'}</strong>
       </div>
+      <div className="kpi-mini">
+        <span>Progress</span>
+        <strong className="num">{progressToFire.toFixed(0)}%</strong>
+      </div>
+    </div>
+  );
 
-      <InputDeck inputs={inputs} onInput={handleInput} />
+  const hues: Array<['green' | 'blue' | 'indigo' | 'cyan', string]> = [
+    ['green', '#15a05f'],
+    ['blue', '#2f6df0'],
+    ['indigo', '#5a52e0'],
+    ['cyan', '#0fa3bf']
+  ];
+  const themes: Array<['dark' | 'light' | 'paper', typeof Sun]> = [
+    ['dark', Moon],
+    ['light', Sun],
+    ['paper', BookOpen]
+  ];
 
+  // Chrome selection controls
+  const chromeControls = (
+    <div className="chrome">
+      <div className="seg sm">
+        <button className={layout === 'console' ? 'active' : ''} onClick={() => setLayout('console')}>
+          Console
+        </button>
+        <button className={layout === 'report' ? 'active' : ''} onClick={() => setLayout('report')}>
+          Report
+        </button>
+      </div>
+      <span className="chrome-sep"></span>
+      <div className="seg sm icn">
+        {themes.map(([l, Icon]) => (
+          <button
+            key={l}
+            title={l[0].toUpperCase() + l.slice(1) + ' theme'}
+            className={theme === l ? 'active' : ''}
+            onClick={() => setTheme(l)}
+          >
+            <Icon size={14} />
+          </button>
+        ))}
+      </div>
+      <div className="huedots">
+        {hues.map(([h, c]) => (
+          <button
+            key={h}
+            title={h}
+            aria-label={h}
+            className={'huedot' + (hue === h ? ' on' : '')}
+            style={{ '--c': c } as any}
+            onClick={() => setHue(h)}
+          ></button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const banners = (
+    <>
       {validation.hasBlocking && (
-        <div className="status-banner warning-banner">
-          <AlertTriangle size={16} /> {validation.blocking[0]}
+        <div className="banner warn">
+          <AlertCircle size={16} /> {validation.blocking[0]}
         </div>
       )}
 
       {!validation.hasBlocking && validation.hasAdvisory && (
-        <div className="advisory-panel">
-          <div className="advisory-header"><Info size={16} /> Model guardrails</div>
-          <ul className="advisory-list">
+        <div className="banner warn" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+            <AlertTriangle size={16} /> Model Guardrails
+          </div>
+          <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: '12px', color: 'var(--text-2)' }}>
             {validation.advisory.map((item) => (
-              <li key={item}>{item}</li>
+              <li key={item} style={{ marginTop: 4 }}>{item}</li>
             ))}
           </ul>
         </div>
       )}
 
-      <div className="action-bar">
-        <button className="btn-run" onClick={() => void runCalculation()} disabled={isCalculating}>
-          <Play size={16} /> {isCalculating ? 'Running...' : 'Run Calculation'}
-        </button>
-      </div>
-
       {calculationError && (
-        <div className="status-banner error-banner">
+        <div className="banner warn text-neg" style={{ borderColor: 'var(--neg)', background: 'color-mix(in srgb, var(--neg) 10%, transparent)' }}>
           <AlertCircle size={16} /> {calculationError}
         </div>
       )}
 
-      {!results && !calculationError && (
-        <div className="empty-dashboard">
-          <div className="empty-dashboard-copy">
-            <div className="section-eyebrow">Workflow</div>
-            <h2 className="section-title">Run your first projection</h2>
-            <p className="empty-copy">
-              The dashboard will unlock risk, expense, withdrawal, and snapshot views once you calculate a baseline plan.
-            </p>
-          </div>
-          <div className="empty-points">
-            <div className="empty-point">
-              <strong>1</strong>
-              <span>Set retirement year, assets, and monthly flows.</span>
-            </div>
-            <div className="empty-point">
-              <strong>2</strong>
-              <span>Add lifestyle expenses to calculate a credible FIRE target.</span>
-            </div>
-            <div className="empty-point">
-              <strong>3</strong>
-              <span>Run the plan, then review risk, withdrawals, and snapshots.</span>
-            </div>
-          </div>
+      {results?.summary.isEarlyWithdrawal401k && (
+        <div className="banner warn" style={{ borderColor: 'var(--neg)', background: 'color-mix(in srgb, var(--neg) 10%, transparent)', color: 'var(--neg)' }}>
+          <AlertCircle size={16} />
+          401k Draw year has you withdrawing at age {results.summary.ageAtWithdrawal401k} — before 59½, the IRS adds a 10% early withdrawal penalty on top of income tax ({(results.summary.taxRate401k * 100).toFixed(0)}% total applied).
         </div>
       )}
+    </>
+  );
 
-      {results && (
-        <>
-          {readiness && (
-            <div className={`readiness-card readiness-card-${readiness.tone}`}>
-              <div className="readiness-title">{readiness.title}</div>
-              <p className="readiness-copy">{readiness.detail}</p>
-              <div className="method-note">
-                Deterministic model with fixed growth, FX, and simplified tax assumptions. Treat it as a planning baseline, not tax or investment advice.
-              </div>
-            </div>
-          )}
+  const overview = (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <span className={'tag ' + readiness.tone}>
+          {readiness.tone === 'ok' ? <ShieldCheck size={14} /> : <AlertTriangle size={14} />}
+          {readiness.text}
+        </span>
+      </div>
+      <StatsDeck
+        currentWealthLakhs={currentWealthLakhs}
+        finalWealth={results ? results.summary.finalWealth : 0}
+        fireNumberLakhs={fireNumberLakhs}
+        progressToFire={progressToFire}
+        yearsToFI={yearsToFI}
+        inputs={inputs}
+        onMultiplierChange={handleMultiplierChange}
+        retirementYear={inputs.retirementYear}
+      />
+    </>
+  );
 
-          <div className="sensitivity-panel">
-            <div className="sensitivity-header">
-              <div>
-                <div className="section-eyebrow">Sensitivity</div>
-                <h3 className="section-title">How fragile is the current plan?</h3>
-              </div>
-              <p className="section-note">
-                Quick stress checks against the same model using slightly worse inflation, return, and expense assumptions.
-              </p>
-            </div>
+  function ActivePanel() {
+    if (!results) {
+      return <div className="tab-panel-loading">Calculating initial plan...</div>;
+    }
 
-            {sensitivity.isLoading && <div className="tab-panel-loading">Calculating sensitivity summary...</div>}
-            {sensitivity.error && !sensitivity.isLoading && <div className="status-banner warning-banner"><AlertTriangle size={16} /> {sensitivity.error}</div>}
-
-            {!sensitivity.isLoading && !sensitivity.error && sensitivity.scenarios.length > 0 && (
-              <div className="sensitivity-grid">
-                {sensitivity.scenarios.map((scenario) => (
-                  <div key={scenario.key} className={`sensitivity-card sensitivity-card-${scenario.tone}`}>
-                    <div className="sensitivity-label">{scenario.label}</div>
-                    <div className="sensitivity-assumption">{scenario.assumption}</div>
-                    <div className="sensitivity-metric-row">
-                      <span>Retirement corpus</span>
-                      <strong>{fmtL(scenario.finalWealth)}</strong>
-                    </div>
-                    <div className="sensitivity-metric-row">
-                      <span>Base-case delta</span>
-                      <strong>{scenario.wealthDelta >= 0 ? '+' : ''}{fmtL(scenario.wealthDelta)}</strong>
-                    </div>
-                    <div className="sensitivity-metric-row">
-                      <span>Expense cover</span>
-                      <strong>{scenario.coverage !== null ? `${scenario.coverage.toFixed(0)}%` : 'N/A'}</strong>
-                    </div>
-                    <div className="sensitivity-metric-row">
-                      <span>FIRE year</span>
-                      <strong>{scenario.fireYear ?? 'Not reached'}</strong>
-                    </div>
-                    <p className="sensitivity-summary">{scenario.summary}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="section-heading section-heading-compact">
-            <div>
-              <div className="section-eyebrow">Results</div>
-              <h2 className="section-title">Portfolio outlook and retirement readiness</h2>
-            </div>
-            <p className="section-note">
-              Use the tabs below to inspect journey milestones, asset mix, expense runway, and post-retirement withdrawals.
-            </p>
-          </div>
-
-          <div className="fire-calculator-panel">
-            <div className="fire-calc-card">
-              <div className="fire-calc-label"><Wallet size={14} /> Monthly Expenses</div>
-              <div className="fire-calc-input-wrapper">
-                <input className="fire-calc-input fire-calc-readonly" type="number" value={currentMonthlyExp} readOnly />
-              </div>
-              <div className="fire-calc-subtitle">₹{(currentMonthlyExp * 12).toLocaleString()}/year</div>
-              <div className="fire-calc-badge fire-calc-badge-success">Edit in Expenses tab</div>
-            </div>
-
-            <div className="fire-calc-card">
-              <div className="fire-calc-label"><Target size={14} /> FIRE Multiplier</div>
-              <div className="multiplier-input-group">
-                <input className="fire-calc-input" type="number" min={20} max={40} step={0.5} value={inputs.fireMultiplier} onChange={(event) => {
-                  handleInput('fireMultiplier', Number(event.target.value) || 25);
-                  void runCalculation({ fireMultiplier: Number(event.target.value) || 25 });
-                }} />
-                <span className="multiplier-symbol">×</span>
-              </div>
-              <div className="fire-calc-subtitle">{(100 / inputs.fireMultiplier).toFixed(2)}% safe withdrawal rate</div>
-              <div className="fire-calc-badge">{inputs.fireMultiplier >= 30 ? 'Conservative' : inputs.fireMultiplier >= 25 ? 'Balanced' : 'Aggressive'}</div>
-            </div>
-
-            <div className="fire-calc-card highlight">
-              <div className="fire-calc-label"><Flag size={14} /> FIRE Number Required</div>
-              <div className="fire-calc-value">{fireNumberLakhs > 0 ? fmtL(fireNumberLakhs) : '₹0.0L'}</div>
-              <div className="fire-calc-subtitle">{inputs.applyTax ? <ShieldAlert size={14} /> : <ShieldCheck size={14} />}{inputs.applyTax ? 'Tax-adjusted (12.5%)' : 'Pre-tax calculation'}</div>
-              <div className="fire-calc-badge"><Zap size={14} /> Your Freedom Target</div>
-            </div>
-          </div>
-
-          <StatsDeck
+    switch (activeTab) {
+      case 'journey':
+        return (
+          <JourneyTab
+            projections={results.fireProjections}
+            retirementYear={inputs.retirementYear}
+            startYear={inputs.startYear}
+            withdraw401kYear={inputs.withdraw401kYear}
+            themeKey={themeKey}
+          />
+        );
+      case 'risk':
+        return (
+          <RiskTab
+            results={results}
+            inputs={inputs}
+            onInput={(k, v) => {
+              handleInput(k, v);
+              void runCalculation({ [k]: v });
+            }}
+            stress={sensitivity.scenarios}
+            themeKey={themeKey}
+          />
+        );
+      case 'expenses':
+        return (
+          <ExpensesTab
+            expenses={expenses}
+            oneTimeExpenses={oneTimeExpenses}
+            showOneTime={showOneTime}
+            currentMonthlyExp={currentMonthlyExp}
+            applyTax={inputs.applyTax}
+            sampleTaxYear={sampleTaxYear}
+            onExpenseChange={(key, value) => void handleExpense(key, value)}
+            onOneTimeChange={(key, value) => void handleOneTime(key, value)}
+            onShowOneTimeChange={(checked) => {
+              setShowOneTime(checked);
+              void runCalculation({ oneTimeExpenseTotal: checked ? sumExpenses(oneTimeExpenses) : 0 });
+            }}
+            onApplyTaxChange={(checked) => {
+              handleInput('applyTax', checked);
+              void runCalculation({ applyTax: checked });
+            }}
+            results={results}
+            inputs={inputs}
+            onInput={(k, v) => {
+              handleInput(k, v);
+              void runCalculation({ [k]: v });
+            }}
+            compareApartmentScenarios={compareApartmentScenarios}
+            themeKey={themeKey}
+          />
+        );
+      case 'withdrawal':
+        return (
+          <WithdrawalTab
+            results={results}
+            inputs={inputs}
+            selectedWithdrawalRate={selectedWithdrawalRate}
+            onSelectedRateChange={setSelectedWithdrawalRate}
+            themeKey={themeKey}
+          />
+        );
+      case 'retirement401k':
+        return (
+          <Retirement401kTab
+            results={results}
+            inputs={inputs}
+            onInput={(k, v) => {
+              handleInput(k, v);
+              void runCalculation({ [k]: v });
+            }}
+            themeKey={themeKey}
+          />
+        );
+      case 'pfReinvest':
+        return (
+          <PFReinvestmentTab
+            results={results}
+            inputs={inputs}
+            onInput={(k, v) => {
+              handleInput(k, v);
+              void runCalculation({ [k]: v });
+            }}
+            themeKey={themeKey}
+          />
+        );
+      case 'snapshots':
+        return (
+          <SnapshotsTab
+            snapshots={snapshots.snapshots}
+            selectedSnapshots={snapshots.selectedSnapshots}
             currentWealthLakhs={currentWealthLakhs}
-            finalWealth={results.summary.finalWealth}
             fireNumberLakhs={fireNumberLakhs}
             progressToFire={progressToFire}
-            yearsToFI={yearsToFI}
-            startYear={inputs.startYear}
+            onSaveOpen={() => (results ? snapshots.setShowSaveModal(true) : window.alert('Run calculation first'))}
+            onExport={snapshots.exportSnapshots}
+            onImport={snapshots.importSnapshots}
+            onClearAll={snapshots.clearAllSnapshots}
+            onToggleSelection={snapshots.toggleSnapshotSelection}
+            onLoad={(id) => void snapshots.loadSnapshot(id)}
+            onDelete={snapshots.deleteSnapshot}
+            themeKey={themeKey}
+          />
+        );
+      default:
+        return null;
+    }
+  }
+
+  if (isMobile) {
+    return (
+      <MobileApp
+        planner={planner}
+        snapshotsApi={snapshots}
+        sensitivity={sensitivity}
+        theme={theme}
+        onCycleTheme={cycleTheme}
+        themeKey={themeKey}
+      />
+    );
+  }
+
+  /* ---------- Console layout shell ---------- */
+  if (layout === 'console') {
+    return (
+      <div className="shell">
+        <aside className="rail">
+          <div className="rail-brand">
+            <div className="logo">F</div>
+            <div>
+              <div className="brand-name">FIRE Planner</div>
+              <div className="brand-sub">Pro</div>
+            </div>
+          </div>
+          <nav className="rail-nav">
+            <div className="nav-sec">Analysis</div>
+            {tabsMeta.map((x) => {
+              const Icon = tabIcons[x.key];
+              return (
+                <button
+                  key={x.key}
+                  className={'nav-item' + (activeTab === x.key ? ' active' : '')}
+                  onClick={() => setActiveTab(x.key)}
+                >
+                  <Icon size={17} />
+                  {x.label}
+                </button>
+              );
+            })}
+          </nav>
+          <div className="rail-foot">
+            <button className="btn" style={{ width: '100%' }} onClick={() => setDrawerOpen(true)}>
+              <SlidersHorizontal size={15} />
+              Assumptions
+            </button>
+            {results && (
+              <button
+                className="btn btn-ghost"
+                style={{ width: '100%', justifyContent: 'flex-start' }}
+                onClick={() => downloadPlanExcel(results, expenses, oneTimeExpenses, inputs)}
+              >
+                <Download size={15} />
+                Export plan
+              </button>
+            )}
+            <button
+              className="btn btn-ghost"
+              style={{ width: '100%', justifyContent: 'flex-start' }}
+              title="Clears your saved plan and restores the app defaults"
+              onClick={handleResetToDefaults}
+            >
+              <RotateCcw size={15} />
+              Reset to defaults
+            </button>
+          </div>
+        </aside>
+
+        <main className="console-main">
+          <header className="head head-desktop">
+            <div>
+              <h1>{tabsMeta.find((x) => x.key === activeTab)?.label}</h1>
+              <div className="sub">FIRE projection · {inputs.startYear}</div>
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 22 }}>
+              {chromeControls}
+              {kpis}
+            </div>
+          </header>
+
+          <header className="head head-mobile">
+            <div className="logo">F</div>
+            <div className="head-mobile-title">
+              <h1>{tabsMeta.find((x) => x.key === activeTab)?.label}</h1>
+              <div className="sub">FIRE projection · {inputs.startYear}</div>
+            </div>
+            <div className="head-mobile-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon"
+                title={theme[0].toUpperCase() + theme.slice(1) + ' theme'}
+                onClick={() => {
+                  const order: Array<'dark' | 'light' | 'paper'> = ['dark', 'light', 'paper'];
+                  setTheme(order[(order.indexOf(theme) + 1) % order.length]);
+                }}
+              >
+                {theme === 'dark' ? <Moon size={17} /> : theme === 'light' ? <Sun size={17} /> : <BookOpen size={17} />}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon"
+                title="Assumptions"
+                onClick={() => setDrawerOpen(true)}
+              >
+                <SlidersHorizontal size={17} />
+              </button>
+            </div>
+          </header>
+
+          <div className="content stack">
+            {banners}
+
+            {overview}
+            <div className="section-gap">
+              <Suspense fallback={<TabFallback />}>
+                {ActivePanel()}
+              </Suspense>
+            </div>
+          </div>
+        </main>
+
+        <nav className="bottom-nav">
+          {tabsMeta.map((x) => {
+            const Icon = tabIcons[x.key];
+            return (
+              <button
+                key={x.key}
+                className={'bottom-nav-item' + (activeTab === x.key ? ' active' : '')}
+                onClick={() => setActiveTab(x.key)}
+              >
+                <Icon size={19} />
+                <span>{x.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className={'drawer-scrim' + (drawerOpen ? ' open' : '')} onClick={() => setDrawerOpen(false)}></div>
+        <aside className={'drawer' + (drawerOpen ? ' open' : '')}>
+          <div className="drawer-h">
+            <div className="panel-t">Assumptions</div>
+            <button className="btn btn-ghost" onClick={() => setDrawerOpen(false)}>
+              <X size={16} />
+            </button>
+          </div>
+          <div className="drawer-body">
+            {INPUT_GROUPS.map((g: any) => (
+              <div className="drawer-grp" key={g.title}>
+                <h4>{g.title}</h4>
+                <div className="drawer-grid">
+                  {g.fields.map((f: any) => (
+                    <InputField
+                      key={f.key}
+                      f={f}
+                      inputs={inputs}
+                      onInput={(k, v) => {
+                        handleInput(k, v);
+                        void runCalculation({ [k]: v });
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        <SaveSnapshotModal
+          open={snapshots.showSaveModal}
+          snapshotLabel={snapshots.snapshotLabel}
+          snapshotNotes={snapshots.snapshotNotes}
+          snapshotTags={snapshots.snapshotTags}
+          currentWealth={fmtL(currentWealthLakhs)}
+          progressToFire={progressToFire}
+          yearsToFI={yearsToFI}
+          onClose={snapshots.closeSaveModal}
+          onSave={snapshots.saveSnapshot}
+          onLabelChange={snapshots.setSnapshotLabel}
+          onNotesChange={snapshots.setSnapshotNotes}
+          onAddTag={snapshots.addTag}
+          onRemoveTag={snapshots.removeTag}
+        />
+      </div>
+    );
+  }
+
+  /* ---------- Report layout shell ---------- */
+  return (
+    <div className="shell report">
+      <main className="report-main">
+        <div className="topbar">
+          <div className="rail-brand" style={{ padding: 0 }}>
+            <div className="logo">F</div>
+            <div>
+              <div className="brand-name">FIRE Planner</div>
+            </div>
+          </div>
+          {kpis}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
+            {chromeControls}
+            <button
+              className="btn btn-sm btn-ghost"
+              title="Clears your saved plan and restores the app defaults"
+              onClick={handleResetToDefaults}
+            >
+              <RotateCcw size={14} /> Reset
+            </button>
+            {results && (
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={() => downloadPlanExcel(results, expenses, oneTimeExpenses, inputs)}
+              >
+                <DownloadCloud size={14} /> Export
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="content stack">
+          {banners}
+
+          <InputDeck
+            inputs={inputs}
+            onInput={(k, v) => {
+              handleInput(k, v);
+              void runCalculation({ [k]: v });
+            }}
           />
 
-          <TabNavigation activeTab={activeTab} onChange={setActiveTab} />
+          {overview}
 
-          <Suspense fallback={<TabFallback />}>
-            {activeTab === 'journey' && <JourneyTab projections={results.fireProjections} retirementYear={inputs.retirementYear} />}
-            {activeTab === 'risk' && (
-              <RiskTab
-                enableRebalancing={inputs.enableRebalancing}
-                targetEquityPre={inputs.targetEquityPre}
-                targetEquityPost={inputs.targetEquityPost}
-                glideYears={inputs.glideYears}
-                onInput={handleInput}
-                equityPctSeries={equityPctSeries}
-                equityPctOptions={equityPctOptions}
-                netWorthSeries={netWorthSeries}
-                netWorthOptions={netWorthOptions}
-              />
-            )}
-            {activeTab === 'expenses' && (
-              <ExpensesTab
-                expenses={expenses}
-                oneTimeExpenses={oneTimeExpenses}
-                showOneTime={showOneTime}
-                currentMonthlyExp={currentMonthlyExp}
-                applyTax={inputs.applyTax}
-                sampleTaxYear={sampleTaxYear}
-                incomeExpenseSeries={incomeExpenseSeries}
-                incomeExpenseOptions={incomeExpenseOptions}
-                onExpenseChange={(key, value) => void handleExpense(key, value)}
-                onOneTimeChange={(key, value) => void handleOneTime(key, value)}
-                onShowOneTimeChange={(checked) => {
-                  setShowOneTime(checked);
-                  void runCalculation();
-                }}
-                onApplyTaxChange={(checked) => {
-                  setInputs((prev) => ({ ...prev, applyTax: checked }));
-                  void runCalculation({ applyTax: checked });
-                }}
-              />
-            )}
-            {activeTab === 'withdrawal' && <WithdrawalTab results={results} inputs={inputs} selectedWithdrawalRate={selectedWithdrawalRate} onSelectedRateChange={setSelectedWithdrawalRate} />}
-            {activeTab === 'snapshots' && (
-              <SnapshotsTab
-                snapshots={snapshots.snapshots}
-                selectedSnapshots={snapshots.selectedSnapshots}
-                currentWealthLakhs={currentWealthLakhs}
-                fireNumberLakhs={fireNumberLakhs}
-                progressToFire={progressToFire}
-                onSaveOpen={() => results ? snapshots.setShowSaveModal(true) : window.alert('Run calculation first')}
-                onExport={snapshots.exportSnapshots}
-                onImport={snapshots.importSnapshots}
-                onClearAll={snapshots.clearAllSnapshots}
-                onToggleSelection={snapshots.toggleSnapshotSelection}
-                onLoad={(id) => void snapshots.loadSnapshot(id)}
-                onDelete={snapshots.deleteSnapshot}
-              />
-            )}
-          </Suspense>
-        </>
-      )}
+          <div className="section-gap">
+            <div className="tabbar">
+              {tabsMeta.map((x) => (
+                <button
+                  key={x.key}
+                  className={activeTab === x.key ? 'active' : ''}
+                  onClick={() => setActiveTab(x.key)}
+                >
+                  {x.label}
+                </button>
+              ))}
+            </div>
+            <Suspense fallback={<TabFallback />}>
+              <ActivePanel />
+            </Suspense>
+          </div>
+        </div>
+      </main>
 
       <SaveSnapshotModal
         open={snapshots.showSaveModal}
@@ -408,7 +694,7 @@ export default function App() {
         currentWealth={fmtL(currentWealthLakhs)}
         progressToFire={progressToFire}
         yearsToFI={yearsToFI}
-        onClose={() => snapshots.setShowSaveModal(false)}
+        onClose={snapshots.closeSaveModal}
         onSave={snapshots.saveSnapshot}
         onLabelChange={snapshots.setSnapshotLabel}
         onNotesChange={snapshots.setSnapshotNotes}
@@ -418,3 +704,4 @@ export default function App() {
     </div>
   );
 }
+

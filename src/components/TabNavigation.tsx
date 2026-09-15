@@ -1,4 +1,4 @@
-import { Camera, DollarSign, Map, Shield, TrendingDown } from 'lucide-react';
+import { Camera, DollarSign, Landmark, Map, PiggyBank, Shield, TrendingDown } from 'lucide-react';
 import { tabs } from '../constants';
 import type { TabKey } from '../types';
 
@@ -7,6 +7,8 @@ const iconMap = {
   risk: Shield,
   expenses: DollarSign,
   withdrawal: TrendingDown,
+  retirement401k: PiggyBank,
+  pfReinvest: Landmark,
   snapshots: Camera
 };
 

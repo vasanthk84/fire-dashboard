@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</helmet>
+
+<div style="{{ rootStyle }}">
+
+  <!-- Control bar -->
+  <div style="position:sticky; top:0; z-index:30; display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:16px 26px; background:color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter:blur(10px); border-bottom:1px solid var(--border)">
+    <div style="display:flex; align-items:center; gap:10px">
+      <div style="width:30px; height:30px; border-radius:8px; display:grid; place-items:center; background:var(--accent); color:var(--on-accent); font-weight:800; font-size:14px">F</div>
+      <div><div style="font-size:14px; font-weight:700; letter-spacing:-.01em; line-height:1">FIRE Planner — Responsive Mockups</div><div style="font-size:11px; color:var(--text-3); margin-top:2px">Phone &amp; desktop · one shared state</div></div>
+    </div>
+
+    <div style="margin-left:auto; display:flex; align-items:center; gap:14px; flex-wrap:wrap">
+      <!-- tab pills -->
+      <div style="display:flex; gap:2px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:3px">
+        <sc-for list="{{ tabPills }}" as="t" hint-placeholder-count="6"><button onClick="{{ t.go }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
+      </div>
+      <span style="width:1px; height:22px; background:var(--border)"></span>
+      <!-- theme seg -->
+      <div style="display:flex; gap:2px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:3px">
+        <button onClick="{{ setDark }}" title="Dark" style="{{ themeBtn.dark }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6.36 6.36 0 0 0 9 9 9 9 0 1 1-9-9z"></path></svg></button>
+        <button onClick="{{ setLight }}" title="Light" style="{{ themeBtn.light }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></button>
+        <button onClick="{{ setPaper }}" title="Paper" style="{{ themeBtn.paper }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></button>
+      </div>
+      <!-- hue dots -->
+      <div style="display:flex; gap:6px; align-items:center">
+        <sc-for list="{{ hueDots }}" as="h" hint-placeholder-count="4"><button onClick="{{ h.go }}" title="{{ h.name }}" style="{{ h.style }}"></button></sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- Frames -->
+  <div style="display:flex; gap:48px; align-items:flex-start; justify-content:center; flex-wrap:wrap; padding:48px 40px 80px">
+
+    <!-- Phone -->
+    <div style="display:flex; flex-direction:column; align-items:center; gap:14px">
+      <div style="font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--text-3)">Mobile · 390px</div>
+      <div style="width:414px; height:840px; background:#05070a; border-radius:52px; padding:13px; box-shadow:0 40px 90px -30px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04); position:relative">
+        <div style="position:absolute; top:26px; left:50%; transform:translateX(-50%); width:120px; height:30px; background:#05070a; border-radius:0 0 18px 18px; z-index:5"></div>
+        <div style="width:100%; height:100%; border-radius:40px; overflow:hidden; background:var(--bg); position:relative">
+          <dc-import name="FireScreen" tab="{{ tab }}" variant="mobile" on-tab="{{ setTab }}" hint-size="388px,814px" style="width:100%; height:100%"></dc-import>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div style="display:flex; flex-direction:column; align-items:center; gap:14px">
+      <div style="font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--text-3)">Desktop · responsive web</div>
+      <div style="width:1180px; max-width:100%; border-radius:14px; overflow:hidden; box-shadow:0 40px 90px -30px rgba(0,0,0,.5), 0 0 0 1px var(--border); background:var(--surface)">
+        <div style="display:flex; align-items:center; gap:8px; padding:12px 16px; background:var(--surface-2); border-bottom:1px solid var(--border)">
+          <span style="width:12px; height:12px; border-radius:50%; background:#ff5f57"></span>
+          <span style="width:12px; height:12px; border-radius:50%; background:#febc2e"></span>
+          <span style="width:12px; height:12px; border-radius:50%; background:#28c840"></span>
+          <div style="flex:1; max-width:420px; margin:0 auto; background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:5px 12px; font-size:11.5px; color:var(--text-3); text-align:center; font-family:'JetBrains Mono',ui-monospace,monospace">fire-planner.app / {{ tab }}</div>
+        </div>
+        <div style="height:760px; overflow:hidden">
+          <dc-import name="FireScreen" tab="{{ tab }}" variant="desktop" on-tab="{{ setTab }}" hint-size="1180px,760px" style="width:100%; height:100%"></dc-import>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1720,&quot;height&quot;:1000}}">
+class Component extends DCLogic {
+  state = { tab: 'journey', theme: 'dark', hue: 'green' };
+
+  THEMES = {
+    dark:  { '--bg':'#0a0d12','--surface':'#11161e','--surface-2':'#161c26','--surface-3':'#1d2533','--border':'rgba(255,255,255,.075)','--border-strong':'rgba(255,255,255,.14)','--text':'#e8edf4','--text-2':'#98a4b6','--text-3':'#647084','--grid':'rgba(255,255,255,.06)','--on-accent':'#fff','--shadow':'none' },
+    light: { '--bg':'#eef1f6','--surface':'#ffffff','--surface-2':'#f6f8fb','--surface-3':'#eef2f7','--border':'#e4e9f0','--border-strong':'#d2d9e4','--text':'#101826','--text-2':'#586273','--text-3':'#8a94a4','--grid':'rgba(16,24,38,.07)','--on-accent':'#fff','--shadow':'0 1px 2px rgba(16,24,38,.05), 0 8px 24px -12px rgba(16,24,38,.12)' },
+    paper: { '--bg':'#ece5d6','--surface':'#faf6ec','--surface-2':'#f3ecdd','--surface-3':'#eae0cd','--border':'#ddd2bd','--border-strong':'#cbbd9f','--text':'#2a2417','--text-2':'#6d6450','--text-3':'#9c9079','--grid':'rgba(42,36,23,.08)','--on-accent':'#fbf7ee','--shadow':'0 1px 2px rgba(60,48,20,.05), 0 10px 26px -14px rgba(60,48,20,.18)' }
+  };
+  HUES = {
+    green:  { '--accent':'#15a05f','--accent-ink':'#0c7a47', dot:'#15a05f' },
+    blue:   { '--accent':'#2f6df0','--accent-ink':'#2257d0', dot:'#2f6df0' },
+    indigo: { '--accent':'#5a52e0','--accent-ink':'#463fc2', dot:'#5a52e0' },
+    cyan:   { '--accent':'#0fa3bf','--accent-ink':'#0a82a0', dot:'#0fa3bf' }
+  };
+
+  componentDidMount() { this.apply(); }
+  componentDidUpdate() { this.apply(); }
+  apply() {
+    const el = this.refs && this.refs.root;
+    if (!el) return;
+    const vars = Object.assign({}, this.THEMES[this.state.theme], this.HUES[this.state.hue]);
+    delete vars.dot;
+    Object.entries(vars).forEach(([k,v]) => el.style.setProperty(k, v));
+  }
+
+  renderVals() {
+    const tabs = [
+      ['journey','Journey'],['risk','Risk'],['expenses','Expenses'],
+      ['withdrawal','Withdrawal'],['snapshots','Snapshots'],['setup','Setup']
+    ];
+    const pillBase = 'border:none; background:none; font-family:inherit; font-size:12px; font-weight:600; padding:6px 12px; border-radius:7px; cursor:pointer;';
+    const tabPills = tabs.map(([k,label]) => ({
+      label, go: () => this.setState({ tab:k }),
+      style: pillBase + (this.state.tab===k ? ' background:var(--surface); color:var(--text); box-shadow:var(--shadow);' : ' color:var(--text-2);')
+    }));
+
+    const tBtn = (t) => {
+      const base = 'border:none; background:none; font-family:inherit; padding:6px 10px; border-radius:7px; cursor:pointer; display:grid; place-items:center;';
+      return base + (this.state.theme===t ? ' background:var(--surface); color:var(--text); box-shadow:var(--shadow);' : ' color:var(--text-2);');
+    };
+    const themeBtn = { dark:tBtn('dark'), light:tBtn('light'), paper:tBtn('paper') };
+
+    const hueDots = Object.entries(this.HUES).map(([name,cfg]) => ({
+      name, go: () => this.setState({ hue:name }),
+      style: 'width:18px; height:18px; border-radius:50%; border:2px solid ' + (this.state.hue===name ? 'var(--surface)' : 'transparent') + '; background:' + cfg.dot + '; cursor:pointer; padding:0; box-shadow:' + (this.state.hue===name ? '0 0 0 2px ' + cfg.dot : '0 0 0 1px var(--border)') + ' inset;'
+    }));
+
+    const vars = Object.assign({}, this.THEMES[this.state.theme], this.HUES[this.state.hue]);
+    delete vars.dot;
+    const rootStyle = Object.entries(vars).map(([k,v]) => k+':'+v).join('; ')
+      + '; --pos:#1faa6b; --neg:#e0556b; --warn:#d98a23; min-height:100vh; background:var(--bg); color:var(--text);'
+      + " font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif; -webkit-font-smoothing:antialiased;";
+
+    return {
+      rootStyle,
+      tab: this.state.tab,
+      setTab: (t) => this.setState({ tab:t }),
+      setDark: () => this.setState({ theme:'dark' }),
+      setLight: () => this.setState({ theme:'light' }),
+      setPaper: () => this.setState({ theme:'paper' }),
+      tabPills, themeBtn, hueDots
+    };
+  }
+}
+</script>
+</body>
+</html>

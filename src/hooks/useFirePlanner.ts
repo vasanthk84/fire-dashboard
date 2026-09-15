@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { initialExpenses, initialInputs, initialOneTimeExpenses } from '../constants';
 import { calculatePlan } from '../services/api';
+import { clearPersistedPlan, loadPersistedPlan, mergeWithDefaults, savePersistedPlan } from '../utils/persistence';
+import { estimateTaxDragApprox } from '../utils/taxModel';
 import type { CalculationResults, Expenses, Inputs, OneTimeExpenses } from '../types';
 
 function sumValues<T extends object>(values: T): number {
@@ -13,17 +15,40 @@ function findNegativeEntry(values: Record<string, number>): string | null {
 }
 
 export function useFirePlanner() {
-  const [inputs, setInputs] = useState<Inputs>(initialInputs);
+  // Restore a previously saved plan (if any) so a page reload doesn't reset
+  // everything back to the built-in defaults. Missing/new fields fall back to
+  // the current code defaults rather than becoming undefined.
+  const [inputs, setInputs] = useState<Inputs>(() => mergeWithDefaults(initialInputs, loadPersistedPlan()?.inputs));
   const [results, setResults] = useState<CalculationResults | null>(null);
-  const [expenses, setExpenses] = useState<Expenses>(initialExpenses);
-  const [oneTimeExpenses, setOneTimeExpenses] = useState<OneTimeExpenses>(initialOneTimeExpenses);
-  const [showOneTime, setShowOneTime] = useState(false);
+  const [expenses, setExpenses] = useState<Expenses>(() => mergeWithDefaults(initialExpenses, loadPersistedPlan()?.expenses));
+  const [oneTimeExpenses, setOneTimeExpenses] = useState<OneTimeExpenses>(() =>
+    mergeWithDefaults(initialOneTimeExpenses, loadPersistedPlan()?.oneTimeExpenses)
+  );
+  const [showOneTime, setShowOneTime] = useState(() => loadPersistedPlan()?.showOneTime ?? true);
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculationError, setCalculationError] = useState<string | null>(null);
 
+  // Autosave, debounced so a dragged slider doesn't hammer localStorage with a
+  // write on every intermediate value.
+  const saveTimeoutRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (saveTimeoutRef.current !== null) {
+      window.clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = window.setTimeout(() => {
+      savePersistedPlan({ inputs, expenses, oneTimeExpenses, showOneTime });
+    }, 300);
+
+    return () => {
+      if (saveTimeoutRef.current !== null) {
+        window.clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [inputs, expenses, oneTimeExpenses, showOneTime]);
+
   const currentMonthlyExp = useMemo(() => sumValues(expenses), [expenses]);
   const currentAnnualExp = currentMonthlyExp * 12;
-  const taxDrag = inputs.applyTax ? 0.125 : 0;
+  const taxDrag = estimateTaxDragApprox(inputs);
   const totalOneTime = useMemo(() => (showOneTime ? sumValues(oneTimeExpenses) : 0), [oneTimeExpenses, showOneTime]);
 
   const fireNumberLakhs = useMemo(() => {
@@ -36,7 +61,9 @@ export function useFirePlanner() {
 
   const currentWealthLakhs = results
     ? results.summary.startWealth
-    : inputs.mfCurrent + inputs.stocksIndia + inputs.usStocks + inputs.emergencyFund + inputs.epfCurrent + inputs.bondsInitial;
+    : inputs.mfCurrent + inputs.stocksIndia + inputs.usStocks + inputs.epfCurrent + inputs.ppfCurrent +
+      inputs.fdCurrent + inputs.npsCurrent + inputs.bondsInitial + inputs.optionsPortfolioValue +
+      inputs.apartmentCurrent;
 
   const progressToFire = fireNumberLakhs > 0 ? Math.min((currentWealthLakhs / fireNumberLakhs) * 100, 100) : 0;
 
@@ -45,14 +72,9 @@ export function useFirePlanner() {
       return null;
     }
 
-    for (let index = 0; index < results.fireProjections.length; index += 1) {
-      if (results.fireProjections[index].total >= fireNumberLakhs) {
-        return index;
-      }
-    }
-
-    return null;
-  }, [fireNumberLakhs, results]);
+    const hit = results.fireProjections.find((projection) => projection.total >= fireNumberLakhs);
+    return hit ? hit.year - inputs.startYear : null;
+  }, [fireNumberLakhs, inputs.startYear, results]);
 
   const sampleTaxYear = results?.fireProjections.find((projection) => projection.year === inputs.retirementYear);
 
@@ -64,11 +86,11 @@ export function useFirePlanner() {
       blocking.push('Retirement year must be after start year.');
     }
 
-    if (inputs.returnYear < inputs.startYear) {
+    if (inputs.returnYear >= 2000 && inputs.returnYear < inputs.startYear) {
       blocking.push('Return-to-India year cannot be before the start year.');
     }
 
-    if (inputs.withdraw401kYear < inputs.startYear) {
+    if (inputs.withdraw401kYear >= 2000 && inputs.withdraw401kYear < inputs.startYear) {
       blocking.push('401k withdrawal year cannot be before the start year.');
     }
 
@@ -99,6 +121,8 @@ export function useFirePlanner() {
 
     if (currentMonthlyExp === 0) {
       advisory.push('Monthly expenses are still zero, so the FIRE target will not represent your actual lifestyle requirement.');
+    } else if (fireNumberLakhs > 0 && currentWealthLakhs >= fireNumberLakhs) {
+      advisory.push(`Your FIRE target (${fireNumberLakhs.toFixed(1)}L) is already below your current wealth (${currentWealthLakhs.toFixed(1)}L) — "Years to FIRE" will show 0. Double-check that all your monthly expenses are filled in on the Expenses tab; an incomplete list understates your real target.`);
     }
 
     if (showOneTime && totalOneTime === 0) {
@@ -127,7 +151,7 @@ export function useFirePlanner() {
       hasBlocking: blocking.length > 0,
       hasAdvisory: advisory.length > 0
     };
-  }, [currentMonthlyExp, expenses, inputs, oneTimeExpenses, showOneTime, totalOneTime]);
+  }, [currentMonthlyExp, currentWealthLakhs, expenses, fireNumberLakhs, inputs, oneTimeExpenses, showOneTime, totalOneTime]);
 
   const handleInput = (key: keyof Inputs, value: number | boolean) => {
     setInputs((prev) => ({ ...prev, [key]: value }));
@@ -183,6 +207,55 @@ export function useFirePlanner() {
     }
   };
 
+  // Clears the saved plan and restores the app's built-in defaults. Snapshots
+  // (a separate feature/localStorage key) are untouched.
+  const resetToDefaults = async () => {
+    clearPersistedPlan();
+    setInputs(initialInputs);
+    setExpenses(initialExpenses);
+    setOneTimeExpenses(initialOneTimeExpenses);
+    setShowOneTime(false);
+    setCalculationError(null);
+    setIsCalculating(true);
+
+    try {
+      const data = await calculatePlan({ ...initialInputs, monthlyExpenses: 0, oneTimeExpenseTotal: 0 });
+      setResults(data);
+      return data;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to calculate FIRE plan';
+      setCalculationError(message);
+      return null;
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
+  // Runs the villa-year projection twice — once keeping the existing
+  // apartment as a second property, once selling it to fund the down
+  // payment — without touching the live `results`/`inputs.apartmentSellAtVilla`
+  // state, so the user can see the corpus-at-retirement delta between the two
+  // paths without committing to either one first.
+  const compareApartmentScenarios = async (): Promise<{ keep: number; sell: number } | null> => {
+    if (validation.hasBlocking) {
+      return null;
+    }
+
+    const basePayload: Partial<Inputs> = {
+      ...inputs,
+      monthlyExpenses: sumValues(expenses),
+      oneTimeExpenseTotal: showOneTime ? sumValues(oneTimeExpenses) : 0,
+      villaEnabled: true
+    };
+
+    const [keepData, sellData] = await Promise.all([
+      calculatePlan({ ...basePayload, apartmentSellAtVilla: false }),
+      calculatePlan({ ...basePayload, apartmentSellAtVilla: true })
+    ]);
+
+    return { keep: keepData.summary.finalWealth, sell: sellData.summary.finalWealth };
+  };
+
   return {
     inputs,
     setInputs,
@@ -207,6 +280,8 @@ export function useFirePlanner() {
     handleExpense,
     handleOneTime,
     runCalculation,
+    compareApartmentScenarios,
+    resetToDefaults,
     sumExpenses: sumValues,
     initialOneTimeExpenses
   };

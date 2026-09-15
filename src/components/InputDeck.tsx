@@ -1,98 +1,224 @@
-import type { CSSProperties, ChangeEvent } from 'react';
 import type { Inputs } from '../types';
+import { NumberInput } from './NumberInput';
 
 interface InputDeckProps {
   inputs: Inputs;
   onInput: (key: keyof Inputs, value: number | boolean) => void;
 }
 
-function InputField({
-  label,
-  value,
-  onChange,
-  step,
-  min,
-  style,
-  title
-}: {
+interface FieldMeta {
+  key: keyof Inputs;
   label: string;
-  value: number;
-  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  type?: 'year' | 'month-year';
   step?: number;
-  min?: number;
-  style?: CSSProperties;
+  pct?: boolean;
+  accent?: boolean;
   title?: string;
+  ageResettable?: boolean;
+}
+
+interface GroupMeta {
+  title: string;
+  fields: FieldMeta[];
+}
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+export const INPUT_GROUPS: GroupMeta[] = [
+  {
+    title: 'Timeline',
+    fields: [
+      { key: 'startMonth', label: 'Start Date', type: 'month-year', title: 'Month and Year when your plan starts' },
+      { key: 'currentAge', label: 'Current age', step: 1, title: 'Your current age — used to check the 401k withdrawal year against the age-59½ rule' },
+      { key: 'retirementYear', label: 'Retire', type: 'year', title: 'Planned retirement year' },
+      { key: 'returnYear', label: 'Return IN', type: 'year', title: 'Year of returning to India' },
+      { key: 'withdraw401kYear', label: '401k Draw', type: 'year', ageResettable: true, title: 'Year you begin 401k withdrawals. Before you turn 59½, the IRS applies ordinary income tax PLUS a 10% early withdrawal penalty. At/after 59½, only ordinary income tax applies.' },
+      { key: 'retirementIncomeTaxRate', label: '401k tax rate (59½+)', step: 1, pct: true, title: 'Ordinary US income tax rate applied to 401k withdrawals taken at/after age 59½ (no penalty). Typically lower than your working-years bracket.' }
+    ]
+  },
+  {
+    title: 'Assets · ₹L',
+    fields: [
+      { key: 'mfCurrent', label: 'Mutual Funds', step: 0.1, title: 'Current Mutual Fund value in Lakhs' },
+      { key: 'mfPrincipal', label: 'MF Principal', step: 0.1, accent: true, title: 'Total invested amount (Cost Basis) in Lakhs' },
+      { key: 'stocksIndia', label: 'Stocks IN', step: 0.1, title: 'Current Indian Stocks value in Lakhs' },
+      { key: 'usStocks', label: 'US Stocks', step: 0.1, title: 'Current US Stocks value in Lakhs' }
+    ]
+  },
+  {
+    title: 'Retirement',
+    fields: [
+      { key: 'us401k', label: '401k · $', step: 1000, title: 'Full USD dollar amount in 401(k)' },
+      { key: 'usdExchangeRate', label: '₹/$', step: 1, title: 'USD to INR exchange rate' },
+      { key: 'annualSalary', label: 'US Salary · $', step: 1000, title: 'Annual US salary in USD' },
+      { key: 'epfCurrent', label: 'EPF · ₹L', step: 0.1, title: 'Current EPF balance in Lakhs' },
+      { key: 'basicPay', label: 'Basic · ₹/mo', step: 100, title: 'Basic pay in ₹ per month (for EPF calculation)' }
+    ]
+  },
+  {
+    title: 'PPF · Matured (Idle)',
+    fields: [
+      { key: 'ppfCurrent', label: 'Balance · ₹L', step: 0.1, title: 'Matured PPF balance in Lakhs — idle, no further interest or contributions' }
+    ]
+  },
+  {
+    title: 'Fixed Deposits',
+    fields: [
+      { key: 'fdCurrent', label: 'Balance · ₹L', step: 0.1, title: 'Current Fixed Deposit balance in Lakhs' },
+      { key: 'fdRatePct', label: 'Rate %', step: 0.1, title: 'Annual Fixed Deposit interest rate' }
+    ]
+  },
+  {
+    title: 'NPS',
+    fields: [
+      { key: 'npsCurrent', label: 'Balance · ₹L', step: 0.1, title: 'Current NPS (National Pension System) balance in Lakhs' },
+      { key: 'npsRatePct', label: 'Rate %', step: 0.1, title: 'Assumed annual NPS return rate' }
+    ]
+  },
+  {
+    title: 'Flows · ₹L/mo',
+    fields: [
+      { key: 'mfSIP', label: 'MF SIP', step: 0.1, title: 'Monthly Mutual Fund SIP in Lakhs' },
+      { key: 'sipStepUpRate', label: 'Step-up %', step: 1, pct: true, title: 'Annual SIP increase percentage' }
+    ]
+  },
+  {
+    title: 'Options income',
+    fields: [
+      { key: 'optionsPortfolioValue', label: 'Portfolio · ₹L', step: 0.1, title: 'Value of the stock portfolio you write covered calls / cash-secured puts against, in Lakhs' },
+      { key: 'optionsYieldPct', label: 'Premium yield %/yr', step: 0.5, pct: true, title: 'Annualised option premium income as a % of the options portfolio (e.g. covered call / CSP premium). Continues through retirement — this models an active options-selling strategy, not passive returns.' }
+    ]
+  },
+  {
+    title: 'Bonds',
+    fields: [
+      { key: 'bondsInitial', label: 'Initial · ₹L', step: 0.1, title: 'Initial bond investment in Lakhs' },
+      { key: 'bondAnnualIncrease', label: 'Add %', step: 0.1, pct: true, title: 'Annual bond allocation increase percentage' },
+      { key: 'bondRate', label: 'Rate %', step: 0.1, pct: true, title: 'Annual interest rate on bonds' }
+    ]
+  },
+  {
+    title: 'Apartment (India)',
+    fields: [
+      { key: 'apartmentCurrent', label: 'Value · ₹L', step: 0.5, title: 'Current market value of your existing apartment in Lakhs' },
+      { key: 'apartmentAppreciationPct', label: 'Appreciation %', step: 0.5, title: 'Assumed annual apartment appreciation rate' }
+    ]
+  },
+  {
+    title: 'Rates · %',
+    fields: [
+      { key: 'mfRate', label: 'MF CAGR', step: 0.1, pct: true, title: 'Assumed Mutual Fund annual return rate' },
+      { key: 'stocksRate', label: 'Stocks', step: 0.1, pct: true, title: 'Assumed Indian Stocks annual return rate' },
+      { key: 'usRate', label: 'US 401k', step: 0.1, pct: true, title: 'Assumed US 401k annual return rate' },
+      { key: 'inflationRate', label: 'Inflation', step: 0.1, pct: true, title: 'Assumed annual inflation rate' },
+      { key: 'postFireRate', label: 'Post-FI return', step: 0.1, pct: true, title: 'Assumed portfolio return AFTER retirement (typically lower than pre-FI equity CAGR, since retirees de-risk). Governs whether the corpus depletes, holds flat, or grows under your chosen withdrawal rate.' }
+    ]
+  },
+  {
+    title: 'Tax (India)',
+    fields: [
+      { key: 'indiaSlabRatePct', label: 'Slab rate %', step: 1, title: 'Your expected India income-tax slab rate in retirement. Applied to FD/bonds/NPS/US-stock income, which get no LTCG or indexation benefit. Equity MF/stocks are taxed separately at 12.5% LTCG above the ₹1.25L/yr exemption; EPF/PPF stay tax-free.' }
+    ]
+  }
+];
+
+export function InputField({
+  f,
+  inputs,
+  onInput
+}: {
+  f: FieldMeta;
+  inputs: Inputs;
+  onInput: (key: keyof Inputs, value: number | boolean) => void;
 }) {
+  const raw = inputs[f.key];
+
+  if (f.type === 'month-year') {
+    return (
+      <div className="in-wrap" title={f.title}>
+        <label>{f.label}</label>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <select
+            className="in"
+            style={{ flex: '0 0 66px', padding: '6px 4px', fontSize: '12px' }}
+            value={inputs.startMonth}
+            onChange={(e) => onInput('startMonth', Number(e.target.value))}
+          >
+            {MONTH_NAMES.map((m, i) => (
+              <option key={m} value={i + 1}>{m}</option>
+            ))}
+          </select>
+          <NumberInput
+            className="in"
+            step={1}
+            value={inputs.startYear}
+            onCommit={(n) => onInput('startYear', n)}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (f.type === 'year') {
+    const age59YearOffset = Math.ceil(59.5 - inputs.currentAge);
+    const suggestedYear = inputs.startYear + age59YearOffset;
+    const showReset = f.ageResettable && inputs.currentAge > 0 && Number(raw) !== suggestedYear;
+
+    return (
+      <div className="in-wrap" title={f.title}>
+        <label>{f.label}</label>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <NumberInput
+            className="in"
+            step={1}
+            value={Number(raw) || 0}
+            onCommit={(n) => onInput(f.key, n)}
+          />
+          {showReset && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ padding: '6px 8px', fontSize: 11, whiteSpace: 'nowrap', flex: '0 0 auto' }}
+              title={`Reset to age 59½ (${suggestedYear})`}
+              onClick={() => onInput(f.key, suggestedYear)}
+            >
+              ↻ {suggestedYear}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Handle percentages (convert e.g., 0.12 to 12)
+  const val = f.pct ? Math.round((Number(raw) || 0) * 1000) / 10 : Number(raw) || 0;
+
   return (
-    <div className="input-wrapper">
-      <label>{label}</label>
-      <input type="number" min={min} step={step} value={value} onChange={onChange} style={style} title={title} />
+    <div className="in-wrap" title={f.title}>
+      <label>{f.label}</label>
+      <NumberInput
+        className={'in' + (f.accent ? ' accent' : '')}
+        step={f.step ?? 'any'}
+        value={typeof val === 'boolean' ? (val ? 1 : 0) : val}
+        onCommit={(n) => onInput(f.key, f.pct ? n / 100 : n)}
+      />
     </div>
   );
 }
 
 export function InputDeck({ inputs, onInput }: InputDeckProps) {
   return (
-    <div className="input-deck">
-      <div className="deck-card">
-        <div className="card-header">Core Parameters</div>
-        <div className="card-inputs">
-          <InputField label="Start Year" value={inputs.startYear} onChange={(e) => onInput('startYear', Number(e.target.value))} />
-          <InputField label="Retire Year" value={inputs.retirementYear} onChange={(e) => onInput('retirementYear', Number(e.target.value))} />
-          <InputField label="Return India" value={inputs.returnYear} onChange={(e) => onInput('returnYear', Number(e.target.value))} />
-          <InputField label="401k Withdraw" value={inputs.withdraw401kYear} onChange={(e) => onInput('withdraw401kYear', Number(e.target.value))} />
+    <div className="deck">
+      {INPUT_GROUPS.map((g) => (
+        <div className="deck-card" key={g.title}>
+          <h4>{g.title}</h4>
+          <div className="fields">
+            {g.fields.map((f) => (
+              <InputField key={f.key} f={f} inputs={inputs} onInput={onInput} />
+            ))}
+          </div>
         </div>
-      </div>
-
-      <div className="deck-card">
-        <div className="card-header">Assets (Lakhs)</div>
-        <div className="card-inputs">
-          <InputField label="MF Current" step={0.1} value={inputs.mfCurrent} onChange={(e) => onInput('mfCurrent', Number(e.target.value))} />
-          <InputField label="MF Principal" step={0.1} value={inputs.mfPrincipal} onChange={(e) => onInput('mfPrincipal', Number(e.target.value))} style={{ borderColor: '#10b981', color: '#10b981' }} title="Your total invested amount (Cost Basis)" />
-          <InputField label="Stocks IN" step={0.1} value={inputs.stocksIndia} onChange={(e) => onInput('stocksIndia', Number(e.target.value))} />
-          <InputField label="US Stocks" step={0.1} value={inputs.usStocks} onChange={(e) => onInput('usStocks', Number(e.target.value))} />
-          <InputField label="Emergency" step={0.1} value={inputs.emergencyFund} onChange={(e) => onInput('emergencyFund', Number(e.target.value))} />
-        </div>
-      </div>
-
-      <div className="deck-card">
-        <div className="card-header">Retirement Accounts</div>
-        <div className="card-inputs">
-          <InputField label="401k (USD)" value={inputs.us401k} onChange={(e) => onInput('us401k', Number(e.target.value))} />
-          <InputField label="USD Rate" value={inputs.usdExchangeRate} onChange={(e) => onInput('usdExchangeRate', Number(e.target.value))} />
-          <InputField label="EPF (L)" step={0.1} value={inputs.epfCurrent} onChange={(e) => onInput('epfCurrent', Number(e.target.value))} />
-          <InputField label="Basic Pay" value={inputs.basicPay} onChange={(e) => onInput('basicPay', Number(e.target.value))} />
-        </div>
-      </div>
-
-      <div className="deck-card">
-        <div className="card-header">Monthly Flows (L)</div>
-        <div className="card-inputs">
-          <InputField label="MF SIP" step={0.1} value={inputs.mfSIP} onChange={(e) => onInput('mfSIP', Number(e.target.value))} />
-          <InputField label="SIP Step %" step={1} value={inputs.sipStepUpRate * 100} onChange={(e) => onInput('sipStepUpRate', (Number(e.target.value) || 10) / 100)} />
-          <InputField label="Options" step={0.1} value={inputs.optionSellingMonthly} onChange={(e) => onInput('optionSellingMonthly', Number(e.target.value))} />
-          <InputField label="Salary ($)" value={inputs.annualSalary} onChange={(e) => onInput('annualSalary', Number(e.target.value))} />
-        </div>
-      </div>
-
-      <div className="deck-card">
-        <div className="card-header">Bonds</div>
-        <div className="card-inputs">
-          <InputField label="Initial (L)" step={0.1} value={inputs.bondsInitial} onChange={(e) => onInput('bondsInitial', Number(e.target.value))} />
-          <InputField label="Add %" step={0.1} value={inputs.bondAnnualIncrease * 100} onChange={(e) => onInput('bondAnnualIncrease', (Number(e.target.value) || 1) / 100)} />
-          <InputField label="Rate %" step={0.1} value={inputs.bondRate * 100} onChange={(e) => onInput('bondRate', (Number(e.target.value) || 10) / 100)} />
-        </div>
-      </div>
-
-      <div className="deck-card">
-        <div className="card-header">Growth Rates (%)</div>
-        <div className="card-inputs">
-          <InputField label="MF CAGR" step={0.1} value={inputs.mfRate * 100} onChange={(e) => onInput('mfRate', (Number(e.target.value) || 12) / 100)} />
-          <InputField label="Stocks" step={0.1} value={inputs.stocksRate * 100} onChange={(e) => onInput('stocksRate', (Number(e.target.value) || 15) / 100)} />
-          <InputField label="US 401k" step={0.1} value={inputs.usRate * 100} onChange={(e) => onInput('usRate', (Number(e.target.value) || 12) / 100)} title="Used for 401k growth. US stocks are held flat unless you edit the starting value." />
-          <InputField label="Inflation" step={0.1} value={inputs.inflationRate * 100} onChange={(e) => onInput('inflationRate', (Number(e.target.value) || 6) / 100)} />
-        </div>
-      </div>
+      ))}
     </div>
   );
 }
