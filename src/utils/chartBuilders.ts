@@ -611,19 +611,25 @@ export const CHARTS = {
   },
 
   // ---------- Mutual Fund XIRR & Allocation module ----------
-  /** Three step-up SIP scenarios (flat / +10%/yr / +20%/yr) over the projection
-   *  horizon. Values passed in ₹ Lakhs, same convention as `corpus`/`composition`. */
-  mfProjection(labels: string[], flat: number[], step10: number[], step20: number[]) {
+  /** Step-up SIP scenarios (flat / +10%/yr / +20%/yr, plus an optional custom
+   *  step-up %/yr the user configures) over the projection horizon. Values
+   *  passed in ₹ Lakhs, same convention as `corpus`/`composition`. */
+  mfProjection(labels: string[], flat: number[], step10: number[], step20: number[], custom?: { label: string; data: number[] }) {
+    const series = [
+      { name: 'Flat SIP', data: flat.map((v) => Number(v.toFixed(1))) },
+      { name: '+10%/yr step-up', data: step10.map((v) => Number(v.toFixed(1))) },
+      { name: '+20%/yr step-up', data: step20.map((v) => Number(v.toFixed(1))) },
+      ...(custom ? [{ name: custom.label, data: custom.data.map((v) => Number(v.toFixed(1))) }] : [])
+    ];
+    const colors = [cssVar('--text-3'), cssVar('--accent'), cssVar('--pos'), ...(custom ? [cssVar('--warn')] : [])];
+    const strokeWidth = [2, 2.5, 2.5, ...(custom ? [2.5] : [])];
+    const dashArray = [4, 0, 0, ...(custom ? [0] : [])];
     return (): ApexOptions => ({
       ...baseAxes(labels, yL),
-      series: [
-        { name: 'Flat SIP', data: flat.map((v) => Number(v.toFixed(1))) },
-        { name: '+10%/yr step-up', data: step10.map((v) => Number(v.toFixed(1))) },
-        { name: '+20%/yr step-up', data: step20.map((v) => Number(v.toFixed(1))) }
-      ],
+      series,
       chart: { type: 'line', height: 320, background: 'transparent', toolbar: { show: false } },
-      colors: [cssVar('--text-3'), cssVar('--accent'), cssVar('--pos')],
-      stroke: { width: [2, 2.5, 2.5], curve: 'smooth', dashArray: [4, 0, 0] },
+      colors,
+      stroke: { width: strokeWidth, curve: 'smooth', dashArray },
       markers: { size: 0, hover: { size: 4 } },
       legend: {
         show: true,

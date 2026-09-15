@@ -14,14 +14,14 @@ import {
   TrendingUp,
   X
 } from 'lucide-react';
-import type { CASParseResult, MFCategory, MFFundMetrics, MFPlan, MFTxnType } from '../../types';
+import type { CASParseResult, MFCategory, MFFundMetrics, MFPlan, MFStpPlan, MFTxnType } from '../../types';
 import { useMutualFunds } from '../../hooks/useMutualFunds';
 import { ApexChartComponent } from '../ApexChartComponent';
 import { CHARTS } from '../../utils/chartBuilders';
 import { NumberInput } from '../NumberInput';
 import { fmtL, fmtRupees } from '../../utils/formatters';
 import { MF_CATEGORIES, MF_CATEGORY_COLOR, MF_CATEGORY_LABEL, MF_TXN_TYPE_LABEL } from '../../utils/mfCategories';
-import { projectScenarios, yearlyPoints } from '../../utils/mfProjections';
+import { projectScenarios, simulateStepUpSIP, yearlyPoints } from '../../utils/mfProjections';
 import { buildCASReviewRows, cleanFundDisplayName, mergeCasResults, type CASImportSelection, type CASReviewRow, type CASSourceFile } from '../../utils/mfCasImport';
 import { groupFundsByScheme, type FundGroup } from '../../utils/mfAnalysis';
 import { computeHealthScore } from '../../utils/mfHealthScore';
@@ -51,6 +51,40 @@ function tierMeta(tier: 1 | 2 | 3 | null): { label: string; cls: string } {
   if (tier === 2) return { label: 'Maintain', cls: 'warn' };
   if (tier === 3) return { label: 'Reduce', cls: 'bad' };
   return { label: 'Pending', cls: '' };
+}
+
+function monthsElapsed(startDate: string): number {
+  const start = new Date(startDate);
+  const now = new Date();
+  return (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+}
+
+/** True while today falls inside an STP's planned start-to-start+totalMonths
+ *  window — purely a reminder/tracking signal (see MFStpPlan doc comment),
+ *  not derived from the actual switch transactions, since the point of
+ *  tracking a plan is to catch it if it silently stopped running. */
+function isStpActive(plan: MFStpPlan): boolean {
+  const elapsed = monthsElapsed(plan.startDate);
+  return elapsed >= 0 && elapsed < plan.totalMonths;
+}
+
+/** Years to grow `current` to `target` at annual rate `xirr`, from the actual
+ *  compound-growth formula (t = ln(target/current) / ln(1+rate)) — not the
+ *  Rule of 72, which only estimates a single doubling and silently gives the
+ *  wrong answer for any target that isn't exactly 2x the current value (e.g.
+ *  "72/XIRR" only works if you're already at exactly half the target). null
+ *  when already at/past target, or when the rate is <= 0 (would never get
+ *  there) or unknown. */
+function yearsToTarget(current: number, target: number, xirr: number | null): number | null {
+  if (xirr === null || !Number.isFinite(xirr) || xirr <= 0) return null;
+  if (current <= 0 || target <= current) return null;
+  return Math.log(target / current) / Math.log(1 + xirr);
+}
+
+function fmtYears(years: number | null): string {
+  if (years === null) return '—';
+  if (years < 1) return Math.round(years * 12) + 'mo';
+  return years.toFixed(1) + 'y';
 }
 
 const TXN_TYPES: MFTxnType[] = ['purchase', 'redemption', 'switchIn', 'switchOut'];
@@ -328,25 +362,85 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
     setTxnAmount(0);
   };
 
+  // ---------- STP (Systematic Transfer Plan) entry — one shared draft row,
+  // applies to whichever fund is expanded. This is a tracking/reminder layer
+  // only: it doesn't touch the transaction ledger — the actual switchOut/
+  // switchIn installments an STP produces are still entered separately (via
+  // CAS import or the transaction form above), and are what XIRR/gain are
+  // computed from. ----------
+  const [stpDestination, setStpDestination] = useState('');
+  const [stpMonths, setStpMonths] = useState(12);
+  const [stpStartDate, setStpStartDate] = useState(today());
+  const [stpNote, setStpNote] = useState('');
+
+  const handleAddStp = (fundId: string) => {
+    if (!stpDestination.trim()) {
+      window.alert('Enter the destination fund for this STP');
+      return;
+    }
+    mf.addStpPlan(fundId, {
+      destinationFundName: stpDestination.trim(),
+      totalMonths: stpMonths,
+      startDate: stpStartDate,
+      notes: stpNote.trim() || undefined
+    });
+    setStpDestination('');
+    setStpMonths(12);
+    setStpNote('');
+  };
+
   // ---------- Projection engine ----------
   const [projStartOverride, setProjStartOverride] = useState<number | null>(null);
-  const [projMonthly, setProjMonthly] = useState(10000);
+  const [projMonthlyOverride, setProjMonthlyOverride] = useState<number | null>(null);
   const [projReturnOverride, setProjReturnOverride] = useState<number | null>(null);
   const [projYears, setProjYears] = useState(15);
+  // Custom step-up %/yr, alongside the fixed +10%/+20% presets — e.g. modeling
+  // a 50%/60% annual SIP increase instead of the moderate defaults. null =
+  // not shown (avoids a 4th line cluttering the chart until the user opts in).
+  const [customStepUpPct, setCustomStepUpPct] = useState<number | null>(null);
 
   const defaultStartLakhs = Number((totals.currentValue / 100000).toFixed(2));
   const defaultReturnPct = totals.blendedXirr !== null ? Number((totals.blendedXirr * 100).toFixed(1)) : 12;
   const effectiveStartLakhs = projStartOverride ?? defaultStartLakhs;
   const effectiveReturnPct = (projReturnOverride ?? defaultReturnPct) / 100;
 
+  // Default the "Monthly SIP" projection input to your real recent run-rate —
+  // sum of 'purchase'-type transactions (lump sums + SIP installments; this
+  // is what CAS import maps both PURCHASE and PURCHASE_SIP to) across all
+  // active funds over the last 3 calendar months, ÷ 3. switchIn/switchOut are
+  // deliberately excluded — that's money moving between your own funds, not
+  // fresh contribution, and nets to zero at the portfolio level anyway. Falls
+  // back to 10,000 only when there's no recent purchase history to go on
+  // (e.g. right after a fresh CAS import with only old, lapsed transactions).
+  const defaultMonthlySIP = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - 3);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const recentPurchases = activeMetrics.reduce(
+      (sum, m) => sum + m.fund.transactions.filter((t) => t.type === 'purchase' && t.date >= cutoffStr).reduce((s, t) => s + t.amount, 0),
+      0
+    );
+    return recentPurchases > 0 ? Math.round(recentPurchases / 3) : 10000;
+  }, [activeMetrics]);
+  const projMonthly = projMonthlyOverride ?? defaultMonthlySIP;
+
   const scenarios = useMemo(
     () => projectScenarios(effectiveStartLakhs, projMonthly / 100000, effectiveReturnPct, projYears),
     [effectiveStartLakhs, projMonthly, effectiveReturnPct, projYears]
   );
 
+  const customScenario = useMemo(
+    () =>
+      customStepUpPct !== null
+        ? simulateStepUpSIP(effectiveStartLakhs, projMonthly / 100000, effectiveReturnPct, projYears, customStepUpPct / 100)
+        : null,
+    [customStepUpPct, effectiveStartLakhs, projMonthly, effectiveReturnPct, projYears]
+  );
+
   const yearlyFlat = useMemo(() => yearlyPoints(scenarios.flat), [scenarios]);
   const yearlyStep10 = useMemo(() => yearlyPoints(scenarios.step10), [scenarios]);
   const yearlyStep20 = useMemo(() => yearlyPoints(scenarios.step20), [scenarios]);
+  const yearlyCustom = useMemo(() => (customScenario ? yearlyPoints(customScenario) : null), [customScenario]);
 
   const projLabels = useMemo(() => {
     const startYr = new Date().getFullYear();
@@ -356,6 +450,7 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
   const finalFlat = yearlyFlat[yearlyFlat.length - 1]?.balance ?? effectiveStartLakhs;
   const finalStep10 = yearlyStep10[yearlyStep10.length - 1]?.balance ?? effectiveStartLakhs;
   const finalStep20 = yearlyStep20[yearlyStep20.length - 1]?.balance ?? effectiveStartLakhs;
+  const finalCustom = yearlyCustom ? yearlyCustom[yearlyCustom.length - 1]?.balance ?? effectiveStartLakhs : null;
 
   // ---------- Portfolio report ----------
   const [showReport, setShowReport] = useState(false);
@@ -424,10 +519,33 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
   const currentValueLakhs = Number((totals.currentValue / 100000).toFixed(2));
   const inSync = Math.abs(mfCurrentSynced - currentValueLakhs) < 0.01 && Math.abs(mfPrincipalSynced - investedLakhs) < 0.01;
 
+  // Years to the next ₹1Cr milestone above today's tracked value, at the
+  // blended XIRR — assumes that rate holds and no further contributions/
+  // withdrawals, i.e. pure compounding of what's already invested (not a SIP
+  // projection; see the Projection engine card below for step-up SIP
+  // scenarios). Once you've crossed ₹1Cr, the next round-crore milestone
+  // above your current value is the useful target, not the first crore again.
+  const CRORE = 10000000;
+  const nextCroreMilestone = Math.floor(totals.currentValue / CRORE) * CRORE + CRORE;
+  const yearsToNextCrore = yearsToTarget(totals.currentValue, nextCroreMilestone, totals.blendedXirr);
+  const nextCroreLabel = fmtL(nextCroreMilestone / 100000);
+
+  // Round-number milestone ladder — same "pure compounding of today's value
+  // at the current blended XIRR, no further contributions" assumption as
+  // yearsToNextCrore above, just shown as a short trajectory instead of one
+  // single next-target number. Only milestones still ahead of you are shown.
+  const MILESTONE_TARGETS_CR = [0.5, 1, 2, 3, 5, 10];
+  const compoundingMilestones = MILESTONE_TARGETS_CR.map((cr) => cr * CRORE)
+    .filter((target) => target > totals.currentValue)
+    .map((target) => ({ target, years: yearsToTarget(totals.currentValue, target, totals.blendedXirr) }))
+    .filter((m): m is { target: number; years: number } => m.years !== null)
+    .map((m) => ({ ...m, calendarYear: new Date().getFullYear() + Math.ceil(m.years) }));
+
   const renderFundRow = (m: MFFundMetrics, showTier = true) => {
     const f = m.fund;
     const expanded = expandedId === f.id;
     const tm = tierMeta(m.tier);
+    const activeStpCount = (f.stpPlans ?? []).filter(isStpActive).length;
     return (
       <Fragment key={f.id}>
         <tr className={expanded ? 'mark' : ''} style={{ cursor: 'pointer' }} onClick={() => setExpandedId(expanded ? null : f.id)}>
@@ -436,6 +554,18 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
               {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }} title={f.name}>{cleanFundDisplayName(f.name)}</span>
               {m.closed && <span className="tag" style={{ flex: '0 0 auto' }} title="Fully redeemed / switched out — no units currently held">Redeemed</span>}
+              {activeStpCount > 0 && (
+                <span
+                  className="tag warn"
+                  style={{ flex: '0 0 auto' }}
+                  title={(f.stpPlans ?? [])
+                    .filter(isStpActive)
+                    .map((s) => `STP → ${s.destinationFundName} (${s.totalMonths}mo, started ${s.startDate})`)
+                    .join(' · ')}
+                >
+                  STP {activeStpCount > 1 ? `×${activeStpCount}` : ''}
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 19, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {MF_CATEGORY_LABEL[f.category]}
@@ -567,6 +697,84 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                 </div>
               )}
 
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+                <div className="eyebrow" style={{ marginBottom: 8 }}>
+                  Track an STP out of this fund
+                </div>
+                <div className="panel-cap" style={{ marginLeft: 0, marginBottom: 10 }}>
+                  Tracking/reminder only — doesn't affect XIRR or gain. Enter each switchOut installment separately above (or via CAS import) as it actually happens.
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    className="in"
+                    style={{ width: 200 }}
+                    placeholder="Destination fund"
+                    value={stpDestination}
+                    onChange={(e) => setStpDestination(e.target.value)}
+                  />
+                  <NumberInput className="in" style={{ width: 90 }} step={1} min={1} value={stpMonths} onCommit={setStpMonths} />
+                  <span className="panel-cap" style={{ marginLeft: 0 }}>months</span>
+                  <input
+                    type="date"
+                    className="in"
+                    style={{ width: 140 }}
+                    value={stpStartDate}
+                    onChange={(e) => setStpStartDate(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    className="in"
+                    style={{ width: 180 }}
+                    placeholder="Note (optional)"
+                    value={stpNote}
+                    onChange={(e) => setStpNote(e.target.value)}
+                  />
+                  <button className="btn btn-sm btn-primary" onClick={() => handleAddStp(f.id)}>
+                    <PlusCircle size={12} /> Add STP
+                  </button>
+                </div>
+
+                {(f.stpPlans ?? []).length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+                    {(f.stpPlans ?? []).map((s) => {
+                      const active = isStpActive(s);
+                      const elapsed = monthsElapsed(s.startDate);
+                      return (
+                        <div
+                          key={s.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '9px 12px',
+                            borderRadius: 10,
+                            background: active ? 'color-mix(in srgb, var(--warn) 10%, transparent)' : 'var(--surface)',
+                            border: '1px solid ' + (active ? 'color-mix(in srgb, var(--warn) 32%, transparent)' : 'var(--border)')
+                          }}
+                        >
+                          <span className={'tag' + (active ? ' warn' : '')} style={{ flex: '0 0 auto' }}>
+                            {active ? `Month ${Math.max(1, elapsed + 1)}/${s.totalMonths}` : elapsed >= s.totalMonths ? 'Completed' : 'Upcoming'}
+                          </span>
+                          <span style={{ fontSize: 12.5, fontWeight: 600 }}>→ {s.destinationFundName}</span>
+                          <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>
+                            {s.totalMonths}mo from {s.startDate}
+                            {s.notes && <> · {s.notes}</>}
+                          </span>
+                          <button
+                            className="btn btn-sm btn-ghost text-neg"
+                            style={{ padding: 3, marginLeft: 'auto' }}
+                            onClick={() => mf.deleteStpPlan(f.id, s.id)}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               <div className="panel-cap" style={{ marginLeft: 0, marginTop: 10 }}>{m.tierReason}</div>
             </td>
           </tr>
@@ -696,27 +904,10 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
           <div className={'stat-val num' + (totals.blendedXirr !== null && totals.blendedXirr >= 0 ? ' text-pos' : totals.blendedXirr !== null ? ' text-neg' : '')}>
             {fmtPct(totals.blendedXirr)}
           </div>
-          <div className="stat-foot">Pooled cash flows, portfolio-wide</div>
-        </div>
-      </div>
-
-      {/* ---------- Sync with FIRE plan ---------- */}
-      <div className="current-model-card">
-        <div>
-          <div className="eyebrow">FIRE plan sync</div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 6 }}>
-            Plan currently uses <strong style={{ color: 'var(--text)' }}>{fmtL(mfCurrentSynced)}</strong> current /{' '}
-            <strong style={{ color: 'var(--text)' }}>{fmtL(mfPrincipalSynced)}</strong> principal for Mutual Funds. Tracked here:{' '}
-            <strong style={{ color: 'var(--text)' }}>{fmtL(currentValueLakhs)}</strong> / {fmtL(investedLakhs)}.
+          <div className="stat-foot">
+            {yearsToNextCrore !== null ? `${fmtYears(yearsToNextCrore)} to ${nextCroreLabel} at this rate` : 'Pooled cash flows, portfolio-wide'}
           </div>
         </div>
-        <button
-          className="btn btn-primary btn-sm"
-          disabled={inSync || funds.length === 0}
-          onClick={() => onSyncToPlan(currentValueLakhs, investedLakhs)}
-        >
-          <RefreshCw size={13} /> {inSync ? 'In sync' : 'Sync to plan'}
-        </button>
       </div>
 
       {/* ---------- Fund table ---------- */}
@@ -726,9 +917,18 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
             <div className="panel-h">
               <span className="panel-t">Funds ({activeGroups.length} active{closedGroups.length > 0 ? `, ${closedGroups.length} redeemed` : ''})</span>
             </div>
-            <div className="panel-cap" style={{ marginLeft: 0 }}>Per-fund XIRR, category benchmark &amp; tier</div>
+            <div className="panel-cap" style={{ marginLeft: 0 }}>
+              Per-fund XIRR, category benchmark &amp; tier · Plan uses {fmtL(mfCurrentSynced)} current / {fmtL(mfPrincipalSynced)} principal, tracked here: {fmtL(currentValueLakhs)} / {fmtL(investedLakhs)}
+            </div>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            <button
+              className="btn btn-sm btn-primary"
+              disabled={inSync || funds.length === 0}
+              onClick={() => onSyncToPlan(currentValueLakhs, investedLakhs)}
+            >
+              <RefreshCw size={13} /> {inSync ? 'In sync' : 'Sync to plan'}
+            </button>
             <button className="btn btn-sm" onClick={openCasImport}>
               <FileUp size={12} /> Import CAS statement
             </button>
@@ -890,39 +1090,70 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
         <div className="panel-cap" style={{ marginLeft: 0, marginBottom: 14 }}>
           Three scenarios from today's tracked corpus: same monthly SIP throughout, +10%/yr step-up, +20%/yr step-up.
         </div>
-        <div className="grid-3" style={{ marginBottom: 16 }}>
+        <div className="grid-3" style={{ marginBottom: 16, gridTemplateColumns: 'repeat(4, 1fr)' }}>
           <div className="in-wrap">
             <label>Starting corpus · ₹L</label>
             <NumberInput className="in" step={1} value={effectiveStartLakhs} onCommit={setProjStartOverride} />
           </div>
           <div className="in-wrap">
-            <label>Monthly SIP · ₹</label>
-            <NumberInput className="in" step={500} value={projMonthly} onCommit={setProjMonthly} />
+            <label>Monthly SIP · ₹ (combined, all funds)</label>
+            <NumberInput className="in" step={500} value={projMonthly} onCommit={setProjMonthlyOverride} />
           </div>
           <div className="in-wrap">
             <label>Assumed return %/yr</label>
             <NumberInput className="in" step={0.5} value={Math.round(effectiveReturnPct * 1000) / 10} onCommit={(n) => setProjReturnOverride(n)} />
           </div>
+          <div className="in-wrap">
+            <label>Horizon · years</label>
+            <NumberInput className="in" step={1} min={1} max={40} value={projYears} onCommit={setProjYears} />
+          </div>
         </div>
-        <div className="in-wrap" style={{ maxWidth: 220, marginBottom: 16 }}>
-          <label>Horizon · years</label>
-          <NumberInput className="in" step={1} min={1} max={40} value={projYears} onCommit={setProjYears} />
+
+        <div style={{ marginBottom: 16, paddingTop: 4, borderTop: '1px solid var(--border)' }}>
+          <div className="eyebrow" style={{ marginTop: 12, marginBottom: 8 }}>Custom step-up scenario</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            {[30, 40, 50].map((pct) => (
+              <button
+                key={pct}
+                className={'btn btn-sm' + (customStepUpPct === pct ? ' btn-primary' : '')}
+                onClick={() => setCustomStepUpPct(pct)}
+              >
+                +{pct}%/yr
+              </button>
+            ))}
+            <div className="in-wrap" style={{ width: 140, margin: 0 }}>
+              <NumberInput
+                className="in"
+                step={5}
+                min={0}
+                value={customStepUpPct ?? 0}
+                onCommit={(n) => setCustomStepUpPct(n > 0 ? n : null)}
+              />
+            </div>
+            <span className="panel-cap" style={{ marginLeft: 0 }}>%/yr</span>
+            {customStepUpPct !== null && (
+              <button className="btn btn-sm btn-ghost" onClick={() => setCustomStepUpPct(null)}>
+                <X size={12} /> Remove
+              </button>
+            )}
+          </div>
         </div>
 
         {projLabels.length > 1 && (
           <ApexChartComponent
             height={320}
-            dep={'mfproj' + themeKey + effectiveStartLakhs + projMonthly + effectiveReturnPct + projYears}
+            dep={'mfproj' + themeKey + effectiveStartLakhs + projMonthly + effectiveReturnPct + projYears + customStepUpPct}
             build={CHARTS.mfProjection(
               projLabels,
               yearlyFlat.map((p) => p.balance),
               yearlyStep10.map((p) => p.balance),
-              yearlyStep20.map((p) => p.balance)
+              yearlyStep20.map((p) => p.balance),
+              yearlyCustom ? { label: `+${customStepUpPct}%/yr step-up`, data: yearlyCustom.map((p) => p.balance) } : undefined
             )}
           />
         )}
 
-        <div className="grid-3" style={{ marginTop: 16 }}>
+        <div className={customStepUpPct !== null ? 'grid-3' : 'grid-3'} style={{ marginTop: 16, display: 'grid', gridTemplateColumns: customStepUpPct !== null ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: 14 }}>
           <div className="calc">
             <div className="calc-l">Flat SIP · {projYears}y</div>
             <div className="calc-v">{fmtL(finalFlat)}</div>
@@ -935,9 +1166,15 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
             <div className="calc-l">+20%/yr step-up</div>
             <div className="calc-v">{fmtL(finalStep20)}</div>
           </div>
+          {customStepUpPct !== null && finalCustom !== null && (
+            <div className="calc" style={{ background: 'color-mix(in srgb, var(--warn) 12%, transparent)', borderColor: 'color-mix(in srgb, var(--warn) 35%, transparent)' }}>
+              <div className="calc-l">+{customStepUpPct}%/yr step-up</div>
+              <div className="calc-v">{fmtL(finalCustom)}</div>
+            </div>
+          )}
         </div>
         <div className="panel-cap" style={{ marginLeft: 0, marginTop: 12 }}>
-          Return assumption defaults to your blended XIRR ({fmtPct(totals.blendedXirr)}) once you've logged transactions — edit it above to stress-test a different rate.
+          Monthly SIP defaults to your real purchase run-rate over the last 3 months, combined across all active funds — edit it above to test a different amount. Return assumption defaults to your blended XIRR ({fmtPct(totals.blendedXirr)}) once you've logged transactions — edit it above to stress-test a different rate. A step-up scenario increases your monthly SIP amount by that % every year, not the return rate — this is a projection assuming the rate holds, not a prediction of market conditions.
         </div>
       </div>
 
@@ -976,7 +1213,9 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                   <div className="stat">
                     <div className="stat-top"><TrendingUp size={15} /> Blended XIRR</div>
                     <div className={'stat-val num' + (totals.blendedXirr !== null && totals.blendedXirr >= 0 ? ' text-pos' : totals.blendedXirr !== null ? ' text-neg' : '')}>{fmtPct(totals.blendedXirr)}</div>
-                    <div className="stat-foot">Pooled across all cash flows</div>
+                    <div className="stat-foot">
+                      {yearsToNextCrore !== null ? `${fmtYears(yearsToNextCrore)} to ${nextCroreLabel} at this rate` : 'Pooled across all cash flows'}
+                    </div>
                   </div>
                   <div className="stat">
                     <div className="stat-top"><TrendingUp size={15} /> Health score</div>
@@ -985,6 +1224,25 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                   </div>
                 </div>
               </div>
+
+              {/* Compounding milestones */}
+              {compoundingMilestones.length > 0 && (
+                <div>
+                  <div className="eyebrow" style={{ marginBottom: 10 }}>Compounding milestones</div>
+                  <div className="panel-cap" style={{ marginLeft: 0, marginBottom: 10 }}>
+                    Years to reach each target, compounding today's {fmtL(currentValueLakhs)} at your blended {fmtPct(totals.blendedXirr)} XIRR — assumes the rate holds and no further contributions or withdrawals. Not a guarantee: XIRR from limited history is a noisy estimate of future returns.
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    {compoundingMilestones.map((m) => (
+                      <div key={m.target} className="calc" style={{ flex: '1 1 100px', minWidth: 90 }}>
+                        <div className="calc-l">{fmtL(m.target / 100000)}</div>
+                        <div className="calc-v">{fmtYears(m.years)}</div>
+                        <div className="calc-foot">~{m.calendarYear}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Asset allocation */}
               {allocationByCategory.length > 0 && (
@@ -1094,6 +1352,7 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                 <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
                   Across {activeGroups.length} active fund{activeGroups.length === 1 ? '' : 's'} you're tracking {fmtL(currentValueLakhs)} of current value
                   {totals.blendedXirr !== null && <> compounding at a blended {fmtPct(totals.blendedXirr)} XIRR</>}.
+                  {yearsToNextCrore !== null && <> At this rate, and assuming no further contributions or withdrawals, you'd cross {nextCroreLabel} in about {fmtYears(yearsToNextCrore)}.</>}
                   {health.grade && <> Portfolio health scores {health.grade.toLowerCase()} ({health.score?.toFixed(0)}/100)</>}
                   {allocationByCategory.length > 0 && (
                     <> — the largest allocation is {allocationByCategory[0].label} at {(allocationByCategory[0].pct * 100).toFixed(0)}% of active value.</>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
-import type { MFBenchmarks, MFCategory, MFTransaction, MutualFund } from '../types';
+import type { MFBenchmarks, MFCategory, MFStpPlan, MFTransaction, MutualFund } from '../types';
 import { computeFundMetrics, portfolioXIRR } from '../utils/mfAnalysis';
 import type { CASImportSelection } from '../utils/mfCasImport';
 import { buildFundsFromCAS } from '../utils/mfCasImport';
@@ -87,6 +87,19 @@ export function useMutualFunds() {
   const deleteTransaction = (fundId: string, txnId: string) => {
     setFunds((prev) =>
       prev.map((f) => (f.id === fundId ? { ...f, transactions: f.transactions.filter((t) => t.id !== txnId) } : f))
+    );
+  };
+
+  const addStpPlan = (fundId: string, plan: Omit<MFStpPlan, 'id'>) => {
+    const id = genId('stp');
+    setFunds((prev) =>
+      prev.map((f) => (f.id === fundId ? { ...f, stpPlans: [...(f.stpPlans ?? []), { ...plan, id }] } : f))
+    );
+  };
+
+  const deleteStpPlan = (fundId: string, stpId: string) => {
+    setFunds((prev) =>
+      prev.map((f) => (f.id === fundId ? { ...f, stpPlans: (f.stpPlans ?? []).filter((s) => s.id !== stpId) } : f))
     );
   };
 
@@ -191,6 +204,8 @@ export function useMutualFunds() {
     deleteFund,
     addTransaction,
     deleteTransaction,
+    addStpPlan,
+    deleteStpPlan,
     updateBenchmark,
     resetBenchmarks,
     exportPortfolio,

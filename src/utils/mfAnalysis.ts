@@ -1,5 +1,6 @@
 import type { MFBenchmarks, MFFundMetrics, MFTier, MutualFund } from '../types';
 import { absoluteReturn, daysBetween, xirr, type CashFlow } from './xirr';
+import { cleanFundDisplayName } from './mfCasImport';
 
 /** One row per scheme+plan; `members` holds one MFFundMetrics per folio that
  *  scheme is held under (almost always length 1 — grouping only becomes
@@ -27,7 +28,12 @@ export interface FundGroup {
 export function groupFundsByScheme(list: MFFundMetrics[], benchmarks: MFBenchmarks, tierThresholdPct: number): FundGroup[] {
   const byKey = new Map<string, MFFundMetrics[]>();
   for (const m of list) {
-    const key = `${m.fund.name}|${m.fund.plan}`;
+    // Grouped by the cleaned display name, not the raw CAS scheme name — the
+    // raw name is exactly the field that varies across AMC exports for what's
+    // genuinely the same scheme (e.g. one export appends "(Non Demat)" and
+    // another doesn't for the identical fund), which used to split one real
+    // holding into two unlabeled-looking rows instead of a single grouped one.
+    const key = `${cleanFundDisplayName(m.fund.name)}|${m.fund.plan}`;
     const existing = byKey.get(key);
     if (existing) existing.push(m);
     else byKey.set(key, [m]);
@@ -36,7 +42,7 @@ export function groupFundsByScheme(list: MFFundMetrics[], benchmarks: MFBenchmar
     const first = groupMembers[0].fund;
     const combinedFund = {
       ...first,
-      id: `group:${first.name}|${first.plan}`,
+      id: `group:${cleanFundDisplayName(first.name)}|${first.plan}`,
       currentValue: groupMembers.reduce((s, m) => s + m.fund.currentValue, 0),
       transactions: groupMembers.flatMap((m) => m.fund.transactions),
       importedCost: groupMembers.every((m) => m.fund.importedCost !== undefined)
@@ -49,7 +55,7 @@ export function groupFundsByScheme(list: MFFundMetrics[], benchmarks: MFBenchmar
       folio: undefined
     };
     return {
-      key: `${first.name}|${first.plan}`,
+      key: `${cleanFundDisplayName(first.name)}|${first.plan}`,
       members: groupMembers,
       invested: groupMembers.reduce((s, m) => s + m.invested, 0),
       currentValue: combinedFund.currentValue,

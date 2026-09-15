@@ -73,6 +73,22 @@ export interface MutualFund {
   // Manually-added funds have no such figure and are treated as open unless
   // currentValue is 0.
   closingUnits?: number;
+  // Systematic Transfer Plans set up FROM this fund. A single source fund can
+  // legitimately feed more than one destination on different schedules (e.g.
+  // Axis Large Cap -> Axis Small Cap over 24 months, and separately -> Axis
+  // Multicap over 6 months) — this is purely a tracking/reminder layer, not
+  // connected to the transaction ledger or XIRR; the actual switchOut/switchIn
+  // transactions each STP installment produces are still entered normally (via
+  // CAS import or manual entry) and are what XIRR/gain are computed from.
+  stpPlans?: MFStpPlan[];
+}
+
+export interface MFStpPlan {
+  id: string;
+  destinationFundName: string; // free text — the destination may or may not be a fund already tracked here
+  totalMonths: number;
+  startDate: string; // ISO yyyy-mm-dd
+  notes?: string;
 }
 
 export type MFBenchmarks = Record<MFCategory, number>; // annual % used as the category benchmark for tiering
