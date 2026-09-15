@@ -132,6 +132,7 @@ export const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'risk', label: 'Risk' },
   { key: 'expenses', label: 'Expenses' },
   { key: 'withdrawal', label: 'Withdrawal' },
+  { key: 'mutualFunds', label: 'Mutual Funds' },
   { key: 'retirement401k', label: '401k Projector' },
   { key: 'pfReinvest', label: 'PF Reinvest' },
   { key: 'snapshots', label: 'Snapshots' }

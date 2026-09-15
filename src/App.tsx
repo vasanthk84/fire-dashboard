@@ -17,7 +17,8 @@ import {
   DownloadCloud,
   PiggyBank,
   Landmark,
-  RotateCcw
+  RotateCcw,
+  LineChart
 } from 'lucide-react';
 import { InputDeck, INPUT_GROUPS, InputField } from './components/InputDeck';
 import { SaveSnapshotModal } from './components/SaveSnapshotModal';
@@ -35,6 +36,7 @@ const JourneyTab = lazy(() => import('./components/tabs/JourneyTab').then((modul
 const RiskTab = lazy(() => import('./components/tabs/RiskTab').then((module) => ({ default: module.RiskTab })));
 const ExpensesTab = lazy(() => import('./components/tabs/ExpensesTab').then((module) => ({ default: module.ExpensesTab })));
 const WithdrawalTab = lazy(() => import('./components/tabs/WithdrawalTab').then((module) => ({ default: module.WithdrawalTab })));
+const MutualFundsTab = lazy(() => import('./components/tabs/MutualFundsTab').then((module) => ({ default: module.MutualFundsTab })));
 const SnapshotsTab = lazy(() => import('./components/tabs/SnapshotsTab').then((module) => ({ default: module.SnapshotsTab })));
 const Retirement401kTab = lazy(() => import('./components/tabs/Retirement401kTab').then((module) => ({ default: module.Retirement401kTab })));
 const PFReinvestmentTab = lazy(() => import('./components/tabs/PFReinvestmentTab').then((module) => ({ default: module.PFReinvestmentTab })));
@@ -48,6 +50,7 @@ const tabIcons = {
   risk: Shield,
   expenses: Wallet,
   withdrawal: PlusCircle,
+  mutualFunds: LineChart,
   retirement401k: PiggyBank,
   pfReinvest: Landmark,
   snapshots: Archive
@@ -58,6 +61,7 @@ const tabsMeta = [
   { key: 'risk' as TabKey, label: 'Risk' },
   { key: 'expenses' as TabKey, label: 'Expenses' },
   { key: 'withdrawal' as TabKey, label: 'Withdrawal' },
+  { key: 'mutualFunds' as TabKey, label: 'Mutual Funds' },
   { key: 'retirement401k' as TabKey, label: '401k Projector' },
   { key: 'pfReinvest' as TabKey, label: 'PF Reinvest' },
   { key: 'snapshots' as TabKey, label: 'Snapshots' }
@@ -386,6 +390,19 @@ export default function App() {
             inputs={inputs}
             selectedWithdrawalRate={selectedWithdrawalRate}
             onSelectedRateChange={setSelectedWithdrawalRate}
+            themeKey={themeKey}
+          />
+        );
+      case 'mutualFunds':
+        return (
+          <MutualFundsTab
+            mfCurrentSynced={inputs.mfCurrent}
+            mfPrincipalSynced={inputs.mfPrincipal}
+            onSyncToPlan={(currentLakhs, principalLakhs) => {
+              handleInput('mfCurrent', currentLakhs);
+              handleInput('mfPrincipal', principalLakhs);
+              void runCalculation({ mfCurrent: currentLakhs, mfPrincipal: principalLakhs });
+            }}
             themeKey={themeKey}
           />
         );

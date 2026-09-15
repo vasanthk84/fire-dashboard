@@ -1,4 +1,140 @@
-export type TabKey = 'journey' | 'risk' | 'expenses' | 'withdrawal' | 'snapshots' | 'retirement401k' | 'pfReinvest';
+export type TabKey = 'journey' | 'risk' | 'expenses' | 'withdrawal' | 'mutualFunds' | 'snapshots' | 'retirement401k' | 'pfReinvest';
+
+// --- Mutual Fund XIRR & Allocation module ---------------------------------
+
+export type MFCategory =
+  | 'largeCap'
+  | 'flexiCap'
+  | 'midCap'
+  | 'smallCap'
+  | 'elss'
+  | 'index'
+  | 'hybrid'
+  | 'debt'
+  | 'international';
+
+export type MFPlan = 'direct' | 'regular';
+
+export type MFTxnType = 'purchase' | 'redemption' | 'switchIn' | 'switchOut' | 'reversal';
+
+export interface MFTransaction {
+  id: string;
+  date: string; // ISO yyyy-mm-dd
+  type: MFTxnType;
+  // SIGNED ₹, same convention CAMS/KFintech CAS statements use: positive when
+  // the transaction added money to the fund (purchase/SIP/switch-in), negative
+  // when it took money out (redemption/switch-out) — including a reversed/
+  // bounced SIP installment, which CAS shows as a negative "purchase". XIRR
+  // negates this once (investor cash flow = -amount) with no per-type branching,
+  // so a reversal just works without a special case. The manual "Add
+  // transaction" form still asks for a plain positive number and applies the
+  // sign itself based on the type picked.
+  amount: number;
+  units?: number;
+}
+
+export interface MutualFund {
+  id: string;
+  name: string;
+  category: MFCategory;
+  plan: MFPlan;
+  currentValue: number; // ₹, latest valuation (manually updated, or refreshed on CAS re-import)
+  asOfDate: string; // ISO date the currentValue was last updated
+  transactions: MFTransaction[];
+  notes?: string;
+  // Present when this fund came from a CAS import: `${folio}|${isin}`, used to
+  // detect the same holding on a later re-import (updates in place instead of
+  // creating a duplicate fund).
+  casKey?: string;
+  // Cumulative stamp duty + STT seen for this fund in an imported CAS, ₹.
+  // Informational only — deliberately excluded from the transaction ledger and
+  // from XIRR, since it's a tax on the purchase, not part of the fund's return.
+  charges?: number;
+  // Cost basis as CAS itself reports it (casparser's per-scheme valuation.cost),
+  // set on import. Preferred over summing signed transaction amounts, because
+  // that naive sum undercounts invested capital whenever a redemption realized
+  // a gain — a redemption's proceeds exceed the cost of the units sold, so
+  // "purchases minus redemption proceeds" isn't the same as "cost of units still
+  // held". Manually-added funds have no such figure and fall back to the sum.
+  importedCost?: number;
+}
+
+export type MFBenchmarks = Record<MFCategory, number>; // annual % used as the category benchmark for tiering
+
+export type MFTier = 1 | 2 | 3;
+
+export interface MFFundMetrics {
+  fund: MutualFund;
+  invested: number; // net amount put in (purchases + switchIns - redemptions - switchOuts), i.e. cost basis still in the fund
+  gain: number; // currentValue - invested
+  gainPct: number | null;
+  xirr: number | null; // decimal, e.g. 0.132 = 13.2%
+  usesAbsoluteReturn: boolean; // true when the holding is too new for XIRR and we fell back to absolute return
+  benchmark: number; // decimal
+  deltaVsBenchmark: number | null; // xirr - benchmark, decimal
+  tier: MFTier | null;
+  tierReason: string;
+  directTwinAvailable: boolean; // plan === 'regular', flagged as a separate, tier-independent opportunity
+}
+
+export interface MFPortfolioData {
+  funds: MutualFund[];
+  benchmarks: MFBenchmarks;
+  tierThresholdPct: number; // +/- percentage points around benchmark that defines Tier 2 (Maintain)
+}
+
+// --- CAS import (casparser JSON shape, as produced by scripts/parse_cas.py) ---
+// Loosely typed to match casparser's `read_cas_pdf(..., output="json")` output
+// for CAMS/KFintech DETAILED statements. Numeric fields arrive as strings (or
+// null for annotation-only rows) — the import mapper is responsible for
+// converting them.
+
+export interface CASTransactionRaw {
+  date: string; // yyyy-mm-dd
+  description: string;
+  amount: string | null;
+  units: string | null;
+  nav: string | null;
+  balance: string | null;
+  type: string; // 'PURCHASE' | 'PURCHASE_SIP' | 'REDEMPTION' | 'SWITCH_IN' | 'SWITCH_OUT' | 'REVERSAL' | 'STAMP_DUTY_TAX' | 'STT_TAX' | 'MISC' | others
+  dividend_rate: string | null;
+  gift_folio: string | null;
+}
+
+export interface CASSchemeRaw {
+  scheme: string;
+  advisor: string | null;
+  rta_code: string;
+  rta: string;
+  type: string; // 'EQUITY' | 'DEBT' | 'HYBRID' | ...
+  isin: string;
+  amfi: string;
+  nominees: string[];
+  open: number;
+  close: number;
+  close_calculated: number;
+  valuation: { date: string; nav: string; cost: string; value: string };
+  transactions: CASTransactionRaw[];
+}
+
+export interface CASFolioRaw {
+  folio: string;
+  amc: string;
+  name: string;
+  PAN: string;
+  KYC: string;
+  PANKYC: string;
+  schemes: CASSchemeRaw[];
+}
+
+export interface CASParseResult {
+  statement_period: { from: string; to: string };
+  folios: CASFolioRaw[];
+  investor_info: { name: string; email: string; address: string; mobile: string };
+  cas_type: string;
+  file_type: string;
+  parse_warnings: string[];
+}
 
 export interface Inputs {
   startYear: number;

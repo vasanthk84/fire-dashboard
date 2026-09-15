@@ -1,13 +1,22 @@
+require('dotenv').config(); // loads .env for local dev (e.g. UPSTASH_REDIS_REST_URL/TOKEN) — harmless if the file doesn't exist; Vercel injects its own env vars in production without this
+
 const express = require('express');
 const cors = require('cors');
 const ExcelJS = require('exceljs');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
+const { spawn } = require('child_process');
 const calculate = require('./api/calculate');
+const cloudState = require('./api/state');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+// CAS statements arrive as base64 in the JSON body, which runs ~33% larger
+// than the PDF itself — a 41-page statement is a few hundred KB, so 20mb
+// leaves plenty of headroom without opening the door to huge uploads.
+app.use(express.json({ limit: '20mb' }));
 
 const distPath = path.join(__dirname, 'dist');
 if (fs.existsSync(distPath)) {
@@ -27,6 +36,149 @@ if (fs.existsSync(distPath)) {
 // production, so local dev never drifts from what's actually deployed.
 app.post('/api/calculate', (req, res) => {
   calculate(req, res);
+});
+
+// --- OPTIONAL CLOUD BACKUP (see api/state.js) ---
+// Same shared-module delegation as /api/calculate above — works whether or
+// not UPSTASH_REDIS_REST_URL/TOKEN are set; api/state.js itself reports
+// "not configured" rather than erroring when they're missing.
+app.get('/api/state', (req, res) => {
+  cloudState(req, res);
+});
+app.post('/api/state', (req, res) => {
+  cloudState(req, res);
+});
+
+// --- CAS STATEMENT PARSER (local dev only — spawns a Python subprocess, ---
+// --- which Vercel's Node serverless functions cannot do) ---
+
+// On Windows, `python`/`python3` on PATH is very often not Python at all —
+// it's a Microsoft Store "app execution alias" stub. Running it doesn't fail
+// to spawn (so there's no ENOENT to catch); it just prints a
+// "Python was not found; run without arguments to install from the
+// Microsoft Store..." message and exits, which broke every CAS import until
+// this was handled explicitly. `py` (the official Windows Python launcher,
+// installed alongside a real python.exe and NOT covered by that alias) is
+// tried first on Windows for that reason.
+function resolvePythonCandidates() {
+  if (process.env.CAS_PYTHON_BIN) return [process.env.CAS_PYTHON_BIN];
+  return process.platform === 'win32' ? ['py', 'python', 'python3'] : ['python3', 'python'];
+}
+
+const PYTHON_STORE_STUB_PATTERN = /Microsoft Store|app execution alias|was not found; run without arguments/i;
+
+// Tries each candidate interpreter in order, moving to the next only when a
+// candidate clearly isn't a real Python (missing entirely, or the Windows
+// Store stub described above) — any other failure (bad password, corrupt
+// PDF, casparser not installed for that interpreter) is reported as-is
+// rather than silently retried under a different interpreter.
+function runPythonParser(candidates, scriptPath, tempPath, password, cb) {
+  const [bin, ...rest] = candidates;
+  if (!bin) {
+    cb(new Error(
+      'Could not find a working Python interpreter (tried: ' + resolvePythonCandidates().join(', ') + '). ' +
+      'Install Python 3 from python.org — not the Microsoft Store — then run `pip install casparser`, ' +
+      'or set CAS_PYTHON_BIN to the full path of your python.exe.'
+    ));
+    return;
+  }
+
+  const args = bin === 'py' ? ['-3', scriptPath, tempPath] : [scriptPath, tempPath];
+  let settled = false;
+  // PYTHONIOENCODING: belt-and-suspenders alongside parse_cas.py's own stdout
+  // reconfigure — Windows can pipe a subprocess's stdout through a non-UTF-8
+  // codepage, which breaks on a CAS containing stray non-ASCII PDF-extraction
+  // artifacts (observed: a lone U+FFFE noncharacter in a real statement).
+  const child = spawn(bin, args, { env: { ...process.env, CAS_PASSWORD: password || '', PYTHONIOENCODING: 'utf-8' } });
+
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+
+  child.on('error', (spawnErr) => {
+    if (settled) return;
+    settled = true;
+    if (spawnErr.code === 'ENOENT' && rest.length > 0) {
+      runPythonParser(rest, scriptPath, tempPath, password, cb);
+    } else {
+      cb(spawnErr);
+    }
+  });
+
+  child.on('close', (code) => {
+    if (settled) return;
+    settled = true;
+    const looksLikeStoreStub = PYTHON_STORE_STUB_PATTERN.test(stdout) || PYTHON_STORE_STUB_PATTERN.test(stderr);
+    if (looksLikeStoreStub && rest.length > 0) {
+      runPythonParser(rest, scriptPath, tempPath, password, cb);
+      return;
+    }
+    cb(null, { code, stdout, stderr, usedBin: bin });
+  });
+}
+
+app.post('/api/cas/parse', (req, res) => {
+  const { fileBase64, password } = req.body || {};
+  if (!fileBase64 || typeof fileBase64 !== 'string') {
+    res.status(400).json({ error: 'Missing fileBase64 in request body.' });
+    return;
+  }
+
+  let pdfBuffer;
+  try {
+    // Accept both a bare base64 string and a data: URL (FileReader.readAsDataURL).
+    const base64Data = fileBase64.includes(',') ? fileBase64.split(',').pop() : fileBase64;
+    pdfBuffer = Buffer.from(base64Data, 'base64');
+  } catch {
+    res.status(400).json({ error: 'Could not decode fileBase64 as base64.' });
+    return;
+  }
+
+  const tempPath = path.join(os.tmpdir(), `cas-${crypto.randomUUID()}.pdf`);
+  fs.writeFile(tempPath, pdfBuffer, (writeErr) => {
+    if (writeErr) {
+      res.status(500).json({ error: `Could not write temp file for parsing: ${writeErr.message}` });
+      return;
+    }
+
+    const scriptPath = path.join(__dirname, 'scripts', 'parse_cas.py');
+    runPythonParser(resolvePythonCandidates(), scriptPath, tempPath, password, (spawnErr, result) => {
+      fs.unlink(tempPath, () => {});
+
+      if (spawnErr) {
+        const hint = spawnErr.code === 'ENOENT'
+          ? `Could not find a Python interpreter (tried: ${resolvePythonCandidates().join(', ')}). ` +
+            `Install Python 3 and casparser (pip install casparser), or set CAS_PYTHON_BIN to the full path of your python.exe.`
+          : spawnErr.message;
+        res.status(500).json({ error: hint });
+        return;
+      }
+
+      const { code, stdout, stderr } = result;
+      let parsed;
+      try {
+        parsed = JSON.parse(stdout);
+      } catch {
+        const storeHint = PYTHON_STORE_STUB_PATTERN.test(stdout) || PYTHON_STORE_STUB_PATTERN.test(stderr)
+          ? ' It looks like every "python"/"python3"/"py" on PATH opens the Microsoft Store install prompt instead of ' +
+            'running Python — install Python 3 from python.org (check "Add python.exe to PATH" during setup) and run ' +
+            '`pip install casparser`, or set CAS_PYTHON_BIN to the full path of your python.exe.'
+          : '';
+        res.status(500).json({
+          error: `Python parser produced unexpected output${stderr ? `: ${stderr.slice(0, 500)}` : '.'}${storeHint}`
+        });
+        return;
+      }
+
+      if (code !== 0 || parsed.error) {
+        res.status(422).json({ error: parsed.error || 'Failed to parse the CAS statement.' });
+        return;
+      }
+
+      res.json(parsed);
+    });
+  });
 });
 
 // --- NEW MULTI-SHEET EXCEL GENERATOR ---

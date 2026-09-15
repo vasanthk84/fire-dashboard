@@ -1,0 +1,6 @@
+# Python dependencies for Vercel serverless functions under api/ (currently
+# just api/cas/parse.py). Vercel's Python runtime (@vercel/python) installs
+# this automatically at build time — no action needed beyond keeping it in
+# sync with what's used locally (see scripts/parse_cas.py, the equivalent
+# local-dev bridge server.js spawns).
+casparser==1.4.1

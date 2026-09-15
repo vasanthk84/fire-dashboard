@@ -1,9 +1,10 @@
-import type { ChangeEvent } from 'react';
-import { Archive, Download, Play, Upload, Trash2 } from 'lucide-react';
+import { useEffect, useState, type ChangeEvent } from 'react';
+import { Archive, CloudCheck, CloudOff, Download, Loader2, Play, RefreshCw, Upload, Trash2 } from 'lucide-react';
 import type { Snapshot } from '../../types';
 import { fmtL } from '../../utils/formatters';
 import { ApexChartComponent } from '../ApexChartComponent';
 import { CHARTS } from '../../utils/chartBuilders';
+import { fetchCloudState, pullCloudState, pushCloudState } from '../../services/cloudSync';
 
 interface SnapshotsTabProps {
   snapshots: Snapshot[];
@@ -19,6 +20,116 @@ interface SnapshotsTabProps {
   onLoad: (id: string) => void;
   onDelete: (id: string) => void;
   themeKey: string;
+}
+
+type CloudStatus = 'checking' | 'unconfigured' | 'ready';
+
+function CloudSyncCard() {
+  const [status, setStatus] = useState<CloudStatus>('checking');
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [busy, setBusy] = useState<'idle' | 'saving' | 'loading'>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchCloudState()
+      .then(({ configured, state }) => {
+        if (cancelled) return;
+        setStatus(configured ? 'ready' : 'unconfigured');
+        setUpdatedAt(configured ? (state?.updatedAt ?? null) : null);
+      })
+      .catch(() => {
+        if (!cancelled) setStatus('unconfigured');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSave = async () => {
+    setBusy('saving');
+    setError(null);
+    setSaved(false);
+    try {
+      const { updatedAt: newUpdatedAt } = await pushCloudState();
+      setUpdatedAt(newUpdatedAt);
+      setStatus('ready');
+      setSaved(true);
+    } catch (err) {
+      setError((err as Error).message || 'Failed to save to cloud.');
+    } finally {
+      setBusy('idle');
+    }
+  };
+
+  const handleLoad = async () => {
+    if (
+      !window.confirm(
+        'This replaces your FIRE plan, mutual fund portfolio, and snapshots on this device with the cloud copy. Continue?'
+      )
+    ) {
+      return;
+    }
+    setBusy('loading');
+    setError(null);
+    try {
+      await pullCloudState();
+      window.location.reload(); // every hook here reads localStorage only on mount
+    } catch (err) {
+      setError((err as Error).message || 'Failed to load from cloud.');
+      setBusy('idle');
+    }
+  };
+
+  return (
+    <div className="card card-pad">
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div>
+          <div className="panel-h">
+            <span className="panel-t">Cloud sync</span>
+          </div>
+          <div className="panel-cap" style={{ marginLeft: 0 }}>
+            {status === 'checking' && 'Checking…'}
+            {status === 'unconfigured' &&
+              'Not set up — your plan, MF portfolio, and snapshots stay on this device/browser only. See .env.example for a free setup.'}
+            {status === 'ready' &&
+              (updatedAt ? `Last synced ${new Date(updatedAt).toLocaleString()}` : 'Set up — no backup saved yet.')}
+          </div>
+        </div>
+
+        {status === 'ready' && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button className="btn btn-sm btn-primary" onClick={handleSave} disabled={busy !== 'idle'}>
+              {busy === 'saving' ? <Loader2 size={12} className="spin" /> : <CloudCheck size={12} />} Save to cloud
+            </button>
+            <button className="btn btn-sm" onClick={handleLoad} disabled={busy !== 'idle'}>
+              {busy === 'loading' ? <Loader2 size={12} className="spin" /> : <RefreshCw size={12} />} Load from cloud
+            </button>
+          </div>
+        )}
+        {status === 'unconfigured' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-3)', fontSize: 12 }}>
+            <CloudOff size={14} /> Not configured
+          </div>
+        )}
+      </div>
+
+      {saved && (
+        <div
+          className="banner warn"
+          style={{ marginTop: 12, borderColor: 'var(--pos)', background: 'color-mix(in srgb, var(--pos) 10%, transparent)', color: 'var(--pos)' }}
+        >
+          <CloudCheck size={14} /> Saved to cloud.
+        </div>
+      )}
+      {error && (
+        <div className="banner warn" style={{ marginTop: 12, fontSize: 12 }}>
+          {error}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function SnapshotsTab(props: SnapshotsTabProps) {
@@ -60,6 +171,8 @@ export function SnapshotsTab(props: SnapshotsTabProps) {
           <div className="calc-v">{progressToFire.toFixed(0)}%</div>
         </div>
       </div>
+
+      <CloudSyncCard />
 
       <div className="card card-pad">
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>

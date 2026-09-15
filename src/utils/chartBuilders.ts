@@ -608,5 +608,62 @@ export const CHARTS = {
       dataLabels: { enabled: false },
       tooltip: { enabled: false }
     });
+  },
+
+  // ---------- Mutual Fund XIRR & Allocation module ----------
+  /** Three step-up SIP scenarios (flat / +10%/yr / +20%/yr) over the projection
+   *  horizon. Values passed in ₹ Lakhs, same convention as `corpus`/`composition`. */
+  mfProjection(labels: string[], flat: number[], step10: number[], step20: number[]) {
+    return (): ApexOptions => ({
+      ...baseAxes(labels, yL),
+      series: [
+        { name: 'Flat SIP', data: flat.map((v) => Number(v.toFixed(1))) },
+        { name: '+10%/yr step-up', data: step10.map((v) => Number(v.toFixed(1))) },
+        { name: '+20%/yr step-up', data: step20.map((v) => Number(v.toFixed(1))) }
+      ],
+      chart: { type: 'line', height: 320, background: 'transparent', toolbar: { show: false } },
+      colors: [cssVar('--text-3'), cssVar('--accent'), cssVar('--pos')],
+      stroke: { width: [2, 2.5, 2.5], curve: 'smooth', dashArray: [4, 0, 0] },
+      markers: { size: 0, hover: { size: 4 } },
+      legend: {
+        show: true,
+        position: 'top',
+        fontFamily: SANS,
+        fontSize: '11px',
+        labels: { colors: cssVar('--text-2') }
+      },
+      tooltip: {
+        theme: isDark() ? 'dark' : 'light',
+        style: { fontFamily: SANS },
+        y: { formatter: (v) => fmtL(Number(v)) }
+      }
+    });
+  },
+
+  /** Per-fund XIRR vs its category benchmark, grouped bars. */
+  mfFundComparison(fundNames: string[], fundXirrPct: number[], benchmarkPct: number[]) {
+    return (): ApexOptions => ({
+      ...baseAxes(fundNames, (v) => Number(v).toFixed(0) + '%'),
+      series: [
+        { name: 'Fund XIRR', data: fundXirrPct.map((v) => Number(v.toFixed(1))) },
+        { name: 'Category benchmark', data: benchmarkPct.map((v) => Number(v.toFixed(1))) }
+      ],
+      chart: { type: 'bar', height: 300, background: 'transparent', toolbar: { show: false } },
+      colors: [cssVar('--accent'), cssVar('--text-3')],
+      plotOptions: { bar: { borderRadius: 4, columnWidth: '58%', dataLabels: { position: 'top' } } },
+      stroke: { width: 0 },
+      legend: {
+        show: true,
+        position: 'top',
+        fontFamily: SANS,
+        fontSize: '11px',
+        labels: { colors: cssVar('--text-2') }
+      },
+      tooltip: {
+        theme: isDark() ? 'dark' : 'light',
+        style: { fontFamily: SANS },
+        y: { formatter: (v) => Number(v).toFixed(1) + '%' }
+      }
+    });
   }
 };

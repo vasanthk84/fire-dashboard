@@ -681,3 +681,6 @@ textarea.form-input {
 @media (max-width: 480px) {
   .deck { grid-template-columns: 1fr; }
 }
+
+.spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
