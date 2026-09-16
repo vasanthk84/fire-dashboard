@@ -57,3 +57,38 @@ export function projectScenarios(
 export function yearlyPoints(points: SIPMonthPoint[]): SIPMonthPoint[] {
   return points.filter((p) => p.month % 12 === 0);
 }
+
+/** Inverse of the step-up projection: given a target corpus, finds the
+ *  annual step-up %/yr (0-500%) that reaches it in `years` — the natural
+ *  complement to picking a step-up % and reading off the result. Binary
+ *  search over annualStepUpPct, since final balance is monotonically
+ *  increasing in it (a bigger yearly SIP increase can only grow the corpus
+ *  faster, never slower). Returns null when even a 0% step-up (flat SIP)
+ *  already meets the target (nothing to solve for) or when even a 500%/yr
+ *  step-up still falls short (target isn't reachable this way — needs a
+ *  bigger starting SIP, more years, or a higher return assumption instead). */
+export function requiredStepUpPct(
+  startingCorpus: number,
+  monthlyContribution: number,
+  annualReturnPct: number,
+  years: number,
+  targetCorpus: number
+): number | null {
+  const finalBalance = (stepUpPct: number) => {
+    const points = simulateStepUpSIP(startingCorpus, monthlyContribution, annualReturnPct, years, stepUpPct);
+    return points[points.length - 1]?.balance ?? startingCorpus;
+  };
+
+  if (finalBalance(0) >= targetCorpus) return null;
+  const MAX_STEP_UP = 5; // 500%/yr — well past any realistic SIP increase; if this still isn't enough, step-up alone can't get there
+  if (finalBalance(MAX_STEP_UP) < targetCorpus) return null;
+
+  let lo = 0;
+  let hi = MAX_STEP_UP;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (finalBalance(mid) < targetCorpus) lo = mid;
+    else hi = mid;
+  }
+  return hi;
+}

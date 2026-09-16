@@ -14,16 +14,16 @@ import {
   TrendingUp,
   X
 } from 'lucide-react';
-import type { CASParseResult, MFCategory, MFFundMetrics, MFPlan, MFStpPlan, MFTxnType } from '../../types';
+import type { CASParseResult, MFCategory, MFFundMetrics, MFPlan, MFStpPlan, MFTransaction } from '../../types';
 import { useMutualFunds } from '../../hooks/useMutualFunds';
 import { ApexChartComponent } from '../ApexChartComponent';
 import { CHARTS } from '../../utils/chartBuilders';
 import { NumberInput } from '../NumberInput';
 import { fmtL, fmtRupees } from '../../utils/formatters';
-import { MF_CATEGORIES, MF_CATEGORY_COLOR, MF_CATEGORY_LABEL, MF_TXN_TYPE_LABEL } from '../../utils/mfCategories';
-import { projectScenarios, simulateStepUpSIP, yearlyPoints } from '../../utils/mfProjections';
+import { MF_CATEGORIES, MF_CATEGORY_COLOR, MF_TXN_TYPE_LABEL } from '../../utils/mfCategories';
+import { projectScenarios, requiredStepUpPct, simulateStepUpSIP, yearlyPoints } from '../../utils/mfProjections';
 import { buildCASReviewRows, cleanFundDisplayName, mergeCasResults, type CASImportSelection, type CASReviewRow, type CASSourceFile } from '../../utils/mfCasImport';
-import { groupFundsByScheme, type FundGroup } from '../../utils/mfAnalysis';
+import { detectSipStatus, groupFundsByScheme, type FundGroup } from '../../utils/mfAnalysis';
 import { computeHealthScore } from '../../utils/mfHealthScore';
 import { LTCG_EXEMPTION_LAKHS, LTCG_RATE } from '../../utils/taxModel';
 import { parseCASStatement } from '../../services/api';
@@ -87,7 +87,6 @@ function fmtYears(years: number | null): string {
   return years.toFixed(1) + 'y';
 }
 
-const TXN_TYPES: MFTxnType[] = ['purchase', 'redemption', 'switchIn', 'switchOut'];
 const COL_COUNT = 9;
 
 // The Category benchmarks card only shows an editable %/yr input for these —
@@ -133,6 +132,25 @@ function sortValue(m: MFFundMetrics, column: SortColumn): number | string {
   }
 }
 
+type TxnSortColumn = 'date' | 'type' | 'amount';
+
+const TXN_SORT_COLUMNS: Array<{ key: TxnSortColumn; label: string; align?: 'left' }> = [
+  { key: 'date', label: 'Date', align: 'left' },
+  { key: 'type', label: 'Type', align: 'left' },
+  { key: 'amount', label: 'Amount' }
+];
+
+function txnSortValue(t: MFTransaction, column: TxnSortColumn): number | string {
+  switch (column) {
+    case 'date':
+      return t.date;
+    case 'type':
+      return t.type;
+    case 'amount':
+      return t.amount;
+  }
+}
+
 // Per-file progress for a multi-PDF CAS parse — keyed by file name so the UI
 // can show each upload's own state instead of one generic spinner. Files are
 // sent to the parse endpoint concurrently (see handleCasParse); a failure in
@@ -165,10 +183,20 @@ function groupSortValue(g: FundGroup, column: SortColumn): number | string {
   }
 }
 
+type MFSubTab = 'funds' | 'benchmark' | 'projection' | 'report';
+
+const MF_SUB_TABS: Array<{ key: MFSubTab; label: string }> = [
+  { key: 'funds', label: 'Fund table' },
+  { key: 'benchmark', label: 'XIRR vs category benchmark' },
+  { key: 'projection', label: 'Projection' },
+  { key: 'report', label: 'Portfolio report' }
+];
+
 export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPlan, themeKey }: MutualFundsTabProps) {
   const mf = useMutualFunds();
   const { funds, metrics, totals, benchmarks, tierThresholdPct } = mf;
 
+  const [mfSubTab, setMfSubTab] = useState<MFSubTab>('funds');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // ---------- Sortable table ----------
@@ -182,6 +210,31 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
       setSortColumn(column);
       setSortDirection('asc');
     }
+  };
+
+  // Per-fund transaction log — defaults to date descending (latest first),
+  // shared across every fund's expand panel since only one is open at a time.
+  const [txnSortColumn, setTxnSortColumn] = useState<TxnSortColumn>('date');
+  const [txnSortDirection, setTxnSortDirection] = useState<SortDirection>('desc');
+
+  const handleTxnSort = (column: TxnSortColumn) => {
+    if (txnSortColumn === column) {
+      setTxnSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setTxnSortColumn(column);
+      setTxnSortDirection('desc');
+    }
+  };
+
+  const sortTransactions = (transactions: MFTransaction[]) => {
+    const dir = txnSortDirection === 'asc' ? 1 : -1;
+    return [...transactions].sort((a, b) => {
+      const va = txnSortValue(a, txnSortColumn);
+      const vb = txnSortValue(b, txnSortColumn);
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
   };
 
   // Redeemed/fully-switched-out holdings are kept for history (their cash
@@ -348,20 +401,6 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
     openCasImport();
   };
 
-  // ---------- Transaction entry (one shared draft row, applies to whichever fund is expanded) ----------
-  const [txnDate, setTxnDate] = useState(today());
-  const [txnType, setTxnType] = useState<MFTxnType>('purchase');
-  const [txnAmount, setTxnAmount] = useState(0);
-
-  const handleAddTxn = (fundId: string) => {
-    if (txnAmount <= 0) {
-      window.alert('Enter a transaction amount greater than 0');
-      return;
-    }
-    mf.addTransaction(fundId, { date: txnDate, type: txnType, amount: txnAmount });
-    setTxnAmount(0);
-  };
-
   // ---------- STP (Systematic Transfer Plan) entry — one shared draft row,
   // applies to whichever fund is expanded. This is a tracking/reminder layer
   // only: it doesn't touch the transaction ledger — the actual switchOut/
@@ -389,6 +428,29 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
     setStpNote('');
   };
 
+  // ---------- Confirmed SIP mandate entry — one shared draft row, applies to
+  // whichever fund is expanded. Ground truth entered directly from the
+  // user's broker/AMC (see MFSipMandate doc comment) — takes precedence over
+  // detectSipStatus's own pattern inference for that fund once added. ----------
+  const [mandateAmount, setMandateAmount] = useState(0);
+  const [mandateDay, setMandateDay] = useState(1);
+  const [mandateNote, setMandateNote] = useState('');
+
+  const handleAddMandate = (fundId: string) => {
+    if (mandateAmount <= 0) {
+      window.alert('Enter the SIP amount');
+      return;
+    }
+    if (mandateDay < 1 || mandateDay > 31) {
+      window.alert('Day of month must be between 1 and 31');
+      return;
+    }
+    mf.addSipMandate(fundId, { amount: mandateAmount, dayOfMonth: mandateDay, notes: mandateNote.trim() || undefined });
+    setMandateAmount(0);
+    setMandateDay(1);
+    setMandateNote('');
+  };
+
   // ---------- Projection engine ----------
   const [projStartOverride, setProjStartOverride] = useState<number | null>(null);
   const [projMonthlyOverride, setProjMonthlyOverride] = useState<number | null>(null);
@@ -398,6 +460,10 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
   // a 50%/60% annual SIP increase instead of the moderate defaults. null =
   // not shown (avoids a 4th line cluttering the chart until the user opts in).
   const [customStepUpPct, setCustomStepUpPct] = useState<number | null>(null);
+  // Reverse calc: pick a target corpus instead of a step-up %, and solve for
+  // the step-up needed to reach it in the same horizon — the natural inverse
+  // of the forward custom-step-up scenario above.
+  const [reverseTargetLakhs, setReverseTargetLakhs] = useState<number | null>(null);
 
   const defaultStartLakhs = Number((totals.currentValue / 100000).toFixed(2));
   const defaultReturnPct = totals.blendedXirr !== null ? Number((totals.blendedXirr * 100).toFixed(1)) : 12;
@@ -452,9 +518,40 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
   const finalStep20 = yearlyStep20[yearlyStep20.length - 1]?.balance ?? effectiveStartLakhs;
   const finalCustom = yearlyCustom ? yearlyCustom[yearlyCustom.length - 1]?.balance ?? effectiveStartLakhs : null;
 
+  const requiredStepUp = useMemo(
+    () =>
+      reverseTargetLakhs !== null && reverseTargetLakhs > effectiveStartLakhs
+        ? requiredStepUpPct(effectiveStartLakhs, projMonthly / 100000, effectiveReturnPct, projYears, reverseTargetLakhs)
+        : undefined,
+    [reverseTargetLakhs, effectiveStartLakhs, projMonthly, effectiveReturnPct, projYears]
+  );
+
+  const reverseScenario = useMemo(
+    () =>
+      requiredStepUp !== undefined && requiredStepUp !== null
+        ? simulateStepUpSIP(effectiveStartLakhs, projMonthly / 100000, effectiveReturnPct, projYears, requiredStepUp / 100)
+        : null,
+    [requiredStepUp, effectiveStartLakhs, projMonthly, effectiveReturnPct, projYears]
+  );
+  const yearlyReverse = useMemo(() => (reverseScenario ? yearlyPoints(reverseScenario) : null), [reverseScenario]);
+  const finalReverse = yearlyReverse ? yearlyReverse[yearlyReverse.length - 1]?.balance ?? effectiveStartLakhs : null;
+
   // ---------- Portfolio report ----------
-  const [showReport, setShowReport] = useState(false);
   const health = useMemo(() => computeHealthScore(metrics), [metrics]);
+
+  // Active SIP tracker — sorted soonest-due first, so the funds needing cash
+  // ready first are at the top. Amount/date are inferred from each fund's own
+  // recent purchase pattern (see SipStatus doc comment), never a confirmed
+  // mandate — surfaced as "expected" everywhere it's shown.
+  const activeSips = useMemo(
+    () =>
+      activeMetrics
+        .map((m) => ({ fund: m.fund, status: detectSipStatus(m.fund) }))
+        .filter((r) => r.status.isActive)
+        .sort((a, b) => (a.status.nextDueDate ?? '').localeCompare(b.status.nextDueDate ?? '')),
+    [activeMetrics]
+  );
+  const totalUpcomingSipAmount = activeSips.reduce((s, r) => s + (r.status.totalAverageAmount ?? 0), 0);
 
   // Value-weighted category exposure across active holdings only — a
   // redeemed fund holding 0 units isn't part of "how is my money allocated
@@ -546,6 +643,7 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
     const expanded = expandedId === f.id;
     const tm = tierMeta(m.tier);
     const activeStpCount = (f.stpPlans ?? []).filter(isStpActive).length;
+    const sipStatus = detectSipStatus(f);
     return (
       <Fragment key={f.id}>
         <tr className={expanded ? 'mark' : ''} style={{ cursor: 'pointer' }} onClick={() => setExpandedId(expanded ? null : f.id)}>
@@ -554,6 +652,15 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
               {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }} title={f.name}>{cleanFundDisplayName(f.name)}</span>
               {m.closed && <span className="tag" style={{ flex: '0 0 auto' }} title="Fully redeemed / switched out — no units currently held">Redeemed</span>}
+              {!m.closed && sipStatus.isActive && (
+                <span
+                  className="tag ok"
+                  style={{ flex: '0 0 auto' }}
+                  title={`${sipStatus.streams.length > 1 ? `${sipStatus.streams.length} concurrent SIP streams — ` : ''}Expected next: ${sipStatus.nextDueDate ?? '—'} (inferred from your own purchase pattern, not a confirmed mandate).`}
+                >
+                  SIP {fmtRupees(sipStatus.totalAverageAmount ?? 0)}/mo
+                </span>
+              )}
               {activeStpCount > 0 && (
                 <span
                   className="tag warn"
@@ -567,10 +674,13 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                 </span>
               )}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 19, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {MF_CATEGORY_LABEL[f.category]}
-              {f.folio && <span> · Folio {f.folio}</span>}
-            </div>
+            {!m.closed && sipStatus.isActive ? (
+              <div style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 19 }}>
+                {fmtRupees(sipStatus.totalAverageAmount ?? 0)}/mo{sipStatus.nextDueDate && <> · next ~{sipStatus.nextDueDate}</>}
+              </div>
+            ) : (
+              m.closed && <div style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 19 }}>No active SIP</div>
+            )}
           </td>
           <td>
             {f.plan === 'regular' ? (
@@ -632,77 +742,75 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                       ))}
                     </select>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>As of {f.asOfDate}</div>
-                </div>
-
-                <div style={{ flex: '1 1 320px', minWidth: 300 }}>
-                  <div className="eyebrow" style={{ marginBottom: 8 }}>Log a transaction</div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <input
-                      type="date"
-                      className="in"
-                      style={{ width: 140 }}
-                      value={txnDate}
-                      onChange={(e) => setTxnDate(e.target.value)}
-                    />
-                    <select className="in" style={{ width: 120 }} value={txnType} onChange={(e) => setTxnType(e.target.value as MFTxnType)}>
-                      {TXN_TYPES.map((t) => (
-                        <option key={t} value={t}>{MF_TXN_TYPE_LABEL[t]}</option>
-                      ))}
-                    </select>
-                    <NumberInput
-                      className="in"
-                      style={{ width: 120 }}
-                      step={500}
-                      value={txnAmount}
-                      onCommit={setTxnAmount}
-                    />
-                    <button className="btn btn-sm btn-primary" onClick={() => handleAddTxn(f.id)}>
-                      <PlusCircle size={12} /> Add
-                    </button>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>
+                    As of {f.asOfDate}
+                    {f.folio && <> · Folio {f.folio}</>}
                   </div>
                 </div>
               </div>
 
-              {f.transactions.length > 0 && (
-                <div className="table-scroll" style={{ marginTop: 14 }}>
-                  <table className="grid" style={{ width: '100%' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: 'left' }}>Date</th>
-                        <th style={{ textAlign: 'left' }}>Type</th>
-                        <th>Amount</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {f.transactions.map((t) => (
-                        <tr key={t.id}>
-                          <td style={{ textAlign: 'left' }}>{t.date}</td>
-                          <td style={{ textAlign: 'left' }}>{MF_TXN_TYPE_LABEL[t.type]}</td>
-                          <td>{fmtRupees(t.amount)}</td>
-                          <td>
-                            <button
-                              className="btn btn-sm btn-ghost text-neg"
-                              style={{ padding: 3 }}
-                              onClick={() => mf.deleteTransaction(f.id, t.id)}
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+                <div className="eyebrow" style={{ marginBottom: 8 }}>
+                  Confirmed SIP mandate{(f.sipMandates ?? []).length !== 1 ? 's' : ''}
                 </div>
-              )}
+                <div className="panel-cap" style={{ marginLeft: 0, marginBottom: 10 }}>
+                  Enter your actual registered SIP(s) from your broker/AMC (e.g. a Paytm Money SIP schedule) — a fund can have more than one at different amounts/dates. Once added, this replaces the auto-detected pattern below for this fund, since it's ground truth rather than an inference.
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <NumberInput className="in" style={{ width: 120 }} step={500} min={0} value={mandateAmount} onCommit={setMandateAmount} />
+                  <span className="panel-cap" style={{ marginLeft: 0 }}>on day</span>
+                  <NumberInput className="in" style={{ width: 70 }} step={1} min={1} max={31} value={mandateDay} onCommit={setMandateDay} />
+                  <span className="panel-cap" style={{ marginLeft: 0 }}>every month</span>
+                  <input
+                    type="text"
+                    className="in"
+                    style={{ width: 160 }}
+                    placeholder="Note (optional)"
+                    value={mandateNote}
+                    onChange={(e) => setMandateNote(e.target.value)}
+                  />
+                  <button className="btn btn-sm btn-primary" onClick={() => handleAddMandate(f.id)}>
+                    <PlusCircle size={12} /> Add SIP
+                  </button>
+                </div>
+
+                {(f.sipMandates ?? []).length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+                    {(f.sipMandates ?? []).map((m) => (
+                      <div
+                        key={m.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          padding: '9px 12px',
+                          borderRadius: 10,
+                          background: 'color-mix(in srgb, var(--pos) 10%, transparent)',
+                          border: '1px solid color-mix(in srgb, var(--pos) 32%, transparent)'
+                        }}
+                      >
+                        <span className="tag ok" style={{ flex: '0 0 auto' }}>Confirmed</span>
+                        <span style={{ fontSize: 12.5, fontWeight: 600 }}>{fmtRupees(m.amount)} on day {m.dayOfMonth}</span>
+                        {m.notes && <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{m.notes}</span>}
+                        <button
+                          className="btn btn-sm btn-ghost text-neg"
+                          style={{ padding: 3, marginLeft: 'auto' }}
+                          onClick={() => mf.deleteSipMandate(f.id, m.id)}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
                 <div className="eyebrow" style={{ marginBottom: 8 }}>
                   Track an STP out of this fund
                 </div>
                 <div className="panel-cap" style={{ marginLeft: 0, marginBottom: 10 }}>
-                  Tracking/reminder only — doesn't affect XIRR or gain. Enter each switchOut installment separately above (or via CAS import) as it actually happens.
+                  Tracking/reminder only — doesn't affect XIRR or gain. Each switchOut installment still arrives normally via CAS import as it actually happens.
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   <input
@@ -775,6 +883,43 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                 )}
               </div>
 
+              {f.transactions.length > 0 && (
+                <div className="table-scroll" style={{ marginTop: 16 }}>
+                  <table className="grid" style={{ width: '100%' }}>
+                    <thead>
+                      <tr>
+                        {TXN_SORT_COLUMNS.map((col) => (
+                          <th
+                            key={col.key}
+                            style={{ textAlign: col.align ?? 'center', cursor: 'pointer', userSelect: 'none' }}
+                            onClick={() => handleTxnSort(col.key)}
+                            title={`Sort by ${col.label}`}
+                          >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: col.align === 'left' ? 'flex-start' : 'center' }}>
+                              {col.label}
+                              {txnSortColumn === col.key ? (
+                                <ChevronDown size={11} style={{ transform: txnSortDirection === 'asc' ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }} />
+                              ) : (
+                                <ChevronsUpDown size={11} style={{ opacity: 0.35 }} />
+                              )}
+                            </span>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortTransactions(f.transactions).map((t) => (
+                        <tr key={t.id}>
+                          <td style={{ textAlign: 'left' }}>{t.date}</td>
+                          <td style={{ textAlign: 'left' }}>{MF_TXN_TYPE_LABEL[t.type]}</td>
+                          <td>{fmtRupees(t.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
               <div className="panel-cap" style={{ marginLeft: 0, marginTop: 10 }}>{m.tierReason}</div>
             </td>
           </tr>
@@ -791,6 +936,12 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
     const gainPct = g.invested > 0 ? g.gain / g.invested : null;
     const anyClosed = g.members.some((m) => m.closed);
     const gtm = tierMeta(g.combined.tier);
+    const memberSipStatuses = g.members.map((m) => detectSipStatus(m.fund)).filter((s) => s.isActive);
+    const groupSipTotal = memberSipStatuses.reduce((s, x) => s + (x.totalAverageAmount ?? 0), 0);
+    const groupNextDue = memberSipStatuses.reduce(
+      (soonest, s) => (s.nextDueDate && (!soonest || s.nextDueDate < soonest) ? s.nextDueDate : soonest),
+      null as string | null
+    );
 
     return (
       <Fragment key={g.key}>
@@ -802,9 +953,22 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
               <span className="tag" style={{ flex: '0 0 auto' }} title="Held under more than one folio — expand to see each folio separately">
                 {g.members.length} folios
               </span>
+              {memberSipStatuses.length > 0 && (
+                <span
+                  className="tag ok"
+                  style={{ flex: '0 0 auto' }}
+                  title={`Active SIP across ${memberSipStatuses.length} of ${g.members.length} folio${g.members.length === 1 ? '' : 's'} — expected next: ${groupNextDue ?? '—'} (inferred from purchase pattern, not a confirmed mandate).`}
+                >
+                  SIP {fmtRupees(groupSipTotal)}/mo
+                </span>
+              )}
               {anyClosed && <span className="tag warn" style={{ flex: '0 0 auto' }} title="At least one of these folios has been fully redeemed/switched out">Includes redeemed</span>}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 19 }}>{MF_CATEGORY_LABEL[first.category]}</div>
+            {memberSipStatuses.length > 0 && (
+              <div style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 19 }}>
+                {fmtRupees(groupSipTotal)}/mo{groupNextDue && <> · next ~{groupNextDue}</>}
+              </div>
+            )}
           </td>
           <td>
             {first.plan === 'regular' ? (
@@ -910,7 +1074,16 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
         </div>
       </div>
 
+      <div className="tabbar">
+        {MF_SUB_TABS.map((t) => (
+          <button key={t.key} className={mfSubTab === t.key ? 'active' : ''} onClick={() => setMfSubTab(t.key)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       {/* ---------- Fund table ---------- */}
+      {mfSubTab === 'funds' && (
       <div className="table-card">
         <div className="table-head" style={{ flexWrap: 'wrap', gap: 10 }}>
           <div>
@@ -992,8 +1165,11 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
           </div>
         )}
       </div>
+      )}
 
       {/* ---------- Fund vs benchmark comparison ---------- */}
+      {mfSubTab === 'benchmark' && (
+      <>
       {comparable.length > 0 && (
         <div className="card card-pad">
           <div className="panel-h">
@@ -1081,8 +1257,11 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
           <span className="tag bad">Reduce</span> behind by ≥{tierThresholdPct}pp
         </div>
       </div>
+      </>
+      )}
 
       {/* ---------- Projection engine ---------- */}
+      {mfSubTab === 'projection' && (
       <div className="card card-pad">
         <div className="panel-h">
           <span className="panel-t">Projection · flat vs step-up SIP</span>
@@ -1139,63 +1318,100 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
           </div>
         </div>
 
+        <div style={{ marginBottom: 16, paddingTop: 4, borderTop: '1px solid var(--border)' }}>
+          <div className="eyebrow" style={{ marginTop: 12, marginBottom: 8 }}>Reverse: target corpus → required step-up</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            <span className="panel-cap" style={{ marginLeft: 0 }}>Target</span>
+            <div className="in-wrap" style={{ width: 140, margin: 0 }}>
+              <NumberInput
+                className="in"
+                step={10}
+                min={0}
+                value={reverseTargetLakhs ?? 0}
+                onCommit={(n) => setReverseTargetLakhs(n > 0 ? n : null)}
+              />
+            </div>
+            <span className="panel-cap" style={{ marginLeft: 0 }}>₹L in {projYears}y</span>
+            {reverseTargetLakhs !== null && (
+              <>
+                {requiredStepUp === undefined ? null : requiredStepUp === null ? (
+                  <span className="tag warn">
+                    {reverseTargetLakhs <= effectiveStartLakhs ? 'Enter a target above your starting corpus' : 'Not reachable via step-up alone even at 500%/yr — try more years, a higher SIP, or a higher return assumption'}
+                  </span>
+                ) : (
+                  <span className="tag ok">Needs ~{requiredStepUp.toFixed(1)}%/yr step-up</span>
+                )}
+                <button className="btn btn-sm btn-ghost" onClick={() => setReverseTargetLakhs(null)}>
+                  <X size={12} /> Clear
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
         {projLabels.length > 1 && (
           <ApexChartComponent
             height={320}
-            dep={'mfproj' + themeKey + effectiveStartLakhs + projMonthly + effectiveReturnPct + projYears + customStepUpPct}
+            dep={'mfproj' + themeKey + effectiveStartLakhs + projMonthly + effectiveReturnPct + projYears + customStepUpPct + requiredStepUp}
             build={CHARTS.mfProjection(
               projLabels,
               yearlyFlat.map((p) => p.balance),
               yearlyStep10.map((p) => p.balance),
               yearlyStep20.map((p) => p.balance),
-              yearlyCustom ? { label: `+${customStepUpPct}%/yr step-up`, data: yearlyCustom.map((p) => p.balance) } : undefined
+              [
+                ...(yearlyCustom ? [{ label: `+${customStepUpPct}%/yr step-up`, data: yearlyCustom.map((p) => p.balance) }] : []),
+                ...(yearlyReverse && requiredStepUp ? [{ label: `Target ${fmtL(reverseTargetLakhs ?? 0)} (+${requiredStepUp.toFixed(1)}%/yr)`, data: yearlyReverse.map((p) => p.balance) }] : [])
+              ]
             )}
           />
         )}
 
-        <div className={customStepUpPct !== null ? 'grid-3' : 'grid-3'} style={{ marginTop: 16, display: 'grid', gridTemplateColumns: customStepUpPct !== null ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: 14 }}>
-          <div className="calc">
-            <div className="calc-l">Flat SIP · {projYears}y</div>
-            <div className="calc-v">{fmtL(finalFlat)}</div>
-          </div>
-          <div className="calc hl">
-            <div className="calc-l">+10%/yr step-up</div>
-            <div className="calc-v">{fmtL(finalStep10)}</div>
-          </div>
-          <div className="calc">
-            <div className="calc-l">+20%/yr step-up</div>
-            <div className="calc-v">{fmtL(finalStep20)}</div>
-          </div>
-          {customStepUpPct !== null && finalCustom !== null && (
-            <div className="calc" style={{ background: 'color-mix(in srgb, var(--warn) 12%, transparent)', borderColor: 'color-mix(in srgb, var(--warn) 35%, transparent)' }}>
-              <div className="calc-l">+{customStepUpPct}%/yr step-up</div>
-              <div className="calc-v">{fmtL(finalCustom)}</div>
+        {(() => {
+          const tileCount = 3 + (customStepUpPct !== null && finalCustom !== null ? 1 : 0) + (yearlyReverse && requiredStepUp && finalReverse !== null ? 1 : 0);
+          return (
+            <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: `repeat(${tileCount}, 1fr)`, gap: 14 }}>
+              <div className="calc">
+                <div className="calc-l">Flat SIP · {projYears}y</div>
+                <div className="calc-v">{fmtL(finalFlat)}</div>
+              </div>
+              <div className="calc hl">
+                <div className="calc-l">+10%/yr step-up</div>
+                <div className="calc-v">{fmtL(finalStep10)}</div>
+              </div>
+              <div className="calc">
+                <div className="calc-l">+20%/yr step-up</div>
+                <div className="calc-v">{fmtL(finalStep20)}</div>
+              </div>
+              {customStepUpPct !== null && finalCustom !== null && (
+                <div className="calc" style={{ background: 'color-mix(in srgb, var(--warn) 12%, transparent)', borderColor: 'color-mix(in srgb, var(--warn) 35%, transparent)' }}>
+                  <div className="calc-l">+{customStepUpPct}%/yr step-up</div>
+                  <div className="calc-v">{fmtL(finalCustom)}</div>
+                </div>
+              )}
+              {yearlyReverse && requiredStepUp && finalReverse !== null && (
+                <div className="calc" style={{ background: 'color-mix(in srgb, var(--neg) 12%, transparent)', borderColor: 'color-mix(in srgb, var(--neg) 35%, transparent)' }}>
+                  <div className="calc-l">+{requiredStepUp.toFixed(1)}%/yr (solved)</div>
+                  <div className="calc-v">{fmtL(finalReverse)}</div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })()}
         <div className="panel-cap" style={{ marginLeft: 0, marginTop: 12 }}>
           Monthly SIP defaults to your real purchase run-rate over the last 3 months, combined across all active funds — edit it above to test a different amount. Return assumption defaults to your blended XIRR ({fmtPct(totals.blendedXirr)}) once you've logged transactions — edit it above to stress-test a different rate. A step-up scenario increases your monthly SIP amount by that % every year, not the return rate — this is a projection assuming the rate holds, not a prediction of market conditions.
         </div>
       </div>
+      )}
 
       {/* ---------- Portfolio report ---------- */}
-      {activeMetrics.length > 0 && (
+      {mfSubTab === 'report' && activeMetrics.length > 0 && (
         <div className="card card-pad">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-            <div>
-              <div className="panel-h">
-                <span className="panel-t">Portfolio report</span>
-              </div>
-              <div className="panel-cap" style={{ marginLeft: 0 }}>Snapshot, allocation, tax position, and top actions — built entirely from your tracked data.</div>
-            </div>
-            <button className="btn btn-sm" onClick={() => setShowReport((v) => !v)}>
-              {showReport ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-              {showReport ? 'Hide report' : 'Show report'}
-            </button>
+          <div className="panel-h">
+            <span className="panel-t">Portfolio report</span>
           </div>
+          <div className="panel-cap" style={{ marginLeft: 0 }}>Snapshot, allocation, tax position, and top actions — built entirely from your tracked data.</div>
 
-          {showReport && (
-            <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 24 }}>
               {/* Snapshot */}
               <div>
                 <div className="eyebrow" style={{ marginBottom: 10 }}>Snapshot</div>
@@ -1240,6 +1456,55 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                         <div className="calc-foot">~{m.calendarYear}</div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Active SIPs — processed vs. expected upcoming */}
+              {activeSips.length > 0 && (
+                <div>
+                  <div className="eyebrow" style={{ marginBottom: 10 }}>Active SIPs</div>
+                  <div className="panel-cap" style={{ marginLeft: 0, marginBottom: 10 }}>
+                    Detected from your own purchase pattern — amount and next date are an estimate based on recent installments, not your actual registered SIP mandate (this app only sees transactions that already happened, not bank-side mandates). Verify against your broker/AMC before relying on the date.
+                  </div>
+                  {totalUpcomingSipAmount > 0 && (
+                    <div className="calc hl" style={{ marginBottom: 12, maxWidth: 280 }}>
+                      <div className="calc-l">Expected cash needed, next cycle</div>
+                      <div className="calc-v">{fmtRupees(totalUpcomingSipAmount)}</div>
+                      <div className="calc-foot">Across {activeSips.length} active SIP{activeSips.length === 1 ? '' : 's'}</div>
+                    </div>
+                  )}
+                  <div className="table-scroll">
+                    <table className="grid" style={{ width: '100%' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: 'left' }}>Fund</th>
+                          <th>Streams</th>
+                          <th>Total/mo</th>
+                          <th style={{ textAlign: 'left' }}>Expected next</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeSips.map(({ fund, status }) => {
+                          const overdue = status.streams.some((s) => (s.daysUntilNext ?? 0) < 0);
+                          return (
+                            <tr key={fund.id}>
+                              <td className="fund-name" style={{ textAlign: 'left', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={fund.name}>
+                                {cleanFundDisplayName(fund.name)}
+                              </td>
+                              <td title={status.streams.map((s) => `${fmtRupees(s.averageAmount)} every ~${Math.round(s.cadenceDays)}d`).join(' · ')}>
+                                {status.streams.length}
+                              </td>
+                              <td className="k">{fmtRupees(status.totalAverageAmount ?? 0)}</td>
+                              <td style={{ textAlign: 'left' }}>
+                                <span className={overdue ? 'text-neg' : undefined}>{status.nextDueDate}</span>
+                                {overdue && <span className="tag warn" style={{ marginLeft: 6 }}>Overdue?</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
@@ -1367,7 +1632,6 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                 </p>
               </div>
             </div>
-          )}
         </div>
       )}
 

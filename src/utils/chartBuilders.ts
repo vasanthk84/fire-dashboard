@@ -611,19 +611,21 @@ export const CHARTS = {
   },
 
   // ---------- Mutual Fund XIRR & Allocation module ----------
-  /** Step-up SIP scenarios (flat / +10%/yr / +20%/yr, plus an optional custom
-   *  step-up %/yr the user configures) over the projection horizon. Values
-   *  passed in ₹ Lakhs, same convention as `corpus`/`composition`. */
-  mfProjection(labels: string[], flat: number[], step10: number[], step20: number[], custom?: { label: string; data: number[] }) {
+  /** Step-up SIP scenarios (flat / +10%/yr / +20%/yr, plus any extra scenario
+   *  lines the user configures — a custom step-up %, a reverse-calc solved
+   *  step-up, etc.) over the projection horizon. Values passed in ₹ Lakhs,
+   *  same convention as `corpus`/`composition`. */
+  mfProjection(labels: string[], flat: number[], step10: number[], step20: number[], extras: Array<{ label: string; data: number[] }> = []) {
+    const EXTRA_COLORS = [cssVar('--warn'), cssVar('--neg')];
     const series = [
       { name: 'Flat SIP', data: flat.map((v) => Number(v.toFixed(1))) },
       { name: '+10%/yr step-up', data: step10.map((v) => Number(v.toFixed(1))) },
       { name: '+20%/yr step-up', data: step20.map((v) => Number(v.toFixed(1))) },
-      ...(custom ? [{ name: custom.label, data: custom.data.map((v) => Number(v.toFixed(1))) }] : [])
+      ...extras.map((e) => ({ name: e.label, data: e.data.map((v) => Number(v.toFixed(1))) }))
     ];
-    const colors = [cssVar('--text-3'), cssVar('--accent'), cssVar('--pos'), ...(custom ? [cssVar('--warn')] : [])];
-    const strokeWidth = [2, 2.5, 2.5, ...(custom ? [2.5] : [])];
-    const dashArray = [4, 0, 0, ...(custom ? [0] : [])];
+    const colors = [cssVar('--text-3'), cssVar('--accent'), cssVar('--pos'), ...extras.map((_, i) => EXTRA_COLORS[i % EXTRA_COLORS.length])];
+    const strokeWidth = [2, 2.5, 2.5, ...extras.map(() => 2.5)];
+    const dashArray = [4, 0, 0, ...extras.map(() => 0)];
     return (): ApexOptions => ({
       ...baseAxes(labels, yL),
       series,

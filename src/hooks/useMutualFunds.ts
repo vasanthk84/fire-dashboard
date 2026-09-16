@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
-import type { MFBenchmarks, MFCategory, MFStpPlan, MFTransaction, MutualFund } from '../types';
+import type { MFBenchmarks, MFCategory, MFSipMandate, MFStpPlan, MFTransaction, MutualFund } from '../types';
 import { computeFundMetrics, portfolioXIRR } from '../utils/mfAnalysis';
 import type { CASImportSelection } from '../utils/mfCasImport';
 import { buildFundsFromCAS } from '../utils/mfCasImport';
@@ -100,6 +100,19 @@ export function useMutualFunds() {
   const deleteStpPlan = (fundId: string, stpId: string) => {
     setFunds((prev) =>
       prev.map((f) => (f.id === fundId ? { ...f, stpPlans: (f.stpPlans ?? []).filter((s) => s.id !== stpId) } : f))
+    );
+  };
+
+  const addSipMandate = (fundId: string, mandate: Omit<MFSipMandate, 'id'>) => {
+    const id = genId('sip');
+    setFunds((prev) =>
+      prev.map((f) => (f.id === fundId ? { ...f, sipMandates: [...(f.sipMandates ?? []), { ...mandate, id }] } : f))
+    );
+  };
+
+  const deleteSipMandate = (fundId: string, mandateId: string) => {
+    setFunds((prev) =>
+      prev.map((f) => (f.id === fundId ? { ...f, sipMandates: (f.sipMandates ?? []).filter((m) => m.id !== mandateId) } : f))
     );
   };
 
@@ -206,6 +219,8 @@ export function useMutualFunds() {
     deleteTransaction,
     addStpPlan,
     deleteStpPlan,
+    addSipMandate,
+    deleteSipMandate,
     updateBenchmark,
     resetBenchmarks,
     exportPortfolio,

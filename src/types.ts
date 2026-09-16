@@ -81,6 +81,17 @@ export interface MutualFund {
   // transactions each STP installment produces are still entered normally (via
   // CAS import or manual entry) and are what XIRR/gain are computed from.
   stpPlans?: MFStpPlan[];
+  // Confirmed SIP mandate(s) for this fund, entered directly from the user's
+  // broker/AMC (e.g. a Paytm Money "SIP schedule" screen) — a fund can
+  // genuinely run more than one concurrent SIP at different amounts/dates
+  // (confirmed on real data: quant Small Cap Fund runs ₹6,000 on the 1st AND
+  // ₹5,000 on the 18th as two separate registered mandates). When present,
+  // these take precedence over detectSipStatus's inferred pattern (see
+  // mfAnalysis.ts) for this fund — a confirmed mandate is authoritative,
+  // while inference is only ever a best-effort fallback for funds the user
+  // hasn't entered a mandate for. Never affects XIRR/gain — purely a
+  // tracking/display layer, same as stpPlans.
+  sipMandates?: MFSipMandate[];
 }
 
 export interface MFStpPlan {
@@ -88,6 +99,13 @@ export interface MFStpPlan {
   destinationFundName: string; // free text — the destination may or may not be a fund already tracked here
   totalMonths: number;
   startDate: string; // ISO yyyy-mm-dd
+  notes?: string;
+}
+
+export interface MFSipMandate {
+  id: string;
+  amount: number; // ₹, as registered with the AMC/broker
+  dayOfMonth: number; // 1-31
   notes?: string;
 }
 

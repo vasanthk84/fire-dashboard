@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState, useEffect, useMemo } from 'react';
+import { Suspense, lazy, useState, useEffect, useMemo, useRef } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -18,7 +18,8 @@ import {
   PiggyBank,
   Landmark,
   RotateCcw,
-  LineChart
+  LineChart,
+  Palette
 } from 'lucide-react';
 import { InputDeck, INPUT_GROUPS, InputField } from './components/InputDeck';
 import { SaveSnapshotModal } from './components/SaveSnapshotModal';
@@ -68,21 +69,37 @@ const tabsMeta = [
   { key: 'snapshots' as TabKey, label: 'Snapshots' }
 ];
 
+// Guardrail banners and the readiness/StatsDeck overview are about the core
+// FIRE plan's assumptions (expenses, contributions, tax, withdrawal safety) —
+// meaningful on the tabs that actually drive those calculations. They read as
+// noise on tabs that are their own self-contained tools (Mutual Funds' own
+// summary stats, 401k/PF Reinvest's own projections, Snapshots' own history).
+const PLAN_OVERVIEW_TABS = new Set<TabKey>(['journey', 'risk', 'expenses', 'withdrawal']);
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('journey');
   const [selectedWithdrawalRate, setSelectedWithdrawalRate] = useState('4%');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const showPlanOverview = PLAN_OVERVIEW_TABS.has(activeTab);
 
   // Theme states
-  const [layout, setLayout] = useState<'console' | 'report'>(() => {
-    return (localStorage.getItem('fire-planner-layout') as 'console' | 'report') || 'console';
-  });
   const [theme, setTheme] = useState<'dark' | 'light' | 'paper'>(() => {
     return (localStorage.getItem('fire-planner-theme') as 'dark' | 'light' | 'paper') || 'dark';
   });
   const [hue, setHue] = useState<'green' | 'blue' | 'indigo' | 'cyan'>(() => {
     return (localStorage.getItem('fire-planner-hue') as 'green' | 'blue' | 'indigo' | 'cyan') || 'green';
   });
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const appearanceRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!appearanceOpen) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (appearanceRef.current && !appearanceRef.current.contains(e.target as Node)) setAppearanceOpen(false);
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [appearanceOpen]);
 
   const planner = useFirePlanner();
   const {
@@ -129,10 +146,6 @@ export default function App() {
     document.documentElement.setAttribute('data-hue', hue);
     localStorage.setItem('fire-planner-hue', hue);
   }, [hue]);
-
-  useEffect(() => {
-    localStorage.setItem('fire-planner-layout', layout);
-  }, [layout]);
 
   const oneTimeExpenseTotal = showOneTime ? sumExpenses(oneTimeExpenses) : 0;
 
@@ -200,24 +213,6 @@ export default function App() {
     return { tone: 'bad', text: 'Gap under current assumptions' };
   }, [currentMonthlyExp, retirementCoverage, yearsToFI, inputs.startYear, inputs.retirementYear]);
 
-  // Mini-KPIs block
-  const kpis = (
-    <div className="head-kpis">
-      <div className="kpi-mini">
-        <span>Wealth</span>
-        <strong className="num">{fmtL(currentWealthLakhs)}</strong>
-      </div>
-      <div className="kpi-mini">
-        <span>Target</span>
-        <strong className="num">{fireNumberLakhs > 0 ? fmtL(fireNumberLakhs) : '—'}</strong>
-      </div>
-      <div className="kpi-mini">
-        <span>Progress</span>
-        <strong className="num">{progressToFire.toFixed(0)}%</strong>
-      </div>
-    </div>
-  );
-
   const hues: Array<['green' | 'blue' | 'indigo' | 'cyan', string]> = [
     ['green', '#15a05f'],
     ['blue', '#2f6df0'],
@@ -233,38 +228,62 @@ export default function App() {
   // Chrome selection controls
   const chromeControls = (
     <div className="chrome">
-      <div className="seg sm">
-        <button className={layout === 'console' ? 'active' : ''} onClick={() => setLayout('console')}>
-          Console
+      <div className="appearance-picker" ref={appearanceRef} style={{ position: 'relative' }}>
+        <button
+          className="btn btn-ghost btn-icon"
+          title="Appearance"
+          onClick={() => setAppearanceOpen((v) => !v)}
+        >
+          <Palette size={16} />
         </button>
-        <button className={layout === 'report' ? 'active' : ''} onClick={() => setLayout('report')}>
-          Report
-        </button>
-      </div>
-      <span className="chrome-sep"></span>
-      <div className="seg sm icn">
-        {themes.map(([l, Icon]) => (
-          <button
-            key={l}
-            title={l[0].toUpperCase() + l.slice(1) + ' theme'}
-            className={theme === l ? 'active' : ''}
-            onClick={() => setTheme(l)}
+        {appearanceOpen && (
+          <div
+            className="card"
+            style={{
+              position: 'absolute',
+              top: '100%',
+              right: 0,
+              marginTop: 8,
+              padding: 14,
+              zIndex: 20,
+              width: 200,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12
+            }}
           >
-            <Icon size={14} />
-          </button>
-        ))}
-      </div>
-      <div className="huedots">
-        {hues.map(([h, c]) => (
-          <button
-            key={h}
-            title={h}
-            aria-label={h}
-            className={'huedot' + (hue === h ? ' on' : '')}
-            style={{ '--c': c } as any}
-            onClick={() => setHue(h)}
-          ></button>
-        ))}
+            <div>
+              <div className="panel-cap" style={{ marginLeft: 0, marginBottom: 6 }}>Theme</div>
+              <div className="seg sm icn" style={{ width: '100%' }}>
+                {themes.map(([l, Icon]) => (
+                  <button
+                    key={l}
+                    title={l[0].toUpperCase() + l.slice(1) + ' theme'}
+                    className={theme === l ? 'active' : ''}
+                    onClick={() => setTheme(l)}
+                  >
+                    <Icon size={14} />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="panel-cap" style={{ marginLeft: 0, marginBottom: 6 }}>Hue</div>
+              <div className="huedots">
+                {hues.map(([h, c]) => (
+                  <button
+                    key={h}
+                    title={h}
+                    aria-label={h}
+                    className={'huedot' + (hue === h ? ' on' : '')}
+                    style={{ '--c': c } as any}
+                    onClick={() => setHue(h)}
+                  ></button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <span className="chrome-sep"></span>
       <CloudSyncChip onOpenSnapshots={() => setActiveTab('snapshots')} />
@@ -470,8 +489,7 @@ export default function App() {
   }
 
   /* ---------- Console layout shell ---------- */
-  if (layout === 'console') {
-    return (
+  return (
       <div className="shell">
         <aside className="rail">
           <div className="rail-brand">
@@ -532,7 +550,6 @@ export default function App() {
             </div>
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 22 }}>
               {chromeControls}
-              {kpis}
             </div>
           </header>
 
@@ -566,9 +583,9 @@ export default function App() {
           </header>
 
           <div className="content stack">
-            {banners}
+            {showPlanOverview && banners}
 
-            {overview}
+            {showPlanOverview && overview}
             <div className="section-gap">
               <Suspense fallback={<TabFallback />}>
                 {ActivePanel()}
@@ -639,89 +656,6 @@ export default function App() {
           onRemoveTag={snapshots.removeTag}
         />
       </div>
-    );
-  }
-
-  /* ---------- Report layout shell ---------- */
-  return (
-    <div className="shell report">
-      <main className="report-main">
-        <div className="topbar">
-          <div className="rail-brand" style={{ padding: 0 }}>
-            <div className="logo">F</div>
-            <div>
-              <div className="brand-name">FIRE Planner</div>
-            </div>
-          </div>
-          {kpis}
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
-            {chromeControls}
-            <button
-              className="btn btn-sm btn-ghost"
-              title="Clears your saved plan and restores the app defaults"
-              onClick={handleResetToDefaults}
-            >
-              <RotateCcw size={14} /> Reset
-            </button>
-            {results && (
-              <button
-                className="btn btn-sm btn-primary"
-                onClick={() => downloadPlanExcel(results, expenses, oneTimeExpenses, inputs)}
-              >
-                <DownloadCloud size={14} /> Export
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="content stack">
-          {banners}
-
-          <InputDeck
-            inputs={inputs}
-            onInput={(k, v) => {
-              handleInput(k, v);
-              void runCalculation({ [k]: v });
-            }}
-          />
-
-          {overview}
-
-          <div className="section-gap">
-            <div className="tabbar">
-              {tabsMeta.map((x) => (
-                <button
-                  key={x.key}
-                  className={activeTab === x.key ? 'active' : ''}
-                  onClick={() => setActiveTab(x.key)}
-                >
-                  {x.label}
-                </button>
-              ))}
-            </div>
-            <Suspense fallback={<TabFallback />}>
-              <ActivePanel />
-            </Suspense>
-          </div>
-        </div>
-      </main>
-
-      <SaveSnapshotModal
-        open={snapshots.showSaveModal}
-        snapshotLabel={snapshots.snapshotLabel}
-        snapshotNotes={snapshots.snapshotNotes}
-        snapshotTags={snapshots.snapshotTags}
-        currentWealth={fmtL(currentWealthLakhs)}
-        progressToFire={progressToFire}
-        yearsToFI={yearsToFI}
-        onClose={snapshots.closeSaveModal}
-        onSave={snapshots.saveSnapshot}
-        onLabelChange={snapshots.setSnapshotLabel}
-        onNotesChange={snapshots.setSnapshotNotes}
-        onAddTag={snapshots.addTag}
-        onRemoveTag={snapshots.removeTag}
-      />
-    </div>
   );
 }
 
