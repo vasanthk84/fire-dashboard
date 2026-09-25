@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { InputDeck, INPUT_GROUPS, InputField } from './components/InputDeck';
 import { OptionsYieldHint } from './components/OptionsYieldHint';
+import { OptionsCapitalHint } from './components/OptionsCapitalHint';
 import { SaveSnapshotModal } from './components/SaveSnapshotModal';
 import { StatsDeck } from './components/StatsDeck';
 import { CloudSyncChip } from './components/CloudSyncChip';
@@ -624,14 +625,23 @@ export default function App() {
               <div className="drawer-grp" key={g.title}>
                 <h4>{g.title}</h4>
                 {g.title === 'Options income' && (
-                  <OptionsYieldHint
-                    portfolioValueLakhs={inputs.optionsPortfolioValue}
-                    assumedYieldPct={inputs.optionsYieldPct}
-                    onApplyActual={(pct) => {
-                      handleInput('optionsYieldPct', pct);
-                      void runCalculation({ optionsYieldPct: pct });
-                    }}
-                  />
+                  <>
+                    <OptionsCapitalHint
+                      portfolioValueLakhs={inputs.optionsPortfolioValue}
+                      onApplyActual={(lakhs) => {
+                        handleInput('optionsPortfolioValue', lakhs);
+                        void runCalculation({ optionsPortfolioValue: lakhs });
+                      }}
+                    />
+                    <OptionsYieldHint
+                      portfolioValueLakhs={inputs.optionsPortfolioValue}
+                      assumedYieldPct={inputs.optionsYieldPct}
+                      onApplyActual={(pct) => {
+                        handleInput('optionsYieldPct', pct);
+                        void runCalculation({ optionsYieldPct: pct });
+                      }}
+                    />
+                  </>
                 )}
                 <div className="drawer-grid">
                   {g.fields.map((f: any) => (
