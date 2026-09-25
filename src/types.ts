@@ -369,6 +369,7 @@ export interface WithdrawalSustainability {
 
 export interface CalculationResults {
   summary: {
+    optionsYield?: { source: 'actual' | 'assumed'; annualRate: number; months: number; reason?: string; asOf?: string };
     startWealth: number;
     finalWealth: number;
     net401kINR: number;

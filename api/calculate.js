@@ -1,3 +1,6 @@
+const { fetchTradingIncomeSummary } = require('./_lib/tradingIncome');
+const { resolveOptionsYield } = require('./_lib/optionsYield');
+
 function growNMonths(principal, annualRate, monthlySIP, nMonths) {
   if (nMonths <= 0) return principal;
   const monthlyRate = annualRate / 12;
@@ -48,7 +51,7 @@ function calculate401kYearly(currentBalance, annualSalary, yourContribPct, emplo
   return fvPrincipal + fvSIP;
 }
 
-module.exports = (req, res) => {
+module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -173,7 +176,11 @@ module.exports = (req, res) => {
     const mfSIP = parseVal(input.mfSIP, 0);
     const sipStepUpRate = parseVal(input.sipStepUpRate, 0.10);
     const optionsPortfolioValue = parseVal(input.optionsPortfolioValue, 0);
-    const optionsYieldPct = parseVal(input.optionsYieldPct, 0.20);
+    const optionsYield = resolveOptionsYield(
+      optionsPortfolioValue > 0 ? await fetchTradingIncomeSummary() : { configured: false },
+      optionsPortfolioValue, parseVal(input.optionsYieldPct, 0.20)
+    );
+    const optionsYieldPct = optionsYield.annualRate;
 
     const annualSalary = parseVal(input.annualSalary, 0);
     const returnToIndiaYear = parseInt(input.returnYear, 10) || 2030;
@@ -645,6 +652,7 @@ module.exports = (req, res) => {
 
     return res.status(200).json({
       summary: {
+        optionsYield,
         startWealth: fireProjections[0].total,
         finalWealth,
         net401kINR,

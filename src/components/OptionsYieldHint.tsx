@@ -10,7 +10,7 @@ import { fmtRupees } from '../utils/formatters';
  * what your CC/CSP wheeling strategy has ACTUALLY realized — read from
  * trade-analytics (D:\Zerodha_Reports) — next to the `optionsYieldPct` you
  * type in by hand, so you can eyeball whether 20% (or whatever you've set)
- * still matches reality and dial it in yourself.
+ * matches reality. Calculations fetch this trend automatically; the manual input is a fallback.
  *
  * Scope: wheeling started April 2026, so every number here — monthly and
  * the annualized headline — only covers Apr 2026 onward (see
@@ -21,18 +21,9 @@ import { fmtRupees } from '../utils/formatters';
  * never computed separately — so there's one source of truth, not two
  * numbers that can quietly disagree.
  *
- * Purely informational by default: never writes back to `optionsYieldPct`
- * on its own, matching this app's existing everything-is-a-manual-input
- * philosophy (same as CloudSyncChip, which surfaces status but never
- * auto-syncs). The one exception is the explicit "Use actual" button below
- * — a manual click, same as typing a number into the input yourself — which
- * calls the optional `onApplyActual` callback with the annualized figure
- * (as a 0–1 fraction, matching `optionsYieldPct`'s own convention) so the
- * caller can route it through the same `handleInput`/`runCalculation` path
- * a hand-typed value would take. Renders nothing while loading, on any
- * error, or until TA_API_TOKEN is configured on both this app and
- * zerodha-report — same "not broken, just not set up yet" convention
- * api/state.js already uses for cloud sync.
+ * Calculations independently fetch the same trend server-side and apply it automatically.
+ * This chart previews that trend; the button saves a manual fallback for API outages.
+ * Projection source and fallback errors are displayed alongside the projection table.
  */
 export function OptionsYieldHint({
   portfolioValueLakhs,
@@ -86,17 +77,17 @@ export function OptionsYieldHint({
         title={`Annualized from ${months.length} month${months.length === 1 ? '' : 's'} since ${firstMonth} (avg ${avgMonthlyPct.toFixed(2)}%/mo × 12) — cumulative gross F&O P&L so far: ${fmtRupees(totalPnlSinceStart)}, from trade-analytics as of ${data.asOf ? new Date(data.asOf).toLocaleString('en-IN') : 'last sync'}`}
       >
         <span style={{ color: diverges ? 'var(--warn, #b8860b)' : 'var(--text-3)' }}>
-          Actual (annualized since {firstMonth}): {annualizedPct.toFixed(1)}%/yr (assumed {assumedPct.toFixed(1)}%)
+          Actual trend used automatically in projections (annualized since {firstMonth}): {annualizedPct.toFixed(1)}%/yr (assumed {assumedPct.toFixed(1)}%)
         </span>
         {onApplyActual && (
           <button
             type="button"
             className="btn btn-ghost btn-sm"
             style={{ padding: '1px 6px', fontSize: 10.5, flex: '0 0 auto' }}
-            title="Set the Options income assumption below to this actual annualized figure"
+            title="Save this yield as the fallback used if the Reports API is unavailable"
             onClick={() => onApplyActual(annualizedPct / 100)}
           >
-            Use actual ({annualizedPct.toFixed(1)}%)
+            Save as fallback ({annualizedPct.toFixed(1)}%)
           </button>
         )}
         <button

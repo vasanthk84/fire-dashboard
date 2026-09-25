@@ -25,7 +25,7 @@ export interface TradingIncomeResponse {
   currentFY?: TradingIncomeFY;
   allTime?: Omit<TradingIncomeFY, 'fy'>;
   byFY?: TradingIncomeFY[];
-  monthlyFO?: TradingIncomeMonth[]; // current FY only
+  monthlyFO?: TradingIncomeMonth[]; // since wheeling began, across FY boundaries
 }
 
 export async function fetchTradingIncome(): Promise<TradingIncomeResponse> {

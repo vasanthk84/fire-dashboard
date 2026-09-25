@@ -28,7 +28,8 @@ async function fetchTradingIncomeSummary() {
 
   try {
     const upstream = await fetch(`${baseUrl}/api/pnl-summary`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(8000)
     });
 
     if (upstream.status === 401) {

@@ -1,3 +1,4 @@
+import { OptionsYieldSource } from '../../../components/OptionsYieldSource';
 import { useMemo } from 'react';
 import type { CalculationResults, Inputs, Milestone } from '../../../types';
 import { fmtL } from '../../../utils/formatters';
@@ -54,6 +55,7 @@ export function TrajectoryView({ results, inputs, fireNumberLakhs, progressPct, 
 
   return (
     <>
+      <OptionsYieldSource value={results.summary.optionsYield} />
       <MHero tint1="rgba(21,160,95,.16)">
         <div className="m-eyebrow">Corpus at retirement · {retirementYear}</div>
         <div className="m-hero-metric" style={{ marginTop: 6 }}>{fmtL(corpusAtRetirement)}</div>

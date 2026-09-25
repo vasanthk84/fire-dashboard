@@ -52,3 +52,5 @@ Deploy settings:
 - `src/components/`: reusable UI pieces and tab views
 - `src/services/api.ts`: API requests
 - `api/`: Vercel serverless endpoints
+### Actual options yield
+Calculations automatically fetch Reports `/api/pnl-summary` using server-only `TA_API_TOKEN` and optional `TRADE_ANALYTICS_URL`. Configure the same token in both deployments (local .env changes do not update Vercel). The projection annualizes average reported expiry-month gross F&O P&L against the entered options capital, exactly as the trend does. This includes reported partial months and excludes missing months; it is not a net cash-income series or a historical capital-weighted return. Losses and zero returns are preserved. API failures or missing history use the manual yield, with the source/reason displayed above the projection. The request times out after eight seconds. Reports denies access if its token is missing.

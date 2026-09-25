@@ -1,3 +1,5 @@
+import { OptionsYieldSource } from '../OptionsYieldSource';
+import type { CalculationResults } from '../../types';
 import { useState } from 'react';
 import type { FireProjection } from '../../types';
 import { fmtL, fmtRupees } from '../../utils/formatters';
@@ -5,6 +7,7 @@ import { ApexChartComponent } from '../ApexChartComponent';
 import { CHARTS } from '../../utils/chartBuilders';
 
 interface JourneyTabProps {
+  optionsYield?: CalculationResults['summary']['optionsYield'];
   projections: FireProjection[];
   retirementYear: number;
   startYear: number;
@@ -12,12 +15,13 @@ interface JourneyTabProps {
   themeKey: string;
 }
 
-export function JourneyTab({ projections, retirementYear, startYear, withdraw401kYear, themeKey }: JourneyTabProps) {
+export function JourneyTab({ optionsYield, projections, retirementYear, startYear, withdraw401kYear, themeKey }: JourneyTabProps) {
   const [chartOpen, setChartOpen] = useState(false);
   const [showAssets, setShowAssets] = useState(false);
 
   return (
     <div className="stack">
+      <OptionsYieldSource value={optionsYield} />
       {/* Collapsible corpus trajectory */}
       <div className="table-card">
         <button

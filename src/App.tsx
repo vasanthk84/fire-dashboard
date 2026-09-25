@@ -359,6 +359,7 @@ export default function App() {
       case 'journey':
         return (
           <JourneyTab
+            optionsYield={results.summary.optionsYield}
             projections={results.fireProjections}
             retirementYear={inputs.retirementYear}
             startYear={inputs.startYear}
