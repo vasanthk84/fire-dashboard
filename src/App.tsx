@@ -22,6 +22,7 @@ import {
   Palette
 } from 'lucide-react';
 import { InputDeck, INPUT_GROUPS, InputField } from './components/InputDeck';
+import { OptionsYieldHint } from './components/OptionsYieldHint';
 import { SaveSnapshotModal } from './components/SaveSnapshotModal';
 import { StatsDeck } from './components/StatsDeck';
 import { CloudSyncChip } from './components/CloudSyncChip';
@@ -622,6 +623,12 @@ export default function App() {
             {INPUT_GROUPS.map((g: any) => (
               <div className="drawer-grp" key={g.title}>
                 <h4>{g.title}</h4>
+                {g.title === 'Options income' && (
+                  <OptionsYieldHint
+                    portfolioValueLakhs={inputs.optionsPortfolioValue}
+                    assumedYieldPct={inputs.optionsYieldPct}
+                  />
+                )}
                 <div className="drawer-grid">
                   {g.fields.map((f: any) => (
                     <InputField
