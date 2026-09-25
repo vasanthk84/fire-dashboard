@@ -60,7 +60,9 @@ module.exports = async (req, res) => {
       configured: true,
       asOf: summary.asOf,
       currentFY: summary.currentFY, // { fy, foNet, eqNet, combinedNet, foTrades, eqTrades }
-      allTime: summary.allTime
+      allTime: summary.allTime,
+      byFY: summary.byFY, // [{ fy, foNet, eqNet, combinedNet, foTrades, eqTrades }, ...] every FY on record
+      monthlyFO: summary.monthlyFO // [{ month, pnl, trades }, ...] gross F&O pnl, current FY only
     });
   } catch (error) {
     return res.status(200).json({ configured: true, error: error.message || 'Could not reach trade-analytics.' });

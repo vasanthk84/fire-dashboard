@@ -1,6 +1,6 @@
 import type { ApexOptions } from 'apexcharts';
 import type { FireProjection, WithdrawalProjection, Snapshot, Expenses } from '../types';
-import { fmtL } from './formatters';
+import { fmtL, fmtRupees } from './formatters';
 
 export function cssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -77,6 +77,15 @@ function yL(v: any): string {
   const numVal = Number(v);
   if (Math.abs(numVal) >= 100) return (numVal / 100).toFixed(1) + 'Cr';
   return Math.round(numVal) + 'L';
+}
+
+/** Compact ₹ axis label for raw-rupee (not Lakh-scale) values, e.g. trade P&L. */
+function yRupeesCompact(v: any): string {
+  const n = Number(v);
+  const abs = Math.abs(n);
+  if (abs >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
+  if (abs >= 1000) return `₹${(n / 1000).toFixed(0)}k`;
+  return `₹${Math.round(n)}`;
 }
 
 function clip(proj: FireProjection[], maxYear: number): FireProjection[] {
@@ -644,6 +653,66 @@ export const CHARTS = {
         theme: isDark() ? 'dark' : 'light',
         style: { fontFamily: SANS },
         y: { formatter: (v) => fmtL(Number(v)) }
+      }
+    });
+  },
+
+  // ---------- Options income — actual vs. assumed yield (trade-analytics) ----------
+  /** Realized F&O yield % per FY (foNet ÷ current options portfolio value),
+   *  with your hand-typed `optionsYieldPct` overlaid as a reference line.
+   *  Uses TODAY'S portfolio value as the denominator for every past FY too
+   *  (trade-analytics has no record of what your capital was back then) —
+   *  a genuine approximation, not exact history, which is why the hint text
+   *  next to this chart says so. */
+  optionsYieldByFY(byFY: Array<{ fy: string; foNet: number }>, portfolioLakhs: number, assumedYieldPct: number) {
+    const portfolioRupees = portfolioLakhs * 100000;
+    const data = byFY.map((f) => (portfolioRupees > 0 ? Number(((f.foNet / portfolioRupees) * 100).toFixed(1)) : 0));
+    const pos = cssVar('--pos'), neg = cssVar('--neg'), accent = cssVar('--accent');
+    const assumedPct = Number((assumedYieldPct * 100).toFixed(1));
+    return (): ApexOptions => ({
+      ...baseAxes(byFY.map((f) => f.fy.slice(2)), (v) => `${v}%`),
+      series: [{ name: 'Actual yield', data }],
+      chart: { type: 'bar', height: 150, background: 'transparent', toolbar: { show: false } },
+      plotOptions: { bar: { distributed: true, columnWidth: '55%', borderRadius: 3 } },
+      colors: data.map((v) => (v >= 0 ? pos : neg)),
+      legend: { show: false },
+      dataLabels: { enabled: false },
+      tooltip: {
+        theme: isDark() ? 'dark' : 'light',
+        style: { fontFamily: SANS },
+        y: { formatter: (v) => `${Number(v).toFixed(1)}%` }
+      },
+      annotations: {
+        yaxis: [{
+          y: assumedPct,
+          borderColor: accent,
+          strokeDashArray: 4,
+          label: {
+            text: `Assumed ${assumedPct}%`,
+            style: { fontSize: '10px', fontFamily: SANS, color: cssVar('--text'), background: cssVar('--surface-3') }
+          }
+        }]
+      }
+    });
+  },
+
+  /** Gross (pre-charges) F&O P&L per month, current FY only — see
+   *  lib/pnl-summary.js on the trade-analytics side for why it's gross. */
+  optionsMonthlyFO(monthlyFO: Array<{ month: string; pnl: number }>) {
+    const pos = cssVar('--pos'), neg = cssVar('--neg');
+    const data = monthlyFO.map((m) => m.pnl);
+    return (): ApexOptions => ({
+      ...baseAxes(monthlyFO.map((m) => m.month), yRupeesCompact),
+      series: [{ name: 'F&O P&L (gross)', data }],
+      chart: { type: 'bar', height: 150, background: 'transparent', toolbar: { show: false } },
+      plotOptions: { bar: { distributed: true, columnWidth: '55%', borderRadius: 3 } },
+      colors: data.map((v) => (v >= 0 ? pos : neg)),
+      legend: { show: false },
+      dataLabels: { enabled: false },
+      tooltip: {
+        theme: isDark() ? 'dark' : 'light',
+        style: { fontFamily: SANS },
+        y: { formatter: (v) => fmtRupees(Number(v)) }
       }
     });
   }

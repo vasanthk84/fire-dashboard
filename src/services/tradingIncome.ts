@@ -12,12 +12,20 @@ export interface TradingIncomeFY {
   eqTrades: number;
 }
 
+export interface TradingIncomeMonth {
+  month: string; // e.g. "SEP 26" — option contract's expiry month, matches trade-analytics' own monthly chart
+  pnl: number; // gross F&O P&L, ₹ (pre-charges — see lib/pnl-summary.js on the trade-analytics side for why)
+  trades: number;
+}
+
 export interface TradingIncomeResponse {
   configured: boolean;
   error?: string;
   asOf?: string;
   currentFY?: TradingIncomeFY;
   allTime?: Omit<TradingIncomeFY, 'fy'>;
+  byFY?: TradingIncomeFY[];
+  monthlyFO?: TradingIncomeMonth[]; // current FY only
 }
 
 export async function fetchTradingIncome(): Promise<TradingIncomeResponse> {
