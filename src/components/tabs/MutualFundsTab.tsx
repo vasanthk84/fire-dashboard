@@ -14,7 +14,7 @@ import {
   TrendingUp,
   X
 } from 'lucide-react';
-import type { CASParseResult, MFCategory, MFFundMetrics, MFPlan, MFStpPlan, MFTransaction } from '../../types';
+import type { CASParseResult, MFCategory, MFFundMetrics, MFPlan, MFStpPlan, MFTransaction, MutualFund } from '../../types';
 import { useMutualFunds } from '../../hooks/useMutualFunds';
 import { ApexChartComponent } from '../ApexChartComponent';
 import { CHARTS } from '../../utils/chartBuilders';
@@ -23,7 +23,7 @@ import { fmtL, fmtRupees } from '../../utils/formatters';
 import { MF_CATEGORIES, MF_CATEGORY_COLOR, MF_TXN_TYPE_LABEL } from '../../utils/mfCategories';
 import { projectScenarios, requiredStepUpPct, simulateStepUpSIP, yearlyPoints } from '../../utils/mfProjections';
 import { buildCASReviewRows, cleanFundDisplayName, mergeCasResults, type CASImportSelection, type CASReviewRow, type CASSourceFile } from '../../utils/mfCasImport';
-import { detectSipStatus, groupFundsByScheme, type FundGroup } from '../../utils/mfAnalysis';
+import { detectSipStatus, groupFundsByScheme, type FundGroup, type SipStatus } from '../../utils/mfAnalysis';
 import { computeHealthScore } from '../../utils/mfHealthScore';
 import { LTCG_EXEMPTION_LAKHS, LTCG_RATE } from '../../utils/taxModel';
 import { parseCASStatement } from '../../services/api';
@@ -134,6 +134,8 @@ function sortValue(m: MFFundMetrics, column: SortColumn): number | string {
 
 type TxnSortColumn = 'date' | 'type' | 'amount';
 
+const TXN_COLLAPSED_ROWS = 5;
+
 const TXN_SORT_COLUMNS: Array<{ key: TxnSortColumn; label: string; align?: 'left' }> = [
   { key: 'date', label: 'Date', align: 'left' },
   { key: 'type', label: 'Type', align: 'left' },
@@ -198,6 +200,7 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
 
   const [mfSubTab, setMfSubTab] = useState<MFSubTab>('funds');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedTxnFundId, setExpandedTxnFundId] = useState<string | null>(null);
 
   // ---------- Sortable table ----------
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
@@ -543,14 +546,33 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
   // ready first are at the top. Amount/date are inferred from each fund's own
   // recent purchase pattern (see SipStatus doc comment), never a confirmed
   // mandate — surfaced as "expected" everywhere it's shown.
-  const activeSips = useMemo(
-    () =>
-      activeMetrics
-        .map((m) => ({ fund: m.fund, status: detectSipStatus(m.fund) }))
-        .filter((r) => r.status.isActive)
-        .sort((a, b) => (a.status.nextDueDate ?? '').localeCompare(b.status.nextDueDate ?? '')),
-    [activeMetrics]
-  );
+  // Grouped by scheme (not per-folio) so a scheme held across multiple
+  // folios isn't double-counted — and once any folio in the group carries a
+  // confirmed mandate, that's the scheme's ground truth instead of summing
+  // every folio's independently inferred streams (see renderFundGroup).
+  const activeSips = useMemo(() => {
+    const groups = groupFundsByScheme(activeMetrics, benchmarks, tierThresholdPct);
+    return groups
+      .map((g) => {
+        const hasGroupMandate = g.members.some((m) => (m.fund.sipMandates ?? []).length > 0);
+        const relevantMembers = hasGroupMandate ? g.members.filter((m) => (m.fund.sipMandates ?? []).length > 0) : g.members;
+        const statuses = relevantMembers.map((m) => detectSipStatus(m.fund)).filter((s) => s.isActive);
+        if (statuses.length === 0) return null;
+        const totalAverageAmount = statuses.reduce((s, x) => s + (x.totalAverageAmount ?? 0), 0);
+        const nextDueDate = statuses.reduce(
+          (soonest, s) => (s.nextDueDate && (!soonest || s.nextDueDate < soonest) ? s.nextDueDate : soonest),
+          null as string | null
+        );
+        const streams = statuses.flatMap((s) => s.streams);
+        return {
+          fund: g.members[0].fund,
+          confirmed: hasGroupMandate,
+          status: { isActive: true, streams, totalAverageAmount, nextDueDate } as SipStatus,
+        };
+      })
+      .filter((r): r is { fund: MutualFund; confirmed: boolean; status: SipStatus } => r !== null)
+      .sort((a, b) => (a.status.nextDueDate ?? '').localeCompare(b.status.nextDueDate ?? ''));
+  }, [activeMetrics, benchmarks, tierThresholdPct]);
   const totalUpcomingSipAmount = activeSips.reduce((s, r) => s + (r.status.totalAverageAmount ?? 0), 0);
 
   // Value-weighted category exposure across active holdings only — a
@@ -644,6 +666,7 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
     const tm = tierMeta(m.tier);
     const activeStpCount = (f.stpPlans ?? []).filter(isStpActive).length;
     const sipStatus = detectSipStatus(f);
+    const hasConfirmedMandates = (f.sipMandates ?? []).length > 0;
     return (
       <Fragment key={f.id}>
         <tr className={expanded ? 'mark' : ''} style={{ cursor: 'pointer' }} onClick={() => setExpandedId(expanded ? null : f.id)}>
@@ -656,7 +679,11 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                 <span
                   className="tag ok"
                   style={{ flex: '0 0 auto' }}
-                  title={`${sipStatus.streams.length > 1 ? `${sipStatus.streams.length} concurrent SIP streams — ` : ''}Expected next: ${sipStatus.nextDueDate ?? '—'} (inferred from your own purchase pattern, not a confirmed mandate).`}
+                  title={
+                    hasConfirmedMandates
+                      ? `${sipStatus.streams.length > 1 ? `${sipStatus.streams.length} confirmed SIP mandates — ` : 'Confirmed SIP mandate — '}Expected next: ${sipStatus.nextDueDate ?? '—'}.`
+                      : `${sipStatus.streams.length > 1 ? `${sipStatus.streams.length} concurrent SIP streams — ` : ''}Expected next: ${sipStatus.nextDueDate ?? '—'} (inferred from your own purchase pattern, not a confirmed mandate).`
+                  }
                 >
                   SIP {fmtRupees(sipStatus.totalAverageAmount ?? 0)}/mo
                 </span>
@@ -883,42 +910,58 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                 )}
               </div>
 
-              {f.transactions.length > 0 && (
-                <div className="table-scroll" style={{ marginTop: 16 }}>
-                  <table className="grid" style={{ width: '100%' }}>
-                    <thead>
-                      <tr>
-                        {TXN_SORT_COLUMNS.map((col) => (
-                          <th
-                            key={col.key}
-                            style={{ textAlign: col.align ?? 'center', cursor: 'pointer', userSelect: 'none' }}
-                            onClick={() => handleTxnSort(col.key)}
-                            title={`Sort by ${col.label}`}
-                          >
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: col.align === 'left' ? 'flex-start' : 'center' }}>
-                              {col.label}
-                              {txnSortColumn === col.key ? (
-                                <ChevronDown size={11} style={{ transform: txnSortDirection === 'asc' ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }} />
-                              ) : (
-                                <ChevronsUpDown size={11} style={{ opacity: 0.35 }} />
-                              )}
-                            </span>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortTransactions(f.transactions).map((t) => (
-                        <tr key={t.id}>
-                          <td style={{ textAlign: 'left' }}>{t.date}</td>
-                          <td style={{ textAlign: 'left' }}>{MF_TXN_TYPE_LABEL[t.type]}</td>
-                          <td>{fmtRupees(t.amount)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              {f.transactions.length > 0 && (() => {
+                const sorted = sortTransactions(f.transactions);
+                const txnShowAll = expandedTxnFundId === f.id;
+                const visible = txnShowAll ? sorted : sorted.slice(0, TXN_COLLAPSED_ROWS);
+                return (
+                  <div style={{ marginTop: 16 }}>
+                    <div className="table-scroll">
+                      <table className="grid" style={{ width: 'auto', minWidth: 380 }}>
+                        <thead>
+                          <tr>
+                            {TXN_SORT_COLUMNS.map((col) => (
+                              <th
+                                key={col.key}
+                                style={{ textAlign: col.align ?? 'center', cursor: 'pointer', userSelect: 'none', padding: '11px 20px' }}
+                                onClick={() => handleTxnSort(col.key)}
+                                title={`Sort by ${col.label}`}
+                              >
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: col.align === 'left' ? 'flex-start' : 'center' }}>
+                                  {col.label}
+                                  {txnSortColumn === col.key ? (
+                                    <ChevronDown size={11} style={{ transform: txnSortDirection === 'asc' ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }} />
+                                  ) : (
+                                    <ChevronsUpDown size={11} style={{ opacity: 0.35 }} />
+                                  )}
+                                </span>
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {visible.map((t) => (
+                            <tr key={t.id}>
+                              <td style={{ textAlign: 'left', padding: '9px 20px' }}>{t.date}</td>
+                              <td style={{ textAlign: 'left', padding: '9px 20px' }}>{MF_TXN_TYPE_LABEL[t.type]}</td>
+                              <td style={{ padding: '9px 20px' }}>{fmtRupees(t.amount)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {sorted.length > TXN_COLLAPSED_ROWS && (
+                      <button
+                        className="btn btn-sm btn-ghost"
+                        style={{ marginTop: 8 }}
+                        onClick={() => setExpandedTxnFundId(txnShowAll ? null : f.id)}
+                      >
+                        {txnShowAll ? 'Show fewer' : `Show all ${sorted.length} transactions`}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="panel-cap" style={{ marginLeft: 0, marginTop: 10 }}>{m.tierReason}</div>
             </td>
@@ -936,7 +979,14 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
     const gainPct = g.invested > 0 ? g.gain / g.invested : null;
     const anyClosed = g.members.some((m) => m.closed);
     const gtm = tierMeta(g.combined.tier);
-    const memberSipStatuses = g.members.map((m) => detectSipStatus(m.fund)).filter((s) => s.isActive);
+    // A scheme's confirmed mandate is entered on just one folio but covers the
+    // whole scheme — so once any folio has a confirmed mandate, that folio's
+    // status is the group's ground truth. Summing every folio's independently
+    // *inferred* streams on top would double-count the same real-world SIP
+    // showing up as purchases across multiple folios.
+    const hasGroupMandate = g.members.some((m) => (m.fund.sipMandates ?? []).length > 0);
+    const relevantMembers = hasGroupMandate ? g.members.filter((m) => (m.fund.sipMandates ?? []).length > 0) : g.members;
+    const memberSipStatuses = relevantMembers.map((m) => detectSipStatus(m.fund)).filter((s) => s.isActive);
     const groupSipTotal = memberSipStatuses.reduce((s, x) => s + (x.totalAverageAmount ?? 0), 0);
     const groupNextDue = memberSipStatuses.reduce(
       (soonest, s) => (s.nextDueDate && (!soonest || s.nextDueDate < soonest) ? s.nextDueDate : soonest),
@@ -957,7 +1007,11 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                 <span
                   className="tag ok"
                   style={{ flex: '0 0 auto' }}
-                  title={`Active SIP across ${memberSipStatuses.length} of ${g.members.length} folio${g.members.length === 1 ? '' : 's'} — expected next: ${groupNextDue ?? '—'} (inferred from purchase pattern, not a confirmed mandate).`}
+                  title={
+                    hasGroupMandate
+                      ? `Confirmed SIP mandate(s) on ${memberSipStatuses.length} of ${g.members.length} folio${g.members.length === 1 ? '' : 's'} — expected next: ${groupNextDue ?? '—'}.`
+                      : `Active SIP across ${memberSipStatuses.length} of ${g.members.length} folio${g.members.length === 1 ? '' : 's'} — expected next: ${groupNextDue ?? '—'} (inferred from purchase pattern, not a confirmed mandate).`
+                  }
                 >
                   SIP {fmtRupees(groupSipTotal)}/mo
                 </span>
@@ -1465,7 +1519,7 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                 <div>
                   <div className="eyebrow" style={{ marginBottom: 10 }}>Active SIPs</div>
                   <div className="panel-cap" style={{ marginLeft: 0, marginBottom: 10 }}>
-                    Detected from your own purchase pattern — amount and next date are an estimate based on recent installments, not your actual registered SIP mandate (this app only sees transactions that already happened, not bank-side mandates). Verify against your broker/AMC before relying on the date.
+                    Funds with a confirmed SIP mandate on file show your entered ground truth. The rest are detected from your own purchase pattern — amount and next date are an estimate based on recent installments (this app only sees transactions that already happened, not bank-side mandates). Verify unconfirmed rows against your broker/AMC before relying on the date.
                   </div>
                   {totalUpcomingSipAmount > 0 && (
                     <div className="calc hl" style={{ marginBottom: 12, maxWidth: 280 }}>
@@ -1479,18 +1533,19 @@ export function MutualFundsTab({ mfCurrentSynced, mfPrincipalSynced, onSyncToPla
                       <thead>
                         <tr>
                           <th style={{ textAlign: 'left' }}>Fund</th>
-                          <th>Streams</th>
+                          <th>Mandates</th>
                           <th>Total/mo</th>
                           <th style={{ textAlign: 'left' }}>Expected next</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {activeSips.map(({ fund, status }) => {
+                        {activeSips.map(({ fund, status, confirmed }) => {
                           const overdue = status.streams.some((s) => (s.daysUntilNext ?? 0) < 0);
                           return (
                             <tr key={fund.id}>
                               <td className="fund-name" style={{ textAlign: 'left', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={fund.name}>
                                 {cleanFundDisplayName(fund.name)}
+                                {confirmed && <span className="tag ok" style={{ marginLeft: 6 }} title="Amount and dates below are from your confirmed SIP mandate, not inferred">Confirmed</span>}
                               </td>
                               <td title={status.streams.map((s) => `${fmtRupees(s.averageAmount)} every ~${Math.round(s.cadenceDays)}d`).join(' · ')}>
                                 {status.streams.length}

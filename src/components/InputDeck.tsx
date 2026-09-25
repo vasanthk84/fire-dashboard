@@ -1,5 +1,6 @@
 import type { Inputs } from '../types';
 import { NumberInput } from './NumberInput';
+import { OptionsYieldHint } from './OptionsYieldHint';
 
 interface InputDeckProps {
   inputs: Inputs;
@@ -212,6 +213,12 @@ export function InputDeck({ inputs, onInput }: InputDeckProps) {
       {INPUT_GROUPS.map((g) => (
         <div className="deck-card" key={g.title}>
           <h4>{g.title}</h4>
+          {g.title === 'Options income' && (
+            <OptionsYieldHint
+              portfolioValueLakhs={inputs.optionsPortfolioValue}
+              assumedYieldPct={inputs.optionsYieldPct}
+            />
+          )}
           <div className="fields">
             {g.fields.map((f) => (
               <InputField key={f.key} f={f} inputs={inputs} onInput={onInput} />
