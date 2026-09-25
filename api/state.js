@@ -21,13 +21,33 @@
  * `{ configured: false }` rather than erroring, so the app keeps working
  * exactly as it always has (localStorage-only) with nothing broken.
  *
- * Data model: one JSON blob under one fixed key. There's no login/auth in
- * this app, so there's no per-user partitioning to do — treat the deployed
- * URL itself as the access control, same as every other route here. The
- * blob's shape mirrors whatever the frontend sends (see
+ * Auth: this used to trust "the deployed URL itself" as access control —
+ * it wasn't. A GET here returns this app's ENTIRE financial plan (wealth,
+ * retirement corpus, full asset allocation, real-estate plans, every stored
+ * snapshot) and a *.vercel.app URL is not a secret — it's guessable/
+ * enumerable, and a plain unauthenticated GET (no browser, no session)
+ * could read all of it. Now gated behind a dedicated bearer token
+ * (SYNC_TOKEN), same "shared secret, timing-safe compare" shape as
+ * api/trading-income.js's outbound call and oi-analyzer's ADMIN_SECRET —
+ * checked on BOTH GET and POST. Unlike the "actual P&L" integrations, this
+ * fails CLOSED, not open: if SYNC_TOKEN isn't set server-side, cloud sync
+ * reports `{ configured: false }` (disabled) rather than staying reachable
+ * without a token, because "silently open" is exactly the bug being fixed
+ * here. The frontend sends this token via VITE_SYNC_TOKEN (see
+ * src/services/cloudSync.ts) — baked into the client bundle at build time,
+ * same as oi-analyzer's VITE_ADMIN_SECRET. That stops opportunistic/
+ * scripted requests hitting this URL directly (the actual exposure found),
+ * though — same caveat as any client-embedded secret — it doesn't
+ * withstand someone who deliberately reads the shipped JS bundle. Good
+ * enough for "not casually scrapeable," not a claim of stronger security.
+ *
+ * Data model: one JSON blob under one fixed key. There's still no
+ * per-user login in this app — SYNC_TOKEN is a single shared secret, not a
+ * user account — the blob's shape mirrors whatever the frontend sends (see
  * src/services/cloudSync.ts): the app's own localStorage keys, verbatim, so
  * this endpoint doesn't need to know or care about their internal shape.
  */
+const crypto = require('crypto');
 const { Redis } = require('@upstash/redis');
 
 const STATE_KEY = 'fire-dashboard:state:v1';
@@ -39,11 +59,28 @@ function getClient() {
   return new Redis({ url, token });
 }
 
+function isAuthorized(req) {
+  const expected = process.env.SYNC_TOKEN;
+  if (!expected) return false; // fail closed — unset means cloud sync is disabled, not open
+  const header = req.headers && req.headers.authorization;
+  const provided = header && header.toLowerCase().startsWith('bearer ') ? header.slice(7) : '';
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(provided);
+  if (expectedBuf.length !== providedBuf.length) {
+    // timingSafeEqual throws on length mismatch — compare against itself so
+    // the response time doesn't leak the real token's length either.
+    crypto.timingSafeEqual(expectedBuf, expectedBuf);
+    return false;
+  }
+  return crypto.timingSafeEqual(expectedBuf, providedBuf);
+}
+
 module.exports = async (req, res) => {
   const client = getClient();
-  if (!client) {
-    // Not an error — just "nothing to do yet". Lets the UI show a clear
-    // "cloud sync not set up" state instead of a scary failure.
+  if (!client || !isAuthorized(req)) {
+    // Not (necessarily) an error — matches the existing "nothing to do
+    // yet" convention. Also the response for "token missing/wrong", so a
+    // scanner probing this URL learns nothing more than "not configured".
     if (req.method === 'GET') return res.status(200).json({ configured: false });
     return res.status(200).json({ configured: false, saved: false });
   }

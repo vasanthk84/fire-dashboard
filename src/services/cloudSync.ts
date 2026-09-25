@@ -13,6 +13,15 @@
  * open tab/device risks a background tab clobbering what you just typed
  * elsewhere. This mirrors the Export/Import JSON buttons the Snapshots tab
  * already has, just backed by a server instead of a downloaded file.
+ *
+ * Auth: api/state.js now requires a bearer token (SYNC_TOKEN server-side)
+ * on every request — it used to trust the deployed URL as access control,
+ * which a plain unauthenticated GET could defeat. VITE_SYNC_TOKEN (must
+ * match SYNC_TOKEN) is baked into this client bundle at build time and
+ * sent below, same pattern oi-analyzer's VITE_ADMIN_SECRET already uses.
+ * If VITE_SYNC_TOKEN isn't set, requests still go out with no Authorization
+ * header — api/state.js just reports back `configured: false`, same as
+ * today when Upstash itself isn't configured, so nothing breaks either way.
  */
 
 // The localStorage keys this app actually stores real data under. UI-only
@@ -25,8 +34,13 @@ export interface CloudStateResponse {
   state?: (Record<string, unknown> & { updatedAt?: string }) | null;
 }
 
+function authHeaders(): Record<string, string> {
+  const token = import.meta.env.VITE_SYNC_TOKEN as string | undefined;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function fetchCloudState(): Promise<CloudStateResponse> {
-  const response = await fetch('/api/state');
+  const response = await fetch('/api/state', { headers: authHeaders() });
   if (!response.ok) throw new Error('Could not reach cloud sync.');
   return response.json();
 }
@@ -52,7 +66,7 @@ export async function pushCloudState(): Promise<{ updatedAt: string }> {
 
   const response = await fetch('/api/state', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(state)
   });
   const data = await response.json().catch(() => null);
