@@ -627,6 +627,10 @@ export default function App() {
                   <OptionsYieldHint
                     portfolioValueLakhs={inputs.optionsPortfolioValue}
                     assumedYieldPct={inputs.optionsYieldPct}
+                    onApplyActual={(pct) => {
+                      handleInput('optionsYieldPct', pct);
+                      void runCalculation({ optionsYieldPct: pct });
+                    }}
                   />
                 )}
                 <div className="drawer-grid">
