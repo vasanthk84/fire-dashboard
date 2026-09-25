@@ -4,5 +4,11 @@
     "api/cas/parse.py": {
       "maxDuration": 30
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/monthly-income-snapshot",
+      "schedule": "0 5 1 * *"
+    }
+  ]
 }

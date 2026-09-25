@@ -41,23 +41,18 @@
  * withstand someone who deliberately reads the shipped JS bundle. Good
  * enough for "not casually scrapeable," not a claim of stronger security.
  *
- * Data model: one JSON blob under one fixed key. There's still no
- * per-user login in this app — SYNC_TOKEN is a single shared secret, not a
- * user account — the blob's shape mirrors whatever the frontend sends (see
- * src/services/cloudSync.ts): the app's own localStorage keys, verbatim, so
- * this endpoint doesn't need to know or care about their internal shape.
+ * Data model: one JSON blob under one fixed key (STATE_KEY, from
+ * ./_lib/redis.js — shared with api/monthly-income-snapshot.js, which
+ * reads this key in-process to see the current plan inputs but writes its
+ * own captures to a separate, isolated key; see that file for why). There's
+ * still no per-user login in this app — SYNC_TOKEN is a single shared
+ * secret, not a user account — the blob's shape mirrors whatever the
+ * frontend sends (see src/services/cloudSync.ts): the app's own
+ * localStorage keys, verbatim, so this endpoint doesn't need to know or
+ * care about their internal shape.
  */
 const crypto = require('crypto');
-const { Redis } = require('@upstash/redis');
-
-const STATE_KEY = 'fire-dashboard:state:v1';
-
-function getClient() {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-  return new Redis({ url, token });
-}
+const { getClient, STATE_KEY } = require('./_lib/redis');
 
 function isAuthorized(req) {
   const expected = process.env.SYNC_TOKEN;

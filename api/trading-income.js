@@ -22,11 +22,11 @@
  * as api/state.js — so the UI simply hides the hint until both apps agree
  * on the token.
  *
- * Deliberately proxies only the aggregate /api/pnl-summary endpoint, never
- * /api/trades — this app has no business seeing per-trade rows, only the
- * net P&L totals needed to compare against the assumed yield.
+ * The actual upstream call lives in ./_lib/tradingIncome.js, shared with
+ * api/monthly-income-snapshot.js's automatic capture — this file is now
+ * just that shared logic plus the GET/method handling this route needs.
  */
-const DEFAULT_BASE_URL = 'https://zerodha-report.vercel.app';
+const { fetchTradingIncomeSummary } = require('./_lib/tradingIncome');
 
 module.exports = async (req, res) => {
   if (req.method !== 'GET') {
@@ -34,37 +34,6 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const token = process.env.TA_API_TOKEN;
-  if (!token) {
-    // Not an error — mirrors api/state.js's "nothing to do yet" convention.
-    return res.status(200).json({ configured: false });
-  }
-
-  const baseUrl = process.env.TRADE_ANALYTICS_URL || DEFAULT_BASE_URL;
-
-  try {
-    const upstream = await fetch(`${baseUrl}/api/pnl-summary`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    if (upstream.status === 401) {
-      // TA_API_TOKEN here doesn't match the one set on zerodha-report.
-      return res.status(200).json({ configured: false, error: 'token_mismatch' });
-    }
-    if (!upstream.ok) {
-      return res.status(200).json({ configured: true, error: `trade-analytics returned ${upstream.status}` });
-    }
-
-    const summary = await upstream.json();
-    return res.status(200).json({
-      configured: true,
-      asOf: summary.asOf,
-      currentFY: summary.currentFY, // { fy, foNet, eqNet, combinedNet, foTrades, eqTrades }
-      allTime: summary.allTime,
-      byFY: summary.byFY, // [{ fy, foNet, eqNet, combinedNet, foTrades, eqTrades }, ...] every FY on record
-      monthlyFO: summary.monthlyFO // [{ month, pnl, trades }, ...] gross F&O pnl, current FY only
-    });
-  } catch (error) {
-    return res.status(200).json({ configured: true, error: error.message || 'Could not reach trade-analytics.' });
-  }
+  const summary = await fetchTradingIncomeSummary();
+  return res.status(200).json(summary);
 };

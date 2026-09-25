@@ -24,6 +24,7 @@ import {
 import { InputDeck, INPUT_GROUPS, InputField } from './components/InputDeck';
 import { OptionsYieldHint } from './components/OptionsYieldHint';
 import { OptionsCapitalHint } from './components/OptionsCapitalHint';
+import { TradingIncomeHistory } from './components/TradingIncomeHistory';
 import { SaveSnapshotModal } from './components/SaveSnapshotModal';
 import { StatsDeck } from './components/StatsDeck';
 import { CloudSyncChip } from './components/CloudSyncChip';
@@ -641,6 +642,7 @@ export default function App() {
                         void runCalculation({ optionsYieldPct: pct });
                       }}
                     />
+                    <TradingIncomeHistory />
                   </>
                 )}
                 <div className="drawer-grid">
