@@ -1,4 +1,5 @@
 const { fetchTradingIncomeSummary } = require('./_lib/tradingIncome');
+const { fetchOptionsCapital, resolveOptionsCapital } = require('./_lib/optionsCapital');
 const { resolveOptionsYield } = require('./_lib/optionsYield');
 
 function growNMonths(principal, annualRate, monthlySIP, nMonths) {
@@ -175,7 +176,11 @@ module.exports = async (req, res) => {
 
     const mfSIP = parseVal(input.mfSIP, 0);
     const sipStepUpRate = parseVal(input.sipStepUpRate, 0.10);
-    const optionsPortfolioValue = parseVal(input.optionsPortfolioValue, 0);
+    const optionsCapital = resolveOptionsCapital(
+      input.optionsCapitalUseKite !== false ? await fetchOptionsCapital() : {},
+      parseVal(input.optionsPortfolioValue, 0), input.optionsCapitalUseKite !== false
+    );
+    const optionsPortfolioValue = optionsCapital.valueLakhs;
     const optionsYield = resolveOptionsYield(
       optionsPortfolioValue > 0 ? await fetchTradingIncomeSummary() : { configured: false },
       optionsPortfolioValue, parseVal(input.optionsYieldPct, 0.20)
@@ -652,7 +657,8 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({
       summary: {
-        optionsYield,
+        optionsYield: { ...optionsYield, capital: optionsCapital },
+        optionsCapital,
         startWealth: fireProjections[0].total,
         finalWealth,
         net401kINR,

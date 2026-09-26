@@ -8,7 +8,9 @@ export interface OptionsCapitalResponse {
   configured: boolean;
   error?: string;
   asOf?: string;
-  openCapitalDeployedRupees?: number;
+  openingBalanceRupees?: number;
+  availableMarginRupees?: number;
+  blockedMarginRupees?: number;
 }
 
 export async function fetchOptionsCapital(): Promise<OptionsCapitalResponse> {

@@ -629,14 +629,16 @@ export default function App() {
                 {g.title === 'Options income' && (
                   <>
                     <OptionsCapitalHint
-                      portfolioValueLakhs={inputs.optionsPortfolioValue}
-                      onApplyActual={(lakhs) => {
-                        handleInput('optionsPortfolioValue', lakhs);
-                        void runCalculation({ optionsPortfolioValue: lakhs });
+                      value={results?.summary.optionsCapital}
+                      useKite={inputs.optionsCapitalUseKite !== false}
+                      onModeChange={enabled => {
+                        handleInput('optionsCapitalUseKite', enabled);
+                        void runCalculation({ optionsCapitalUseKite: enabled });
                       }}
+                      onRefresh={() => { void runCalculation(); }}
                     />
                     <OptionsYieldHint
-                      portfolioValueLakhs={inputs.optionsPortfolioValue}
+                      portfolioValueLakhs={results?.summary.optionsCapital?.valueLakhs ?? inputs.optionsPortfolioValue}
                       assumedYieldPct={inputs.optionsYieldPct}
                       onApplyActual={(pct) => {
                         handleInput('optionsYieldPct', pct);

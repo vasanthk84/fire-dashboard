@@ -86,7 +86,7 @@ export const INPUT_GROUPS: GroupMeta[] = [
   {
     title: 'Options income',
     fields: [
-      { key: 'optionsPortfolioValue', label: 'Portfolio · ₹L', step: 0.1, title: 'Value of the stock portfolio you write covered calls / cash-secured puts against, in Lakhs' },
+      { key: 'optionsPortfolioValue', label: 'Manual / fallback capital · ₹L', step: 0.1, title: 'Value of the stock portfolio you write covered calls / cash-secured puts against, in Lakhs' },
       { key: 'optionsYieldPct', label: 'Premium yield %/yr', step: 0.5, pct: true, title: 'Annualised option premium income as a % of the options portfolio (e.g. covered call / CSP premium). Continues through retirement — this models an active options-selling strategy, not passive returns.' }
     ]
   },

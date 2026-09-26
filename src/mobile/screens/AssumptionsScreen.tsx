@@ -1,3 +1,4 @@
+import { OptionsCapitalHint } from '../../components/OptionsCapitalHint';
 import type { Inputs } from '../../types';
 import type { UseFirePlannerReturn } from '../../hooks/useFirePlanner';
 import { fmtL, fmtRupees } from '../../utils/formatters';
@@ -299,7 +300,7 @@ export function AssumptionsScreen({ planner }: AssumptionsScreenProps) {
       title: 'Options / CSP capital',
       fields: [
         {
-          label: 'Portfolio',
+          label: 'Manual / fallback capital',
           value: inputs.optionsPortfolioValue,
           step: 0.1,
           format: (n) => fmtL(n),
@@ -401,6 +402,10 @@ export function AssumptionsScreen({ planner }: AssumptionsScreenProps) {
           </div>
         </div>
 
+        <OptionsCapitalHint value={planner.results?.summary.optionsCapital}
+          useKite={inputs.optionsCapitalUseKite !== false}
+          onModeChange={enabled => { handleInput('optionsCapitalUseKite', enabled); void runCalculation({ optionsCapitalUseKite: enabled }); }}
+          onRefresh={() => { void runCalculation(); }} />
         {groups.map((g) => (
           <div className="m-card" key={g.title}>
             <div className="m-eyebrow">{g.title}</div>

@@ -230,6 +230,7 @@ export interface Inputs {
   mfSIP: number;
   sipStepUpRate: number;
   optionsPortfolioValue: number;
+  optionsCapitalUseKite?: boolean;
   optionsYieldPct: number;
   annualSalary: number;
   mfRate: number;
@@ -367,9 +368,18 @@ export interface WithdrawalSustainability {
   horizonYears: number;
 }
 
+export interface OptionsCapitalSnapshot {
+ source: 'kite' | 'manual';
+ valueLakhs: number;
+ reason?: string;
+ asOf?: string;
+ availableMarginRupees?: number;
+ blockedMarginRupees?: number;
+}
 export interface CalculationResults {
   summary: {
-    optionsYield?: { source: 'actual' | 'assumed'; annualRate: number; months: number; reason?: string; asOf?: string };
+    optionsCapital?: OptionsCapitalSnapshot;
+    optionsYield?: { capital?: OptionsCapitalSnapshot; source: 'actual' | 'assumed'; annualRate: number; months: number; reason?: string; asOf?: string };
     startWealth: number;
     finalWealth: number;
     net401kINR: number;
